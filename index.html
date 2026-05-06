@@ -3149,18 +3149,29 @@ function abrirCalendario(cliente) {
                 })()
               )
               /* Fila de estado ejecutivos */
-              , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",borderTop:"1px solid rgba(255,255,255,.08)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3102}}
-                , React.createElement('div', { style: {padding:"12px 0",textAlign:"center",borderRight:"1px solid rgba(255,255,255,.08)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3103}}
-                  , React.createElement('div', { style: {fontSize:24,fontWeight:900,color:"#FCA5A5"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3104}}, equipo.filter(function(v){return v.uf===0;}).length)
-                  , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:"0.1em",marginTop:3}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3105}}, "en cero" )
+              , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",borderTop:"1px solid rgba(255,255,255,.08)"}}
+                , React.createElement('div', { style: {padding:"12px 8px",textAlign:"center",borderRight:"1px solid rgba(255,255,255,.08)"}}
+                  , (function(){
+                      var cracks = equipo.filter(function(v){return v.uf>0;});
+                      if(cracks.length===0) return React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.4)",fontStyle:"italic",paddingTop:6}}, "Aún no hay CRACKS sumando, ¡VAMOS!");
+                      return React.createElement('div', null,
+                        React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}, "🌟 cracks que ya comenzaron a sumar!"),
+                        React.createElement('div', { style: {display:"flex",flexWrap:"wrap",gap:4,justifyContent:"center"}},
+                          cracks.map(function(v){
+                            var p = v.nombre.trim().split(/\s+/); var nombreCorto = p.length >= 2 ? p[0] + " " + p[1] : p[0];
+                            return React.createElement('span', {key:v.id, style: {background:"rgba(253,224,71,.2)",color:"#FDE047",borderRadius:99,padding:"3px 10px",fontSize:11,fontWeight:800}}, nombreCorto);
+                          })
+                        )
+                      );
+                    })()
                 )
-                , React.createElement('div', { style: {padding:"12px 0",textAlign:"center",borderRight:"1px solid rgba(255,255,255,.08)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3107}}
-                  , React.createElement('div', { style: {fontSize:24,fontWeight:900,color:"#86EFAC"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3108}}, equipo.filter(function(v){return v.uf>=18;}).length)
-                  , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:"0.1em",marginTop:3}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3109}}, "comisionando")
+                , React.createElement('div', { style: {padding:"12px 0",textAlign:"center",borderRight:"1px solid rgba(255,255,255,.08)"}}
+                  , React.createElement('div', { style: {fontSize:24,fontWeight:900,color:"#86EFAC"}}, equipo.filter(function(v){return v.uf>=18;}).length)
+                  , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:"0.1em",marginTop:3}}, "comisionando")
                 )
-                , React.createElement('div', { style: {padding:"12px 0",textAlign:"center"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3111}}
-                  , React.createElement('div', { style: {fontSize:24,fontWeight:900,color:"#FDE047"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3112}}, equipo.filter(function(v){return v.uf>=(info.elapsed<=7?12:25);}).length)
-                  , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:"0.1em",marginTop:3}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3113}}, "alto rendimiento" )
+                , React.createElement('div', { style: {padding:"12px 0",textAlign:"center"}}
+                  , React.createElement('div', { style: {fontSize:24,fontWeight:900,color:"#FDE047"}}, equipo.filter(function(v){return v.uf>=(info.elapsed<=14?12:25);}).length)
+                  , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:"0.1em",marginTop:3}}, "gran rendimiento" )
                 )
               )
               /* Eslogan */
@@ -3718,7 +3729,7 @@ function abrirCalendario(cliente) {
               React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3668}}
                 , React.createElement('div', { style: {display:"flex",gap:10,marginBottom:22,alignItems:"center",justifyContent:"space-between",flexWrap:"wrap"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3669}}
                   , React.createElement('div', { style: {display:"flex",gap:10,flexWrap:"wrap"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3670}}
-                    , [["dashboard","Dashboard"],["carga","Cargar UF/DPS"],["gestion","Gestionar Equipo"],["editar","✏️ Editar Estadísticas"],["meta","🎯 Meta del Equipo"],["excel","📊 Datos Excel"],["agentes0","🚨 Agentes en 0"]].map(function(item){
+                    , [["dashboard","Dashboard"],["carga","Cargar UF/DPS"],["gestion","Gestionar Equipo"],["editar","✏️ Editar Estadísticas"],["meta","🎯 Meta del Equipo"],["excel","📊 Datos Excel"],["agentes0","🚨 Agentes en 0"],["uflineales","📈 UF's Lineales"]].map(function(item){
                       return React.createElement('button', { key: item[0], onClick: function(){if(item[0]==="carga")abrirCarga();else setSupVista(item[0]);}, style: {padding:"10px 18px",border:"none",borderRadius:10,cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:13,background:supVista===item[0]?R:"#E5E7EB",color:supVista===item[0]?"#fff":"#374151"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3672}}, item[1]);
                     })
                   )
@@ -3822,6 +3833,7 @@ function abrirCalendario(cliente) {
                 , supVista==="meta"&&React.createElement(EditarMetaEquipo, { metaEquipo: metaEquipo, setMetaEquipo: setMetaEquipo, premioConecta: premioConecta, setPremioConecta: setPremioConecta, nombrePremio: nombrePremio, setNombrePremio: setNombrePremio, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3771}} )
                 , supVista==="excel"&&React.createElement(ExcelDataView, { equipo: equipo, setEquipo: setEquipo, info: info, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3772}} )
                 , supVista==="agentes0"&&React.createElement(AgentesEnCeroView, { equipo: equipo, info: info, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3773}} )
+                , supVista==="uflineales"&&React.createElement(UFLinealesView, { equipo: equipo, info: info })
                 , supVista==="dashboard"&&(
                   React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 320px",gap:22,alignItems:"start"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3774}}
                     , React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3775}}
@@ -4563,6 +4575,153 @@ function NuevoCierreForm({ BTN, INP, RD, cierresHoy, setCierresHoy }) {
 
       )
     )
+  );
+}
+
+
+// ── UF's Lineales ─────────────────────────────────────────────────
+function UFLinealesView({ equipo, info }) {
+  var RD = "#C41230";
+
+  function buildMesKey(offset) {
+    var d = new Date();
+    d.setMonth(d.getMonth() - offset);
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+  }
+  function buildMesLabel(offset) {
+    var d = new Date();
+    d.setMonth(d.getMonth() - offset);
+    return d.toLocaleString("es-CL", { month: "long", year: "numeric" });
+  }
+
+  // Load last 6 months from storage (each month is a separate Firebase doc)
+  var [mesesData, setMesesData] = useState([]);
+  var [cargando, setCargando] = useState(true);
+
+  useEffect(function() {
+    var offsets = [1, 2, 3, 4, 5, 6]; // ultimos 6 meses sin incluir el actual
+    var promises = offsets.map(function(offset) {
+      var mk = buildMesKey(offset);
+      var key = "equipo_" + mk;
+      return storageGet(key).then(function(data) {
+        return { offset: offset, mk: mk, label: buildMesLabel(offset), data: data };
+      }).catch(function() {
+        return { offset: offset, mk: mk, label: buildMesLabel(offset), data: null };
+      });
+    });
+    Promise.all(promises).then(function(results) {
+      // Para cada mes, calcular UF lineales usando los datos de ese mes
+      var meses = results.map(function(res) {
+        var mk = res.mk;
+        var label = res.label;
+        var equipoMes = res.data; // array de ejecutivos con sus UF de ese mes
+        var totalLineal = 0;
+        var calificados = [];
+
+        if (equipoMes && Array.isArray(equipoMes)) {
+          // Datos del mes cargados desde storage
+          equipoMes.forEach(function(vMes) {
+            // Buscar el ejecutivo en el equipo actual para obtener el nombre
+            var vActual = equipo.find(function(e) { return String(e.id) === String(vMes.id); });
+            if (!vActual) return;
+            var uf = vMes.uf || 0;
+            if (uf >= 12) {
+              totalLineal += uf;
+              calificados.push({ id: vMes.id, nombre: vActual.nombre, uf: uf });
+            }
+          });
+        } else {
+          // Fallback: usar historial del equipo actual (HISTORIAL_EXCEL + ediciones manuales)
+          equipo.forEach(function(v) {
+            var hist = v.historial || {};
+            var excelBase = (HISTORIAL_EXCEL[v.id] || HISTORIAL_EXCEL[String(v.id)] || {})[mk] || {};
+            var manualEdit = hist[mk] || {};
+            var d = Object.keys(manualEdit).length > 0 ? manualEdit : excelBase;
+            var uf = d.uf || 0;
+            if (uf >= 12) {
+              totalLineal += uf;
+              calificados.push({ id: v.id, nombre: v.nombre, uf: uf });
+            }
+          });
+        }
+
+        calificados.sort(function(a, b) { return b.uf - a.uf; });
+        return { mk: mk, label: label, total: totalLineal, calificados: calificados };
+      });
+      setMesesData(meses);
+      setCargando(false);
+    });
+  }, []);
+
+  // Mes actual: usar equipo en tiempo real
+  var totalMesActual = equipo.reduce(function(sum, v) {
+    return sum + (v.uf >= 12 ? v.uf : 0);
+  }, 0);
+  var calificadosMesActual = equipo
+    .filter(function(v) { return v.uf >= 12; })
+    .sort(function(a, b) { return b.uf - a.uf; });
+
+  function fmtUF2(n) {
+    var t = Math.floor(n * 100) / 100;
+    var f = parseFloat(t.toFixed(2));
+    return f.toString().replace(".", ",");
+  }
+  function primerNombreApellido(nombre) {
+    var p = nombre.trim().split(/\s+/);
+    if (p.length >= 2) return p[0] + " " + p[1];
+    return p[0];
+  }
+
+  return React.createElement('div', { style: { padding: "4px 0" } },
+    React.createElement('div', { style: { fontSize: 18, fontWeight: 900, color: RD, marginBottom: 4 } }, "📈 UF's Lineales"),
+    React.createElement('div', { style: { color: "#6B7280", fontSize: 13, marginBottom: 22 } },
+      "Suma mensual de UF solo de ejecutivos que alcanzaron ≥ 12 UF en cada mes."
+    ),
+
+    // Recuadro principal: MES ACTUAL (tiempo real)
+    React.createElement('div', {
+      style: { background: "linear-gradient(135deg,#C41230,#8B0418)", borderRadius: 20, padding: "28px 32px", marginBottom: 24, color: "#fff", boxShadow: "0 8px 32px rgba(196,18,48,.35)" }
+    },
+      React.createElement('div', { style: { fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", opacity: .7, marginBottom: 6 } },
+        "Mes en curso — " + buildMesLabel(0)
+      ),
+      React.createElement('div', { style: { fontSize: 13, opacity: .85, marginBottom: 14 } }, "Total UF's Lineales"),
+      React.createElement('div', { style: { fontSize: 52, fontWeight: 900, lineHeight: 1, marginBottom: 16 } }, fmtUF2(totalMesActual) + " UF"),
+      React.createElement('div', { style: { fontSize: 12, opacity: .75, marginBottom: 10 } },
+        calificadosMesActual.length + " ejecutivo(s) con ≥ 12 UF"
+      ),
+      calificadosMesActual.length > 0 && React.createElement('div', { style: { display: "flex", flexWrap: "wrap", gap: 8 } },
+        calificadosMesActual.map(function(v) {
+          return React.createElement('div', { key: v.id, style: { background: "rgba(255,255,255,.15)", borderRadius: 99, padding: "4px 14px", fontSize: 12, fontWeight: 700 } },
+            primerNombreApellido(v.nombre) + " — " + fmtUF2(v.uf) + " UF"
+          );
+        })
+      )
+    ),
+
+    // Ultimos 6 meses
+    cargando
+      ? React.createElement('div', { style: { color: "#9CA3AF", fontSize: 14, padding: 20, textAlign: "center" } }, "Cargando historial...")
+      : React.createElement('div', { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: 14 } },
+          mesesData.map(function(mes) {
+            return React.createElement('div', { key: mes.mk, style: { background: "#fff", borderRadius: 16, padding: "20px 22px", boxShadow: "0 3px 16px rgba(233,7,41,.07)", border: "1px solid rgba(233,7,41,.1)" } },
+              React.createElement('div', { style: { fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 } }, mes.label),
+              React.createElement('div', { style: { fontSize: 12, color: "#6B7280", marginBottom: 10 } }, "Total UF's Lineales"),
+              React.createElement('div', { style: { fontSize: 32, fontWeight: 900, color: RD, marginBottom: 10 } }, fmtUF2(mes.total) + " UF"),
+              React.createElement('div', { style: { fontSize: 11, color: "#9CA3AF", marginBottom: mes.calificados.length > 0 ? 8 : 0 } },
+                mes.calificados.length + " ejecutivo(s) con ≥ 12 UF"
+              ),
+              mes.calificados.length > 0 && React.createElement('div', { style: { display: "flex", flexDirection: "column", gap: 4 } },
+                mes.calificados.map(function(v) {
+                  return React.createElement('div', { key: v.id, style: { display: "flex", justifyContent: "space-between", fontSize: 12 } },
+                    React.createElement('span', { style: { fontWeight: 700, color: "#374151" } }, primerNombreApellido(v.nombre)),
+                    React.createElement('span', { style: { color: RD, fontWeight: 700 } }, fmtUF2(v.uf) + " UF")
+                  );
+                })
+              )
+            );
+          })
+        )
   );
 }
 
