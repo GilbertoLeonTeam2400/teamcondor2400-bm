@@ -2569,18 +2569,22 @@ function FunnelConversion({ equipo }) {
 function StatusFirebase({ sincronizado, error }) {
   if (!window.__fbDb) return (
     React.createElement('div', { style: {display:"inline-flex",alignItems:"center",gap:5,background:"#FEF3C7",border:"1px solid #FCD34D",borderRadius:99,padding:"3px 12px",fontSize:11,fontWeight:700,color:"#92400E"}}
-      , React.createElement('span', { style: {width:7,height:7,borderRadius:"50%",background:"#F59E0B",display:"inline-block"}} ), "Local (sin Firebase)"
+      , React.createElement('span', { style: {width:7,height:7,borderRadius:"50%",background:"#F59E0B",display:"inline-block"}} ), "Modo local (sin Firebase)"
     )
   );
   if (error) return (
-    React.createElement('div', { style: {display:"inline-flex",alignItems:"center",gap:5,background:"#FEF2F2",border:"1px solid #FCA5A5",borderRadius:99,padding:"3px 12px",fontSize:11,fontWeight:700,color:"#DC2626"}}
-      , React.createElement('span', { style: {width:7,height:7,borderRadius:"50%",background:"#EF4444",display:"inline-block"}} ), "Sin conexion — revisa tu red"
+    React.createElement('div', { style: {display:"inline-flex",alignItems:"center",gap:5,background:"#FEF3C7",border:"1px solid #FCD34D",borderRadius:99,padding:"3px 12px",fontSize:11,fontWeight:700,color:"#92400E"}}
+      , React.createElement('span', { style: {width:7,height:7,borderRadius:"50%",background:"#F59E0B",display:"inline-block"}} ), "Sin conexion a Firebase"
+    )
+  );
+  if (!sincronizado) return (
+    React.createElement('div', { style: {display:"inline-flex",alignItems:"center",gap:5,background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:99,padding:"3px 12px",fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.85)"}}
+      , React.createElement('span', { style: {width:7,height:7,borderRadius:"50%",background:"#FCD34D",display:"inline-block",animation:"pulse 0.8s infinite"}} ), "Conectando..."
     )
   );
   return (
-    React.createElement('div', { style: {display:"inline-flex",alignItems:"center",gap:5,background:sincronizado?"#DCFCE7":"#FEF3C7",border:"1px solid "+(sincronizado?"#86EFAC":"#FCD34D"),borderRadius:99,padding:"3px 12px",fontSize:11,fontWeight:700,color:sincronizado?"#15803D":"#92400E"}}
-      , React.createElement('span', { style: {width:7,height:7,borderRadius:"50%",background:sincronizado?"#22C55E":"#F59E0B",display:"inline-block",animation:"pulse 2s infinite"}} )
-      , sincronizado ? "Sincronizado en tiempo real" : "Conectando con Firebase..."
+    React.createElement('div', { style: {display:"inline-flex",alignItems:"center",gap:5,background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:99,padding:"3px 12px",fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.85)"}}
+      , React.createElement('span', { style: {width:7,height:7,borderRadius:"50%",background:"#22C55E",display:"inline-block",animation:"pulse 2s infinite"}} ), "En vivo"
     )
   );
 }
@@ -2621,7 +2625,10 @@ function abrirCalendario(cliente) {
     const key = "equipo_" + info.mesKey;
     if (window.__fbDb && window.__fbDoc && window.__fbOnSnapshot) {
       const ref = window.__fbDoc(window.__fbDb, "equipos", key);
+      // Usamos una ref para saber si ya llegaron datos (no la variable loaded del closure)
+      var fbRespondio = false;
       const unsub = window.__fbOnSnapshot(ref, function(snap) {
+        fbRespondio = true;
         // Si acabamos de guardar localmente, ignorar el primer snapshot de vuelta
         if (skipSnapshot.current) { skipSnapshot.current = false; setLoaded(true); setSincronizado(true); return; }
         if (snap.exists()) {
@@ -2630,49 +2637,48 @@ function abrirCalendario(cliente) {
           if (d && Array.isArray(d)) {
             // Merge HISTORIAL_EXCEL for any months not already in Firebase data
             var merged = d.map(function(v) {
-              // v.id from Firebase may be number or string - use String() to be safe
               var excelHist = HISTORIAL_EXCEL[v.id] || HISTORIAL_EXCEL[String(v.id)] || {};
               var currentHist = v.historial || {};
-              // Excel months are base data; Firebase months (from manual edits) take priority
               var mergedHist = Object.assign({}, excelHist, currentHist);
               return Object.assign({}, v, { historial: mergedHist });
             });
-            console.log("[LOAD] Firebase datos recibidos con historial Excel");
+            console.log("[LOAD] Firebase datos recibidos OK");
             merged = merged.map(function(x){ return Object.assign({rep:[]}, x); });
             setEquipo(merged);
           }
           const m = snapData.metaEquipo;
           if (m && typeof m === "number") setMetaEquipo(m);
         } else {
-          console.log("[LOAD] Firebase: documento no existe, usando historial Excel");
-          // No Firebase data yet - equipo already initialized with HISTORIAL_EXCEL
+          console.log("[LOAD] Firebase: documento no existe todavia");
         }
-        setLoaded(true); setSincronizado(true);
+        setFbError(false);
+        setLoaded(true);
+        setSincronizado(true);
       }, function(err) {
+        fbRespondio = true;
         console.error("[LOAD] Firebase onSnapshot error:", err);
         setFbError(true);
+        setSincronizado(false);
         storageGet(key).then(function(d){
           if(d && Array.isArray(d)) {
             var fallback = d.map(function(x){ return Object.assign({rep:[]}, x); });
             setEquipo(fallback);
           }
           setLoaded(true);
-          setSincronizado(false);
         });
       });
-      // Timeout: si en 8 segundos no llega respuesta, mostrar error
+      // Timeout: solo actua si Firebase NO respondio en 12 segundos
       var fbTimeout = setTimeout(function() {
-        if (!loaded) {
-          console.warn("[LOAD] Firebase timeout — sin respuesta en 8s");
+        if (!fbRespondio) {
+          console.warn("[LOAD] Firebase timeout — sin respuesta en 12s");
           setFbError(true);
           setLoaded(true);
         }
-      }, 8000);
+      }, 12000);
       return function() { unsub(); clearTimeout(fbTimeout); };
     } else {
       storageGet(key).then(function(d){
         if(d&&Array.isArray(d)){
-          // Re-inject historial from Excel for any missing months
           var merged2 = d.map(function(v){
             var eh = HISTORIAL_EXCEL[v.id] || HISTORIAL_EXCEL[String(v.id)] || {};
             var ch = v.historial || {};
