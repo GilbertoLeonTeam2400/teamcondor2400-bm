@@ -2372,7 +2372,7 @@ function HistorialPersonal({ histV, histLogout, info, hallMeses }) {
           )
           , React.createElement('div', { style: {fontSize:10,color:"rgba(255,255,255,.8)",marginTop:3,fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2292}}, pct+"% meta")
           , (function(){
-              var pos = getPosicionMes(histV.nombre, mes.label);
+              var pos = getPosicionMes(histV.nombre, m.label);
               if (!pos) return null;
               return React.createElement('div', {style:{fontSize:10,fontWeight:900,color:"#FCD34D",marginTop:3,background:"rgba(252,211,77,.2)",borderRadius:99,padding:"1px 8px",display:"inline-block"}},
                 pos===1?"🥇 #1 del equipo":pos===2?"🥈 #2 del equipo":pos===3?"🥉 #3 del equipo":"#"+pos+" del equipo"
