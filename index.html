@@ -2289,8 +2289,35 @@ function HistorialPersonal({ histV, histLogout, info }) {
   var mesM = histV.rep.reduce(function(s,r){return s+(r.mujeres||0);},0);
   var mesC = histV.rep.reduce(function(s,r){return s+(r.conecta||0);},0);
 
-  var MESES_ORDEN_H = ["2026-03","2026-02","2026-01","2025-12","2025-11","2025-10"];
-  var MESES_LABELS_H = {"2026-03":"Marzo 2026","2026-02":"Febrero 2026","2026-01":"Enero 2026","2025-12":"Diciembre 2025","2025-11":"Noviembre 2025","2025-10":"Octubre 2025"};
+  var MESES_ORDEN_H = (function() {
+    var arr = [];
+    for (var mi = 1; mi <= 6; mi++) {
+      var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - mi);
+      arr.push(d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0"));
+    }
+    return arr;
+  })();
+  var MESES_LABELS_H = (function() {
+    var obj = {};
+    MESES_ORDEN_H.forEach(function(mk) {
+      var p = mk.split("-");
+      var d = new Date(parseInt(p[0]), parseInt(p[1])-1, 1);
+      obj[mk] = (function(s){return s.charAt(0).toUpperCase()+s.slice(1);})(d.toLocaleString("es-CL", {month:"long",year:"numeric"}));
+    });
+    return obj;
+  })();
+  // Get position for each month from HALL_MESES
+  var HALL = (typeof HALL_MESES !== "undefined" ? HALL_MESES : window.HALL_MESES) || [];
+  function getPosicionMes(nombreEjec, labelMes) {
+    var mes = HALL.find(function(m){ return m.label === labelMes; });
+    if (!mes || !mes.top) return null;
+    var nombreUp = (nombreEjec||"").trim().toUpperCase();
+    var entry = mes.top.slice(0,5).find(function(t){
+      var tN = (t.nombre||"").trim().toUpperCase();
+      return tN === nombreUp || tN.includes(nombreUp) || nombreUp.includes(tN);
+    });
+    return entry ? entry.pos : null;
+  }
 
   var meses = [{ key:"actual", label:info.mes, uf:histV.uf, dps:histV.dps, meta:histV.metaUF, conecta:mesC, hombres:mesH, mujeres:mesM, esActual:true, rep:histV.rep }];
   MESES_ORDEN_H.forEach(function(mk) {
@@ -2340,6 +2367,13 @@ function HistorialPersonal({ histV, histLogout, info }) {
             , React.createElement('div', { style: {width:Math.min(pct,100)+"%",height:"100%",background:"rgba(255,255,255,.85)",borderRadius:99}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2290}} )
           )
           , React.createElement('div', { style: {fontSize:10,color:"rgba(255,255,255,.8)",marginTop:3,fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2292}}, pct+"% meta")
+          , (function(){
+              var pos = getPosicionMes(histV.nombre, mes.label);
+              if (!pos) return null;
+              return React.createElement('div', {style:{fontSize:10,fontWeight:900,color:"#FCD34D",marginTop:3,background:"rgba(252,211,77,.2)",borderRadius:99,padding:"1px 8px",display:"inline-block"}},
+                pos===1?"🥇 #1 del equipo":pos===2?"🥈 #2 del equipo":pos===3?"🥉 #3 del equipo":"#"+pos+" del equipo"
+              );
+            })()
           , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.6)",marginTop:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2293}}, "Clic para ver avance semanal"    )
         )
       );
@@ -2397,9 +2431,8 @@ function HistorialPersonal({ histV, histLogout, info }) {
             })
           )
         )
-        , React.createElement('div', { style: {marginTop:14,background:"#F0F9FF",borderRadius:10,padding:"10px 14px",fontSize:12,color:"#0369A1"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2350}}, "Los datos de meses anteriores son simulados. Desde el proximo mes se guardaran automaticamente."
+        
 
-        )
       )
 
       , modalMes && (
@@ -2983,7 +3016,7 @@ function abrirCalendario(cliente) {
     storageSet("crm_"+crmVid,data);
   }
   function abrirNuevoContacto(){setCrmForm({nombre:"",email:"",tel:"",plan:"",planUF:"",proxAct:"",proxFecha:"",nota:""});setCrmEdit(null);setCrmModal(true);}
-  function abrirEditContacto(c){setCrmForm({nombre:c.nombre,email:c.email,tel:c.tel,plan:c.plan,planUF:c.planUF||"",proxAct:c.proxAct,proxFecha:c.proxFecha,nota:c.nota||""});setCrmEdit(c.id);setCrmModal(true);}
+  function abrirEditContacto(c){setCrmForm({nombre:c.nombre||"",email:c.email||"",tel:c.tel||"",plan:c.plan||"",planUF:c.planUF||"",proxAct:c.proxAct||"",proxFecha:c.proxFecha||"",nota:c.nota||"",canal:c.canal||"",canalDetalle:c.canalDetalle||"",temperatura:c.temperatura||"tibio",oportunidad:c.oportunidad||"cotizando",fechaCierre:c.fechaCierre||"",motivoNoConcretar:c.motivoNoConcretar||""});setCrmEdit(c.id);setCrmModal(true);}
   function guardarContacto(){
     if(!crmForm.nombre)return;
     var anteriorCerrado = false;
@@ -3567,7 +3600,7 @@ function abrirCalendario(cliente) {
                         );
                       })()
                       /* Top5 del año */
-                      , React.createElement(Top5Badge, { nombre: histV.nombre, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3493}} )
+                      , React.createElement(Top5Badge, { nombre: histV.nombre, hallMeses: HALL_MESES })
                     )
                     , React.createElement(ProdEditableInner, { v: histV, equipo: equipo, setEquipo: setEquipo, guardarProductividad: guardarProductividad, guardandoProd: guardandoProd, info: info, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3495}} )
                   )
@@ -3626,7 +3659,7 @@ function abrirCalendario(cliente) {
                     [
                       {l:"Clientes Activos",v:activos.length,c:"#3B82F6"},
                       {l:"Contratos Cerrados",v:cerrados.length,c:"#16A34A"},
-                      {l:"No Concretados",v:perdidos.length,c:"#DC2626"},
+                      {l:"Cliente Desiste",v:perdidos.length,c:"#DC2626"},
                       {l:"UF's Cerradas",v:fmtUF(ufCerradas)+" UF",c:"#16A34A"},
                       {l:"UF Potencial Cierre",v:fmtUF(ufPotencial)+" UF",c:R},
                       {l:"⚠️ Sin seguimiento",v:sinSeguimiento,c:"#D97706"},
@@ -3641,7 +3674,7 @@ function abrirCalendario(cliente) {
 
                 /* Sub-tabs */
                 React.createElement('div', { style: {display:"flex",gap:8,marginBottom:18,flexWrap:"wrap"} },
-                  [["activos","👥 Clientes Activos"],["cerrados","✅ Clientes Cerrados"],["noConcretados","❌ No Concretados"],["ufCerradas","💰 UF's Cerradas"],["ufPotencial","🎯 UF Potencial Cierre"]].map(function(st){
+                  [["activos","👥 Clientes Activos"],["cerrados","✅ Clientes Cerrados"],["noConcretados","❌ Cliente Desiste"],["ufCerradas","💰 UF's Cerradas"],["ufPotencial","🎯 UF Potencial Cierre"]].map(function(st){
                     return React.createElement('button',{key:st[0],onClick:function(){setCrmVista(st[0]);},
                       style:{padding:"8px 14px",border:"none",borderRadius:10,cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:12,
                         background:crmVista===st[0]?R:"#E5E7EB",color:crmVista===st[0]?"#fff":"#374151"}},st[1]);
@@ -3681,7 +3714,32 @@ function abrirCalendario(cliente) {
                       c.oportunidad==="potencial" && React.createElement('div',{style:{display:"inline-block",background:"#FFF7ED",color:"#C2410C",border:"1px solid #FED7AA",borderRadius:99,padding:"2px 10px",fontSize:11,fontWeight:700,marginBottom:6}},"🎯 Potencial Cierre"),
                       c.nota && React.createElement('div',{style:{fontSize:11,color:"#555",fontStyle:"italic",borderTop:"1px solid #F0F4FA",paddingTop:6,marginTop:4}},c.nota),
                       extra,
-                      React.createElement('div',{style:{display:"flex",gap:8,marginTop:10}},
+                      React.createElement('div',{style:{marginBottom:8}},
+                        React.createElement('select',{
+                          value: c.proxAct||"",
+                          onChange: function(e){
+                            var newAct = e.target.value;
+                            var updated = crmData.map(function(x){
+                              if(x.id!==c.id) return x;
+                              var u = Object.assign({},x,{proxAct:newAct});
+                              if(newAct==="cerrado"&&!x.fechaCierre) u.fechaCierre = TODAY;
+                              return u;
+                            });
+                            saveCrmData(updated);
+                            if(newAct==="cerrado") setCierreRecordatorio(true);
+                          },
+                          style:{width:"100%",padding:"6px 10px",borderRadius:8,border:"1.5px solid #E5E7EB",fontSize:12,fontFamily:"inherit",fontWeight:700,background:"#FAFAFA",cursor:"pointer"}
+                        },
+                          React.createElement('option',{value:""},"— Cambiar estado —"),
+                          React.createElement('option',{value:"llamar"},"📞 Llamar"),
+                          React.createElement('option',{value:"cotizar"},"📋 Cotizar"),
+                          React.createElement('option',{value:"reunion"},"📅 Agendar reunión"),
+                          React.createElement('option',{value:"dps"},"✅ Tomar DPS"),
+                          React.createElement('option',{value:"cerrado"},"🎉 Contrato Cerrado"),
+                          React.createElement('option',{value:"perdido"},"❌ Cliente Desiste")
+                        )
+                      ),
+                      React.createElement('div',{style:{display:"flex",gap:8,marginTop:6}},
                         React.createElement('button',{onClick:function(){abrirEditContacto(c);},style:{flex:1,padding:"7px",background:BG,color:R,border:"1px solid rgba(233,7,41,.3)",borderRadius:8,fontSize:12,cursor:"pointer",fontFamily:"inherit",fontWeight:700}},"Editar"),
                         React.createElement('button',{onClick:function(){if(window.confirm("¿Eliminar este cliente?"))eliminarContacto(c.id);},style:{padding:"7px 12px",background:"#FEE2E2",color:"#B91C1C",border:"none",borderRadius:8,fontSize:12,cursor:"pointer",fontFamily:"inherit",fontWeight:700}},"✕")
                       )
@@ -3917,7 +3975,7 @@ function abrirCalendario(cliente) {
                 )
               )
             )
-            , recoNombre && React.createElement('div', { style: {background:"#fff",borderRadius:16,padding:"20px 22px",boxShadow:"0 4px 16px rgba(233,7,41,.09)",border:"1px solid rgba(233,7,41,.1)",marginBottom:16}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3629}}, React.createElement('div', { style: {fontSize:14,fontWeight:800,color:"#C41230",marginBottom:10}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3629}}, "🔍 Tu Score TOP 5 del Año"      ), React.createElement(Top5Badge, { nombre: recoNombre, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3629}} ))
+            , recoNombre && React.createElement('div', { style: {background:"#fff",borderRadius:16,padding:"20px 22px",boxShadow:"0 4px 16px rgba(233,7,41,.09)",border:"1px solid rgba(233,7,41,.1)",marginBottom:16}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3629}}, React.createElement('div', { style: {fontSize:14,fontWeight:800,color:"#C41230",marginBottom:10}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3629}}, "🔍 Tu Score TOP 5 del Año"      ), React.createElement(Top5Badge, { nombre: recoNombre, hallMeses: HALL_MESES }))
               , React.createElement('div', { style: {background:"#fff",borderRadius:20,padding:"28px 26px",boxShadow:"0 4px 24px rgba(233,7,41,.09)",border:"1px solid rgba(233,7,41,.1)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3630}}
               , React.createElement('div', { style: {display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:22,flexWrap:"wrap",gap:12}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3631}}
                 , React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3632}}
@@ -4119,14 +4177,34 @@ function abrirCalendario(cliente) {
                         , React.createElement('div', { style: {background:BG,borderRadius:14,padding:"14px 16px",marginBottom:12,border:"1px solid rgba(233,7,41,.12)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3819}}
                           , React.createElement('div', { style: {fontSize:11,fontWeight:800,color:R,marginBottom:10,textTransform:"uppercase"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3820}}, "Detalle UF" )
                           , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3821}}
-                            , [["Meta mes",selV.metaUF+" UF"],["Meta sem",(selV.metaUF/(WD_MES/WD_SEM))+" UF"],["Meta dia",fmtUF(selV.metaUF/WD_MES)+" UF"],["Logradas",fmtUF(selV.uf)+" UF"],["Proy.hoy",fmtUF(proyV(selV))+" UF"],["Faltan",fmtUF(Math.max(0,selV.metaUF-selV.uf))+" UF"]].map(function(item){return React.createElement('div', { key: item[0], style: {background:"#fff",borderRadius:8,padding:"8px 10px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3822}}, React.createElement('div', { style: {fontSize:10,color:"#6B7280"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3822}}, item[0]), React.createElement('div', { style: {fontSize:14,fontWeight:800,color:RD,marginTop:2}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3822}}, item[1]));})
+                            , [["Meta mes",selV.metaUF+" UF"],["Meta sem",fmtUF2(selV.metaUF/(WD_MES/WD_SEM))+" UF"],["Meta dia",fmtUF(selV.metaUF/WD_MES)+" UF"],["Logradas",fmtUF(selV.uf)+" UF"],["Proy.hoy",fmtUF(proyV(selV))+" UF"],["Faltan",fmtUF(Math.max(0,selV.metaUF-selV.uf))+" UF"]].map(function(item){return React.createElement('div', { key: item[0], style: {background:"#fff",borderRadius:8,padding:"8px 10px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3822}}, React.createElement('div', { style: {fontSize:10,color:"#6B7280"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3822}}, item[0]), React.createElement('div', { style: {fontSize:14,fontWeight:800,color:RD,marginTop:2}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3822}}, item[1]));})
                           )
                           , React.createElement('div', { style: {marginTop:10,fontSize:12,color:R,background:"#fff",borderRadius:8,padding:"6px 10px",fontWeight:600}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3824}}, "Ritmo: "+(info.left>0?fmtUF(Math.max(0,selV.metaUF-selV.uf)/info.left):"---")+" UF/dia en "+info.left+" dias")
                         )
                         , React.createElement('div', { style: {background:"#F0FDF4",borderRadius:14,padding:"14px 16px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3826}}
                           , React.createElement('div', { style: {fontSize:11,fontWeight:800,color:"#16A34A",marginBottom:8,textTransform:"uppercase"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3827}}, "Detalle DPS" )
                           , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3828}}
-                            , [["Meta mes",selV.metaDPS+" DPS"],["Logradas",selV.dps+" DPS"]].map(function(item){return React.createElement('div', { key: item[0], style: {background:"#fff",borderRadius:8,padding:"8px 10px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3829}}, React.createElement('div', { style: {fontSize:10,color:"#6B7280"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3829}}, item[0]), React.createElement('div', { style: {fontSize:14,fontWeight:800,color:RD,marginTop:2}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3829}}, item[1]));})
+                            , (function(){
+    return [
+      React.createElement('div', {key:"metaDPS", style:{background:"#fff",borderRadius:8,padding:"8px 10px"}},
+        React.createElement('div', {style:{fontSize:10,color:"#6B7280"}}, "Meta mes"),
+        React.createElement('input', {type:"number",min:"0",step:"1",
+          value: selV.metaDPS,
+          onChange: function(e){
+            var val = parseInt(e.target.value)||0;
+            var newEq = equipo.map(function(x){return x.id===selV.id?Object.assign({},x,{metaDPS:val}):x;});
+            setEquipo(newEq);
+            if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc) window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",info.mesKey),{equipo:newEq,metaEquipo:metaEquipo});
+          },
+          style:{fontSize:14,fontWeight:800,color:RD,border:"none",borderBottom:"1.5px solid "+RD,outline:"none",width:"100%",background:"transparent",padding:"2px 0"}
+        })
+      ),
+      React.createElement('div', {key:"logDPS", style:{background:"#fff",borderRadius:8,padding:"8px 10px"}},
+        React.createElement('div', {style:{fontSize:10,color:"#6B7280"}}, "Logradas"),
+        React.createElement('div', {style:{fontSize:14,fontWeight:800,color:RD,marginTop:2}}, selV.dps+" DPS")
+      )
+    ];
+  })()
                           )
                         )
                       )
@@ -4306,27 +4384,30 @@ function Top5Lookup({ equipo }) {
         , React.createElement('option', { value: "", __self: this, __source: {fileName: _jsxFileName, lineNumber: 3918}}, "Selecciona tu nombre"  )
         , equipo.map(function(v){return React.createElement('option', { key: v.id, value: v.nombre, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3919}}, v.nombre);})
       )
-      , top5Name && React.createElement(Top5Badge, { nombre: top5Name, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3921}} )
+      , top5Name && React.createElement(Top5Badge, { nombre: top5Name, hallMeses: HALL_MESES })
     )
   );
 }
 
 // ── Top 5 Badge ───────────────────────────────────────────────────
-function Top5Badge({ nombre }) {
+function Top5Badge({ nombre, hallMeses }) {
   const anioActual = new Date().getFullYear();
   const hoy = new Date();
   const mesActual = hoy.getMonth(); // 0-indexed
+  const HALL = hallMeses || window.HALL_MESES || [];
 
   // Only count CLOSED months = those in HALL_MESES for this year
-  const mesesCerrados = (window.HALL_MESES || []).filter(function(m){
+  const mesesCerrados = HALL.filter(function(m){
     return parseInt((m.label||"").split(" ").pop()) === anioActual;
   }).length;
 
-  // Count how many times in TOP5 of CLOSED months
-  const veces = (window.HALL_MESES || []).filter(function(m){
+  // Count how many times in TOP5 of CLOSED months - use includes for partial name match
+  const nombreUp = (nombre||"").trim().toUpperCase();
+  const veces = HALL.filter(function(m){
     const labelAnio = parseInt((m.label||"").split(" ").pop());
     return labelAnio === anioActual && m.top && m.top.slice(0,5).some(function(t){
-      return t.nombre && t.nombre.toUpperCase() === nombre.toUpperCase();
+      var tNombre = (t.nombre||"").trim().toUpperCase();
+      return tNombre === nombreUp || tNombre.includes(nombreUp) || nombreUp.includes(tNombre);
     });
   }).length;
 
@@ -4381,13 +4462,14 @@ function ProdEditableInner({ v, equipo, setEquipo, guardarProductividad, guardan
       var rep = eq.rep.length>0 ? eq.rep.slice() : [{fecha:new Date().toLocaleDateString("es-CL"),contactos:0,cot:0,cierres:0,uf:0,dps:0,nota:"Ajuste",hombres:0,mujeres:0,conecta:0}];
       var acum = function(campo) { return rep.slice(0,-1).reduce(function(s,r){return s+(r[campo]||0);},0); };
       var ultimo = Object.assign({}, rep[rep.length-1]);
-      ultimo.uf      = Math.max(0, parseFloat(localUF)  - acum("uf"));
-      ultimo.dps     = Math.max(0, parseInt(localDPS)   - acum("dps"));
-      ultimo.conecta = Math.max(0, parseInt(localCon)   - acum("conecta"));
-      ultimo.hombres = Math.max(0, parseInt(localHom)   - acum("hombres"));
-      ultimo.mujeres = Math.max(0, parseInt(localMuj)   - acum("mujeres"));
+      var _uf=parseFloat(localUF)||0, _dps=parseInt(localDPS)||0, _con=parseInt(localCon)||0, _hom=parseInt(localHom)||0, _muj=parseInt(localMuj)||0;
+      ultimo.uf      = Math.max(0, _uf  - acum("uf"));
+      ultimo.dps     = Math.max(0, _dps - acum("dps"));
+      ultimo.conecta = Math.max(0, _con - acum("conecta"));
+      ultimo.hombres = Math.max(0, _hom - acum("hombres"));
+      ultimo.mujeres = Math.max(0, _muj - acum("mujeres"));
       rep[rep.length-1] = ultimo;
-      return Object.assign({}, eq, {rep:rep, uf:parseFloat(parseFloat(localUF).toFixed(2)), dps:parseInt(localDPS)});
+      return Object.assign({}, eq, {rep:rep, uf:parseFloat(_uf.toFixed(2)), dps:_dps});
     });
     // Actualizar estado
     setEquipo(nuevoEquipo);
@@ -4440,22 +4522,22 @@ function ProdEditableInner({ v, equipo, setEquipo, guardarProductividad, guardan
         , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4052}}
           , React.createElement('div', { style: {background:"#FFFBEB",borderRadius:12,padding:"14px 16px",border:"1px solid #FDE68A"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4053}}
             , React.createElement('div', { style: {fontSize:11,fontWeight:700,color:"#D97706",marginBottom:6,textTransform:"uppercase"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4054}}, "UF cerradas" )
-            , React.createElement('input', { type: "number", step: "0.001", min: "0", value: localUF, onChange: function(e){setLocalUF(parseFloat(e.target.value)||0);}, style: {width:"100%",fontSize:28,fontWeight:900,color:"#D97706",border:"none",background:"transparent",outline:"none"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4055}} )
+            , React.createElement('input', { type: "number", step: "0.001", min: "0", value: localUF, onFocus: function(e){if(parseFloat(e.target.value)===0)setLocalUF("");}, onChange: function(e){setLocalUF(e.target.value===""?"":parseFloat(e.target.value)||0);}, style: {width:"100%",fontSize:28,fontWeight:900,color:"#D97706",border:"none",background:"transparent",outline:"none"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4055}} )
             , React.createElement('div', { style: {fontSize:10,color:"#92400E",marginTop:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4056}}, "Total acumulado del mes"   )
           )
           , React.createElement('div', { style: {background:"#F0FDF4",borderRadius:12,padding:"14px 16px",border:"1px solid #86EFAC"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4058}}
             , React.createElement('div', { style: {fontSize:11,fontWeight:700,color:"#16A34A",marginBottom:6,textTransform:"uppercase"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4059}}, "DPS realizadas" )
-            , React.createElement('input', { type: "number", min: "0", value: localDPS, onChange: function(e){setLocalDPS(parseInt(e.target.value)||0);}, style: {width:"100%",fontSize:28,fontWeight:900,color:"#16A34A",border:"none",background:"transparent",outline:"none"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4060}} )
+            , React.createElement('input', { type: "number", min: "0", value: localDPS, onFocus: function(e){if(parseInt(e.target.value)===0)setLocalDPS("");}, onChange: function(e){setLocalDPS(e.target.value===""?"":parseInt(e.target.value)||0);}, style: {width:"100%",fontSize:28,fontWeight:900,color:"#16A34A",border:"none",background:"transparent",outline:"none"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4060}} )
             , React.createElement('div', { style: {fontSize:10,color:"#166534",marginTop:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4061}}, "Total acumulado del mes"   )
           )
           , React.createElement('div', { style: {background:"#ECFDF5",borderRadius:12,padding:"14px 16px",border:"1px solid #6EE7B7"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4063}}
             , React.createElement('div', { style: {fontSize:11,fontWeight:700,color:"#059669",marginBottom:6,textTransform:"uppercase"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4064}}, "Planes Conecta" )
-            , React.createElement('input', { type: "number", min: "0", value: localCon, onChange: function(e){setLocalCon(parseInt(e.target.value)||0);}, style: {width:"100%",fontSize:28,fontWeight:900,color:"#059669",border:"none",background:"transparent",outline:"none"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4065}} )
+            , React.createElement('input', { type: "number", min: "0", value: localCon, onFocus: function(e){if(parseInt(e.target.value)===0)setLocalCon("");}, onChange: function(e){setLocalCon(e.target.value===""?"":parseInt(e.target.value)||0);}, style: {width:"100%",fontSize:28,fontWeight:900,color:"#059669",border:"none",background:"transparent",outline:"none"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4065}} )
             , React.createElement('div', { style: {fontSize:10,color:"#065F46",marginTop:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4066}}, "Total acumulado del mes"   )
           )
           , React.createElement('div', { style: {background:"#FDF2F8",borderRadius:12,padding:"14px 16px",border:"1px solid #F9A8D4"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4068}}
             , React.createElement('div', { style: {fontSize:11,fontWeight:700,color:"#9D174D",marginBottom:6,textTransform:"uppercase"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4069}}, "Titulares Mujer" )
-            , React.createElement('input', { type: "number", min: "0", value: localMuj, onChange: function(e){setLocalMuj(parseInt(e.target.value)||0);}, style: {width:"100%",fontSize:28,fontWeight:900,color:"#9D174D",border:"none",background:"transparent",outline:"none"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4070}} )
+            , React.createElement('input', { type: "number", min: "0", value: localMuj, onFocus: function(e){if(parseInt(e.target.value)===0)setLocalMuj("");}, onChange: function(e){setLocalMuj(e.target.value===""?"":parseInt(e.target.value)||0);}, style: {width:"100%",fontSize:28,fontWeight:900,color:"#9D174D",border:"none",background:"transparent",outline:"none"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4070}} )
             , React.createElement('div', { style: {fontSize:10,color:"#831843",marginTop:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4071}}, localPctM, "% del total"  )
           )
           , React.createElement('div', { style: {gridColumn:"1/-1",background:"#EFF6FF",borderRadius:16,padding:"24px 22px",border:"3px solid #1D4ED8",boxShadow:"0 6px 24px rgba(29,78,216,.15)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4073}}
@@ -4463,7 +4545,7 @@ function ProdEditableInner({ v, equipo, setEquipo, guardarProductividad, guardan
             , React.createElement('div', { style: {display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4075}}
               , React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 4076}}
                 , React.createElement('div', { style: {fontSize:11,color:"#3B82F6",marginBottom:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4077}}, "Total contratos hombre este mes"    )
-                , React.createElement('input', { type: "number", min: "0", value: localHom, onChange: function(e){setLocalHom(parseInt(e.target.value)||0);}, style: {fontSize:64,fontWeight:900,color:"#1D4ED8",border:"none",background:"transparent",outline:"none",width:160,lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4078}} )
+                , React.createElement('input', { type: "number", min: "0", value: localHom, onFocus: function(e){if(parseInt(e.target.value)===0)setLocalHom("");}, onChange: function(e){setLocalHom(e.target.value===""?"":parseInt(e.target.value)||0);}, style: {fontSize:64,fontWeight:900,color:"#1D4ED8",border:"none",background:"transparent",outline:"none",width:160,lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4078}} )
               )
               , React.createElement('div', { style: {textAlign:"center",background:"#1D4ED8",borderRadius:14,padding:"14px 20px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4080}}
                 , React.createElement('div', { style: {fontSize:38,fontWeight:900,color:"#FCD34D"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4081}}, localPctH, "%")
@@ -5879,7 +5961,7 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
               )
               , React.createElement('div', { style: {background:"rgba(252,211,77,.15)",borderRadius:16,padding:"20px 18px",textAlign:"center",border:"2px solid rgba(252,211,77,.4)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4805}}
                 , React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4806}}, "Lo que ganaré"  )
-                , React.createElement('div', { style: {fontSize:"clamp(18px,6vw,38px)",fontWeight:900,color:"#FCD34D",lineHeight:1,wordBreak:"break-word"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4807}}, fmt(totalMeta))
+                , React.createElement('div', { style: {fontSize:"clamp(15px,4.5vw,28px)",fontWeight:900,color:"#FCD34D",lineHeight:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4807}}, fmt(totalMeta))
                 , React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.5)",marginTop:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4808}}, "comisión + premios"  )
               )
             )
@@ -5909,6 +5991,70 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
             )
           )
 
+
+          /* ── CARD 2: Lo que has logrado ── */
+          , React.createElement('div', { style: {background:"linear-gradient(135deg,#064E3B,#065F46)",borderRadius:20,padding:"28px 26px",marginBottom:20,boxShadow:"0 8px 32px rgba(6,78,59,.3)"} },
+            React.createElement('div', { style: {fontSize:12,color:"rgba(255,255,255,.7)",textTransform:"uppercase",letterSpacing:"0.2em",marginBottom:8} }, "📊 Lo que llevas logrado"),
+            React.createElement('div', { style: {fontSize:16,fontWeight:900,color:"#6EE7B7",marginBottom:20,lineHeight:1.3} }, "Tu avance real este mes"),
+            (function(){
+              // UF por semana desde reportes
+              var reps = v.rep || [];
+              var ufTotal = v.uf || 0;
+              var metasSem = v.metasSemanas || [Math.round(v.metaUF*0.25),Math.round(v.metaUF*0.25),Math.round(v.metaUF*0.25),Math.round(v.metaUF*0.25)];
+              // Conecta logrados
+              var conectaLogrado = reps.reduce(function(s,r){return s+(r.conecta||0);},0);
+              var conectaComprometido = premios[0]?premios[0].cantidad||0:0;
+              // UF por semana real (agrupar reportes por semana del mes)
+              var ufPorSemana = [0,0,0,0];
+              reps.forEach(function(r) {
+                var fecha = r.fecha ? new Date(r.fecha.split("/").reverse().join("-")) : null;
+                if (!fecha) return;
+                var dia = fecha.getDate();
+                var sem = dia<=7?0:dia<=14?1:dia<=21?2:3;
+                ufPorSemana[sem] += r.uf||0;
+              });
+              var semColors = ["#3B82F6","#8B5CF6","#F59E0B","#16A34A"];
+              return React.createElement('div', null,
+                React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16} },
+                  React.createElement('div', { style: {background:"rgba(255,255,255,.1)",borderRadius:16,padding:"20px 18px",textAlign:"center"} },
+                    React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:8} }, "UF logradas"),
+                    React.createElement('div', { style: {fontSize:52,fontWeight:900,color:"#6EE7B7",lineHeight:1} }, fmtUF2(ufTotal)),
+                    React.createElement('div', { style: {fontSize:13,color:"rgba(255,255,255,.6)",marginTop:4} }, "de "+ufMeta+" comprometidas")
+                  ),
+                  React.createElement('div', { style: {background:"rgba(110,231,183,.15)",borderRadius:16,padding:"20px 18px",textAlign:"center",border:"2px solid rgba(110,231,183,.4)"} },
+                    React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:4} }, "Comisión lograda"),
+                    React.createElement('div', { style: {fontSize:"clamp(15px,4.5vw,26px)",fontWeight:900,color:"#6EE7B7",lineHeight:1,whiteSpace:"nowrap"} }, fmt(calcComision(ufTotal))),
+                    React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.5)",marginTop:4} }, "según UF cerradas")
+                  )
+                ),
+                React.createElement('div', { style: {background:"rgba(255,255,255,.08)",borderRadius:14,padding:"14px 16px",marginBottom:12} },
+                  React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.6)",marginBottom:10,fontWeight:700,textTransform:"uppercase"} }, "UF por semana logradas"),
+                  React.createElement('div', { style: {display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8} },
+                    [0,1,2,3].map(function(si){
+                      var ufSem = parseFloat(ufPorSemana[si].toFixed(2));
+                      var metaSem = metasSem[si]||0;
+                      var pct = metaSem>0?Math.min(100,Math.round((ufSem/metaSem)*100)):0;
+                      return React.createElement('div',{key:si,style:{textAlign:"center",background:"rgba(255,255,255,.08)",borderRadius:10,padding:"8px 4px"}},
+                        React.createElement('div',{style:{fontSize:9,color:"rgba(255,255,255,.5)",marginBottom:4}},"Sem "+(si+1)),
+                        React.createElement('div',{style:{fontSize:16,fontWeight:900,color:semColors[si]}},fmtUF2(ufSem)),
+                        React.createElement('div',{style:{fontSize:9,color:"rgba(255,255,255,.4)"}},pct+"%")
+                      );
+                    })
+                  )
+                ),
+                React.createElement('div', { style: {background:"rgba(255,255,255,.08)",borderRadius:14,padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"} },
+                  React.createElement('div', null,
+                    React.createElement('div',{style:{fontSize:11,color:"rgba(255,255,255,.6)",textTransform:"uppercase",fontWeight:700}},"Plan Conecta logrados"),
+                    React.createElement('div',{style:{fontSize:24,fontWeight:900,color:"#6EE7B7",marginTop:2}},conectaLogrado)
+                  ),
+                  React.createElement('div',{style:{textAlign:"right"}},
+                    React.createElement('div',{style:{fontSize:11,color:"rgba(255,255,255,.6)",textTransform:"uppercase",fontWeight:700}},"Comprometidos"),
+                    React.createElement('div',{style:{fontSize:24,fontWeight:900,color:"rgba(255,255,255,.5)",marginTop:2}},conectaComprometido)
+                  )
+                )
+              );
+            })()
+          )
 
           , React.createElement('button', { onClick: function(){setPinOk(false);setSelId("");setPinCal("");},
             style: {width:"100%",padding:"12px",background:"#F3F4F6",color:"#374151",border:"none",borderRadius:10,fontSize:14,cursor:"pointer",fontWeight:600}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4838}}, "Cerrar sesión"
