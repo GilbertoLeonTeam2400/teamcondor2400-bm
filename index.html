@@ -2217,9 +2217,9 @@ function HistorialTresMeses({ vid, info }) {
           if (v && v.uf > 0) {
             var entry = {
               key: key, label: lbl,
-              contactos: v.rep ? v.rep.reduce(function(s,r){return s+(r.contactos||0);},0) : 0,
-              cot:       v.rep ? v.rep.reduce(function(s,r){return s+(r.cot||0);},0)       : 0,
-              cierres:   v.rep ? v.rep.reduce(function(s,r){return s+(r.cierres||0);},0)   : 0,
+              contactos: (v.rep||[]).reduce(function(s,r){return s+(r.contactos||0);},0),
+              cot:       (v.rep||[]).reduce(function(s,r){return s+(r.cot||0);},0)      ,
+              cierres:   (v.rep||[]).reduce(function(s,r){return s+(r.cierres||0);},0)  ,
               dps:  v.dps    || 0,
               uf:   v.uf     || 0,
               meta: v.metaUF || 50,
@@ -2280,14 +2280,15 @@ function HistorialTresMeses({ vid, info }) {
 }
 
 
-function HistorialPersonal({ histV, histLogout, info }) {
+function HistorialPersonal({ histV, histLogout, info, hallMeses }) {
   var R = "#e90729"; var RD = "#8B0418"; var BG = "#FFF5F6";
   var [modalMes, setModalMes] = React.useState(null);
 
   // Historial de meses anteriores - se actualiza desde Firebase
-  var mesH = histV.rep.reduce(function(s,r){return s+(r.hombres||0);},0);
-  var mesM = histV.rep.reduce(function(s,r){return s+(r.mujeres||0);},0);
-  var mesC = histV.rep.reduce(function(s,r){return s+(r.conecta||0);},0);
+  var _rep = histV.rep || [];
+  var mesH = _rep.reduce(function(s,r){return s+(r.hombres||0);},0);
+  var mesM = _rep.reduce(function(s,r){return s+(r.mujeres||0);},0);
+  var mesC = _rep.reduce(function(s,r){return s+(r.conecta||0);},0);
 
   var MESES_ORDEN_H = (function() {
     var arr = [];
@@ -2307,19 +2308,22 @@ function HistorialPersonal({ histV, histLogout, info }) {
     return obj;
   })();
   // Get position for each month from HALL_MESES
-  var HALL = (typeof HALL_MESES !== "undefined" ? HALL_MESES : window.HALL_MESES) || [];
+  var HALL = hallMeses || window.HALL_MESES || [];
   function getPosicionMes(nombreEjec, labelMes) {
-    var mes = HALL.find(function(m){ return m.label === labelMes; });
-    if (!mes || !mes.top) return null;
-    var nombreUp = (nombreEjec||"").trim().toUpperCase();
-    var entry = mes.top.slice(0,5).find(function(t){
-      var tN = (t.nombre||"").trim().toUpperCase();
-      return tN === nombreUp || tN.includes(nombreUp) || nombreUp.includes(tN);
-    });
-    return entry ? entry.pos : null;
+    try {
+      if (!HALL || !HALL.length) return null;
+      var mes = HALL.find(function(m){ return m.label === labelMes; });
+      if (!mes || !mes.top) return null;
+      var nombreUp = (nombreEjec||"").trim().toUpperCase();
+      var entry = mes.top.slice(0,5).find(function(t){
+        var tN = (t.nombre||"").trim().toUpperCase();
+        return tN === nombreUp || tN.includes(nombreUp) || nombreUp.includes(tN);
+      });
+      return entry ? entry.pos : null;
+    } catch(e) { return null; }
   }
 
-  var meses = [{ key:"actual", label:info.mes, uf:histV.uf, dps:histV.dps, meta:histV.metaUF, conecta:mesC, hombres:mesH, mujeres:mesM, esActual:true, rep:histV.rep }];
+  var meses = [{ key:"actual", label:info.mes, uf:histV.uf, dps:histV.dps, meta:histV.metaUF, conecta:mesC, hombres:mesH, mujeres:mesM, esActual:true, rep:histV.rep||[] }];
   MESES_ORDEN_H.forEach(function(mk) {
     if (mk === info.mesKey) return;
     var h = (histV.historial || {})[mk];
@@ -2516,9 +2520,9 @@ function PanelAlertas({ equipo, proyV }) {
 
 // ── Embudo de conversion del equipo ──────────────────────────────
 function FunnelConversion({ equipo }) {
-  var contactos = equipo.reduce(function(s,v){return s+v.rep.reduce(function(a,r){return a+(r.contactos||0);},0);},0);
-  var cot       = equipo.reduce(function(s,v){return s+v.rep.reduce(function(a,r){return a+(r.cot||0);},0);},0);
-  var cierres   = equipo.reduce(function(s,v){return s+v.rep.reduce(function(a,r){return a+(r.cierres||0);},0);},0);
+  var contactos = equipo.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(r.contactos||0);},0);},0);
+  var cot       = equipo.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(r.cot||0);},0);},0);
+  var cierres   = equipo.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(r.cierres||0);},0);},0);
   var dps       = equipo.reduce(function(s,v){return s+v.dps;},0);
 
   var pasos = [
@@ -2629,6 +2633,7 @@ function abrirCalendario(cliente) {
               return Object.assign({}, v, { historial: mergedHist });
             });
             console.log("[LOAD] Firebase datos recibidos con historial Excel");
+            merged = merged.map(function(x){ return Object.assign({rep:[]}, x); });
             setEquipo(merged);
           }
           const m = snapData.metaEquipo;
@@ -2639,7 +2644,8 @@ function abrirCalendario(cliente) {
         }
         setLoaded(true); setSincronizado(true);
       }, function() {
-        storageGet(key).then(function(d){if(d&&Array.isArray(d))setEquipo(d); setLoaded(true);});
+        storageGet(key).then(function(d){if(d&&Array.isArray(d))d = d.map(function(x){ return Object.assign({rep:[]}, x); });
+      setEquipo(d); setLoaded(true);});
       });
       return unsub;
     } else {
@@ -2651,7 +2657,8 @@ function abrirCalendario(cliente) {
             var ch = v.historial || {};
             return Object.assign({},v,{historial:Object.assign({},eh,ch)});
           });
-          setEquipo(merged2);
+          merged2 = merged2.map(function(x){ return Object.assign({rep:[]}, x); });
+        setEquipo(merged2);
         }
         setLoaded(true);
       });
@@ -2777,9 +2784,9 @@ function abrirCalendario(cliente) {
   const totDPS  = equipo.reduce(function(s,v){return s+v.dps;},0);
   const falta   = Math.max(0, META_UF - totUF);
   const xCrack  = equipo.length > 0 ? fmtUF2(falta/equipo.length) : "0";
-  const totHombres = equipo.reduce(function(s,v){return s+v.rep.reduce(function(a,r){return a+(r.hombres||0);},0);},0);
-  const totMujeres = equipo.reduce(function(s,v){return s+v.rep.reduce(function(a,r){return a+(r.mujeres||0);},0);},0);
-  const totConecta = equipo.reduce(function(s,v){return s+v.rep.reduce(function(a,r){return a+(r.conecta||0);},0);},0);
+  const totHombres = equipo.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(r.hombres||0);},0);},0);
+  const totMujeres = equipo.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(r.mujeres||0);},0);},0);
+  const totConecta = equipo.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(r.conecta||0);},0);},0);
   const totTitulares = totHombres + totMujeres;
   const pctH = totTitulares > 0 ? Math.round((totHombres/totTitulares)*100) : 0;
   const pctM = totTitulares > 0 ? Math.round((totMujeres/totTitulares)*100) : 0;
@@ -2787,8 +2794,8 @@ function abrirCalendario(cliente) {
   const proyEq  = (META_UF/WD_MES)*info.elapsed;
   const pctEq   = proyEq>0?Math.round((totUF/proyEq)*100):0;
   const TODAY   = hoyStr();
-  const ufHoy   = equipo.reduce(function(s,v){return s+v.rep.filter(function(r){return r.fecha===TODAY;}).reduce(function(a,r){return a+r.uf;},0);},0);
-  const dpsHoy  = equipo.reduce(function(s,v){return s+v.rep.filter(function(r){return r.fecha===TODAY;}).reduce(function(a,r){return a+r.dps;},0);},0);
+  const ufHoy   = equipo.reduce(function(s,v){return s+(v.rep||[]).filter(function(r){return r.fecha===TODAY;}).reduce(function(a,r){return a+r.uf;},0);},0);
+  const dpsHoy  = equipo.reduce(function(s,v){return s+(v.rep||[]).filter(function(r){return r.fecha===TODAY;}).reduce(function(a,r){return a+r.dps;},0);},0);
   const top5    = equipo.filter(function(v){return v.uf>0;}).sort(function(a,b){return b.uf-a.uf;}).slice(0,5).map(function(v,i){return {nombre:v.nombre,pos:i+1};});
 
   // Build last 3 months keys for historial
@@ -2829,12 +2836,12 @@ function abrirCalendario(cliente) {
   useEffect(function(){
     if(!loaded) return;
     equipo.forEach(function(v){
-      if(v.rep.length > 0){
+      if((v.rep||[]).length > 0){
         const snap = {
           uf: v.uf, dps: v.dps, metaUF: v.metaUF,
-          contactos: v.rep.reduce(function(s,r){return s+r.contactos;},0),
-          cot:       v.rep.reduce(function(s,r){return s+r.cot;},0),
-          cierres:   v.rep.reduce(function(s,r){return s+r.cierres;},0),
+          contactos: (v.rep||[]).reduce(function(s,r){return s+r.contactos;},0),
+          cot:       (v.rep||[]).reduce(function(s,r){return s+r.cot;},0),
+          cierres:   (v.rep||[]).reduce(function(s,r){return s+r.cierres;},0),
         };
         storageSet("mes_"+v.id+"_"+info.mesKey, snap);
       }
@@ -2885,7 +2892,7 @@ function abrirCalendario(cliente) {
       return Object.assign({},v,{
         uf: parseFloat((v.uf+ufTotal).toFixed(2)),
         dps: v.dps+dps,
-        rep: v.rep.concat([nuevoRep])
+        rep: (v.rep||[]).concat([nuevoRep])
       });
     });
     setEquipo(nuevoEquipo);
@@ -2964,23 +2971,23 @@ function abrirCalendario(cliente) {
   function exportarCSV() {
     var headers = ["Nombre","Meta UF","UF cerradas","% Meta","DPS","Contactos","Cotizaciones","Cierres","Conv. Contacto→Cierre","Conv. Cotizacion→Cierre","Hombres","Mujeres","Conecta"];
     var filas = equipo.slice().sort(function(a,b){return b.uf-a.uf;}).map(function(v){
-      var contactos = v.rep.reduce(function(s,r){return s+(r.contactos||0);},0);
-      var cot       = v.rep.reduce(function(s,r){return s+(r.cot||0);},0);
-      var cierres   = v.rep.reduce(function(s,r){return s+(r.cierres||0);},0);
-      var hom       = v.rep.reduce(function(s,r){return s+(r.hombres||0);},0);
-      var muj       = v.rep.reduce(function(s,r){return s+(r.mujeres||0);},0);
-      var con       = v.rep.reduce(function(s,r){return s+(r.conecta||0);},0);
+      var contactos = (v.rep||[]).reduce(function(s,r){return s+(r.contactos||0);},0);
+      var cot       = (v.rep||[]).reduce(function(s,r){return s+(r.cot||0);},0);
+      var cierres   = (v.rep||[]).reduce(function(s,r){return s+(r.cierres||0);},0);
+      var hom       = (v.rep||[]).reduce(function(s,r){return s+(r.hombres||0);},0);
+      var muj       = (v.rep||[]).reduce(function(s,r){return s+(r.mujeres||0);},0);
+      var con       = (v.rep||[]).reduce(function(s,r){return s+(r.conecta||0);},0);
       var pctMeta   = v.metaUF>0 ? Math.round((v.uf/v.metaUF)*100) : 0;
       var convCon   = contactos>0 ? Math.round((cierres/contactos)*100)+"%" : "0%";
       var convCot   = cot>0       ? Math.round((cierres/cot)*100)+"%"       : "0%";
       return [v.nombre,v.metaUF,fmtUF(v.uf),pctMeta+"%",v.dps,contactos,cot,cierres,convCon,convCot,hom,muj,con];
     });
-    var totContactos = equipo.reduce(function(s,v){return s+v.rep.reduce(function(a,r){return a+(r.contactos||0);},0);},0);
-    var totCot       = equipo.reduce(function(s,v){return s+v.rep.reduce(function(a,r){return a+(r.cot||0);},0);},0);
-    var totCierres   = equipo.reduce(function(s,v){return s+v.rep.reduce(function(a,r){return a+(r.cierres||0);},0);},0);
-    var totHom       = equipo.reduce(function(s,v){return s+v.rep.reduce(function(a,r){return a+(r.hombres||0);},0);},0);
-    var totMuj       = equipo.reduce(function(s,v){return s+v.rep.reduce(function(a,r){return a+(r.mujeres||0);},0);},0);
-    var totCon       = equipo.reduce(function(s,v){return s+v.rep.reduce(function(a,r){return a+(r.conecta||0);},0);},0);
+    var totContactos = equipo.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(r.contactos||0);},0);},0);
+    var totCot       = equipo.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(r.cot||0);},0);},0);
+    var totCierres   = equipo.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(r.cierres||0);},0);},0);
+    var totHom       = equipo.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(r.hombres||0);},0);},0);
+    var totMuj       = equipo.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(r.mujeres||0);},0);},0);
+    var totCon       = equipo.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(r.conecta||0);},0);},0);
     filas.push(["TOTAL EQUIPO",META_UF,fmtUF(totUF),Math.round((totUF/META_UF)*100)+"%",totDPS,totContactos,totCot,totCierres,
       totContactos>0?Math.round((totCierres/totContactos)*100)+"%":"0%",
       totCot>0?Math.round((totCierres/totCot)*100)+"%":"0%",totHom,totMuj,totCon]);
@@ -3428,11 +3435,11 @@ function abrirCalendario(cliente) {
 
             , form.vid !== "" && (function(){
               var v = equipo.find(function(t){return t.id===Number(form.vid);});
-              if (!v || v.rep.length === 0) return null;
+              if (!v || (v.rep||[]).length === 0) return null;
               var tot = {
-                contactos: v.rep.reduce(function(s,r){return s+(r.contactos||0);},0),
-                cot:       v.rep.reduce(function(s,r){return s+(r.cot||0);},0),
-                cierres:   v.rep.reduce(function(s,r){return s+(r.cierres||0);},0),
+                contactos: (v.rep||[]).reduce(function(s,r){return s+(r.contactos||0);},0),
+                cot:       (v.rep||[]).reduce(function(s,r){return s+(r.cot||0);},0),
+                cierres:   (v.rep||[]).reduce(function(s,r){return s+(r.cierres||0);},0),
                 uf: v.uf, dps: v.dps,
               };
               var efect   = tot.contactos>0 ? Math.round((tot.cierres/tot.contactos)*100) : 0;
@@ -3497,9 +3504,9 @@ function abrirCalendario(cliente) {
                   )
                   /* Panel personal: hombre/mujer + cumplimiento */
                   , (function(){
-                    var myH = v.rep.reduce(function(s,r){return s+(r.hombres||0);},0);
-                    var myM = v.rep.reduce(function(s,r){return s+(r.mujeres||0);},0);
-                    var myC = v.rep.reduce(function(s,r){return s+(r.conecta||0);},0);
+                    var myH = (v.rep||[]).reduce(function(s,r){return s+(r.hombres||0);},0);
+                    var myM = (v.rep||[]).reduce(function(s,r){return s+(r.mujeres||0);},0);
+                    var myC = (v.rep||[]).reduce(function(s,r){return s+(r.conecta||0);},0);
                     var myT = myH + myM;
                     var myPctH = myT > 0 ? Math.round((myH/myT)*100) : 0;
                     var myPctM = myT > 0 ? Math.round((myM/myT)*100) : 0;
@@ -3674,7 +3681,7 @@ function abrirCalendario(cliente) {
 
                 /* Sub-tabs */
                 React.createElement('div', { style: {display:"flex",gap:8,marginBottom:18,flexWrap:"wrap"} },
-                  [["activos","👥 Clientes Activos"],["cerrados","✅ Clientes Cerrados"],["noConcretados","❌ Cliente Desiste"],["ufCerradas","💰 UF's Cerradas"],["ufPotencial","🎯 UF Potencial Cierre"]].map(function(st){
+                  [["activos","👥 Clientes Activos"],["cerrados","✅ Clientes Cerrados"],["noConcretados","❌ Cliente Desiste"],["ufCerradas","💰 UF's Cerradas"],["ufPotencial","🎯 UF Potencial Cierre"],["calendario","📅 Calendario"]].map(function(st){
                     return React.createElement('button',{key:st[0],onClick:function(){setCrmVista(st[0]);},
                       style:{padding:"8px 14px",border:"none",borderRadius:10,cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:12,
                         background:crmVista===st[0]?R:"#E5E7EB",color:crmVista===st[0]?"#fff":"#374151"}},st[1]);
@@ -3849,6 +3856,86 @@ function abrirCalendario(cliente) {
                     );
                   }
 
+                  // ── Calendario ──
+                  if(crmVista==="calendario"){
+                    var hoy2 = new Date();
+                    var anioHoy = hoy2.getFullYear();
+                    var mesHoy = hoy2.getMonth();
+                    // Build calendar days
+                    var primerDia = new Date(anioHoy, mesHoy, 1).getDay();
+                    var diasEnMes = new Date(anioHoy, mesHoy+1, 0).getDate();
+                    var diasSem = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+                    // Map clients to their next activity date
+                    var clientesPorDia = {};
+                    crmData.forEach(function(c) {
+                      if (!c.proxFecha) return;
+                      var parts = c.proxFecha.split("-");
+                      var d = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+                      if (d.getMonth() === mesHoy && d.getFullYear() === anioHoy) {
+                        var dia = d.getDate();
+                        if (!clientesPorDia[dia]) clientesPorDia[dia] = [];
+                        clientesPorDia[dia].push(c);
+                      }
+                    });
+                    var diaHoy2 = hoy2.getDate();
+                    var celdas = [];
+                    // Blanks before month starts
+                    for (var b=0; b<primerDia; b++) celdas.push(null);
+                    for (var d2=1; d2<=diasEnMes; d2++) celdas.push(d2);
+                    return React.createElement("div", null,
+                      React.createElement("div", {style:{fontSize:16,fontWeight:900,color:RD,marginBottom:14}},
+                        new Date(anioHoy,mesHoy,1).toLocaleString("es-CL",{month:"long",year:"numeric"}).replace(/^./,function(c){return c.toUpperCase();})
+                      ),
+                      React.createElement("div", {style:{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:6}},
+                        diasSem.map(function(ds){
+                          return React.createElement("div",{key:ds,style:{textAlign:"center",fontSize:11,fontWeight:700,color:"#9CA3AF",padding:"4px 0"}},ds);
+                        })
+                      ),
+                      React.createElement("div", {style:{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}},
+                        celdas.map(function(dia, idx3){
+                          if(!dia) return React.createElement("div",{key:"b"+idx3});
+                          var eventos = clientesPorDia[dia]||[];
+                          var esHoy = dia===diaHoy2;
+                          return React.createElement("div",{key:dia,style:{
+                            minHeight:64,borderRadius:10,padding:"6px 4px",
+                            background:esHoy?"linear-gradient(135deg,"+R+",#8B0418)":"#fff",
+                            border:esHoy?"none":"1px solid #E5E7EB",
+                            boxShadow:esHoy?"0 4px 12px rgba(233,7,41,.25)":"none"
+                          }},
+                            React.createElement("div",{style:{fontSize:12,fontWeight:esHoy?900:700,color:esHoy?"#fff":dia<diaHoy2?"#9CA3AF":"#374151",textAlign:"center",marginBottom:3}},dia),
+                            eventos.slice(0,2).map(function(c,ci){
+                              return React.createElement("div",{key:ci,style:{fontSize:9,fontWeight:700,borderRadius:4,padding:"1px 3px",marginBottom:2,
+                                background:esHoy?"rgba(255,255,255,.2)":"rgba(233,7,41,.08)",
+                                color:esHoy?"#FCD34D":R,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},
+                                c.nombre.split(" ")[0]
+                              );
+                            }),
+                            eventos.length>2&&React.createElement("div",{style:{fontSize:9,color:esHoy?"rgba(255,255,255,.6)":"#9CA3AF",textAlign:"center"}},"+",eventos.length-2," más")
+                          );
+                        })
+                      ),
+                      // List of events this month
+                      Object.keys(clientesPorDia).sort(function(a,b){return parseInt(a)-parseInt(b);}).length > 0 && React.createElement("div",{style:{marginTop:16,background:"#fff",borderRadius:12,padding:"14px 16px",boxShadow:"0 2px 8px rgba(0,0,0,.05)"}},
+                        React.createElement("div",{style:{fontWeight:800,color:RD,fontSize:13,marginBottom:10}},"Actividades agendadas este mes"),
+                        Object.keys(clientesPorDia).sort(function(a,b){return parseInt(a)-parseInt(b);}).map(function(dia3){
+                          return React.createElement("div",{key:dia3,style:{marginBottom:8}},
+                            React.createElement("div",{style:{fontSize:11,fontWeight:700,color:"#9CA3AF",marginBottom:4}},"Día "+dia3),
+                            clientesPorDia[dia3].map(function(c,ci){
+                              var ACTS={llamar:"📞",cotizar:"📋",reunion:"📅",dps:"✅",cerrado:"🎉",perdido:"❌"};
+                              return React.createElement("div",{key:ci,style:{display:"flex",alignItems:"center",gap:8,padding:"5px 8px",background:"#F8FAFC",borderRadius:8,marginBottom:4}},
+                                React.createElement("span",{style:{fontSize:14}},(ACTS[c.proxAct]||"📌")),
+                                React.createElement("div",{style:{flex:1}},
+                                  React.createElement("div",{style:{fontSize:12,fontWeight:700,color:"#374151"}},c.nombre),
+                                  c.plan&&React.createElement("div",{style:{fontSize:11,color:R}},c.plan)
+                                )
+                              );
+                            })
+                          );
+                        })
+                      )
+                    );
+                  }
+
                   return null;
                 })(),
 
@@ -3934,7 +4021,7 @@ function abrirCalendario(cliente) {
         /* ===== CUÁNTO GANO ===== */
         , tab==="calculadora" && (
           React.createElement('div', { style: {maxWidth:560,margin:"0 auto",padding:"0 4px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3587}}
-            , React.createElement(CalculadoraGanancias, { equipo: equipo, info: info, premioConecta: premioConecta, nombrePremio: nombrePremio, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3588}} )
+            , React.createElement(CalculadoraGanancias, { equipo: equipo, setEquipo: setEquipo, info: info, premioConecta: premioConecta, nombrePremio: nombrePremio })
           )
         )
         /* ===== RECONOCIMIENTOS ===== */
@@ -4040,7 +4127,7 @@ function abrirCalendario(cliente) {
                     )
                     , React.createElement('div', { style: {overflowX:"auto"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3692}}
                       , React.createElement('table', { style: {width:"100%",borderCollapse:"collapse",fontSize:13}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3693}}
-                        , React.createElement('thead', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3694}}, React.createElement('tr', { style: {background:"#F8FAFC",borderBottom:"2px solid #E5E7EB"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3694}}, ["#","Nombre","RUT","PIN personal","Meta UF",""].map(function(h){return React.createElement('th', { key: h, style: {padding:"10px 12px",textAlign:"left",fontSize:11,color:"#6B7280",fontWeight:700,textTransform:"uppercase"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3694}}, h);})))
+                        , React.createElement('thead', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3694}}, React.createElement('tr', { style: {background:"#F8FAFC",borderBottom:"2px solid #E5E7EB"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3694}}, ["#","Nombre","RUT","Email corporativo","PIN personal","Meta UF",""].map(function(h){return React.createElement('th', { key: h, style: {padding:"10px 12px",textAlign:"left",fontSize:11,color:"#6B7280",fontWeight:700,textTransform:"uppercase"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3694}}, h);})))
                         , React.createElement('tbody', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3695}}
                           , equipo.map(function(v,i){return (
                             React.createElement('tr', { key: v.id, style: {borderBottom:"1px solid #F0F4FA",background:i%2===0?"#fff":"#FAFBFF"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3697}}
@@ -4048,6 +4135,9 @@ function abrirCalendario(cliente) {
                               , React.createElement('td', { style: {padding:"10px 12px",fontWeight:700,color:RD}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3699}}, v.nombre)
                               , React.createElement('td', { style: {padding:"10px 12px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3699}}
                                 , React.createElement('input', { defaultValue: v.rut||"", placeholder: "RUT ejecutivo", onBlur: function(e){ var val=e.target.value.trim(); if(val) { setEquipo(equipo.map(function(eq){ return eq.id===v.id ? Object.assign({},eq,{rut:val}) : eq; })); } }, style: {width:130,padding:"5px 8px",fontSize:12,fontFamily:"monospace",borderRadius:7,border:"1.5px solid #D1D5DB",outline:"none",fontWeight:700,color:"#1D4ED8"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3699}} )
+                              )
+                              , React.createElement('td', { style: {padding:"10px 12px"}}
+                                , React.createElement('input', { defaultValue: v.email||"", placeholder: "correo@empresa.com", onBlur: function(e){ var val=e.target.value.trim(); setEquipo(equipo.map(function(eq){ return eq.id===v.id ? Object.assign({},eq,{email:val}) : eq; })); }, style: {width:180,padding:"5px 8px",fontSize:12,fontFamily:"inherit",borderRadius:7,border:"1.5px solid #D1D5DB",outline:"none",color:"#374151"}} )
                               )
                               , React.createElement('td', { style: {padding:"10px 12px",color:"#6B7280",fontFamily:"monospace",fontWeight:700,fontSize:16}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3700}}, v.pin)
                               , React.createElement('td', { style: {padding:"10px 12px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3701}}, React.createElement('span', { style: {background:"rgba(233,7,41,.08)",color:"#E9192A",fontWeight:700,borderRadius:8,padding:"3px 8px",fontSize:12}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3701}}, v.metaUF+" UF"))
@@ -4085,7 +4175,7 @@ function abrirCalendario(cliente) {
                                   onChange: function(ev){const b=Object.assign({},bulk);b[v.id]=Object.assign({},b[v.id],{uf:ev.target.value});setBulk(b);},
                                   style: {width:90,padding:"8px 10px",fontSize:13,borderRadius:9,border:"1.5px solid "+(e.uf!==""?R:"#E5E7EB"),background:e.uf!==""?BG:"#FAFAFA",fontFamily:"inherit",outline:"none"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3734}} )
                                 , (function(){
-                                  var repUF=v.rep.reduce(function(s,r){return s+(r.uf||0);},0);
+                                  var repUF=(v.rep||[]).reduce(function(s,r){return s+(r.uf||0);},0);
                                   var supUF=e.uf!==""?parseFloat(e.uf):v.uf;
                                   var diff=parseFloat((Math.abs(supUF-repUF)).toFixed(1));
                                   if(diff>0.05&&repUF>0) return React.createElement('div', { style: {fontSize:9,color:"#D97706",marginTop:3,fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3741}}, "Agente: "+fmtUF(repUF)+" UF (dif "+diff+")");
@@ -4097,7 +4187,7 @@ function abrirCalendario(cliente) {
                                   onChange: function(ev){const b=Object.assign({},bulk);b[v.id]=Object.assign({},b[v.id],{dps:ev.target.value});setBulk(b);},
                                   style: {width:70,padding:"8px 10px",fontSize:13,borderRadius:9,border:"1.5px solid "+(e.dps!==""?"#16A34A":"#E5E7EB"),background:e.dps!==""?"#F0FDF4":"#FAFAFA",fontFamily:"inherit",outline:"none"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3746}} )
                                 , (function(){
-                                  var repDPS=v.rep.reduce(function(s,r){return s+(r.dps||0);},0);
+                                  var repDPS=(v.rep||[]).reduce(function(s,r){return s+(r.dps||0);},0);
                                   var supDPS=e.dps!==""?parseInt(e.dps):v.dps;
                                   var diff=Math.abs(supDPS-repDPS);
                                   if(diff>0&&repDPS>0) return React.createElement('div', { style: {fontSize:9,color:"#D97706",marginTop:3,fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3753}}, "Agente: "+repDPS+" DPS (dif "+diff+")");
@@ -4135,7 +4225,7 @@ function abrirCalendario(cliente) {
                       )
                       , React.createElement(PanelAlertas, { equipo: equipo, proyV: proyV, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3781}} )
                       , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:20}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3782}}
-                        , [{l:"UF equipo",v:fmtUF(totUF),c:R},{l:"vs Proyeccion",v:pctEq+"%",c:colSem(pctEq)},{l:"DPS totales",v:totDPS,c:"#15803D"},{l:"Con reportes",v:equipo.filter(function(v){return v.rep.length>0;}).length,c:"#7C3AED"}].map(function(k){return React.createElement('div', { key: k.l, style: {background:"#F8FAFC",borderRadius:12,padding:"12px 14px",borderLeft:"3px solid "+k.c}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3783}}, React.createElement('div', { style: {fontSize:20,fontWeight:900,color:RD}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3783}}, k.v), React.createElement('div', { style: {fontSize:11,color:"#9CA3AF",marginTop:2}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3783}}, k.l));})
+                        , [{l:"UF equipo",v:fmtUF(totUF),c:R},{l:"vs Proyección",v:fmtUF2(proyEq)+" UF",c:colSem(pctEq)},{l:"DPS totales",v:totDPS,c:"#15803D"},{l:"Con reportes",v:equipo.filter(function(v){return (v.rep||[]).length>0;}).length,c:"#7C3AED"}].map(function(k){return React.createElement('div', { key: k.l, style: {background:"#F8FAFC",borderRadius:12,padding:"12px 14px",borderLeft:"3px solid "+k.c}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3783}}, React.createElement('div', { style: {fontSize:20,fontWeight:900,color:RD}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3783}}, k.v), React.createElement('div', { style: {fontSize:11,color:"#9CA3AF",marginTop:2}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3783}}, k.l));})
                       )
                       , React.createElement('div', { style: {overflowX:"auto"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3785}}
                       , React.createElement('table', { style: {width:"100%",borderCollapse:"collapse",fontSize:13,minWidth:560}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3786}}
@@ -4446,9 +4536,9 @@ function ProdEditableInner({ v, equipo, setEquipo, guardarProductividad, guardan
   const RD = "#C41230", R = "#E9192A";
   const [localUF,  setLocalUF]  = React.useState(v.uf);
   const [localDPS, setLocalDPS] = React.useState(v.dps);
-  const [localCon, setLocalCon] = React.useState(v.rep.reduce(function(s,r){return s+(r.conecta||0);},0));
-  const [localHom, setLocalHom] = React.useState(v.rep.reduce(function(s,r){return s+(r.hombres||0);},0));
-  const [localMuj, setLocalMuj] = React.useState(v.rep.reduce(function(s,r){return s+(r.mujeres||0);},0));
+  const [localCon, setLocalCon] = React.useState((v.rep||[]).reduce(function(s,r){return s+(r.conecta||0);},0));
+  const [localHom, setLocalHom] = React.useState((v.rep||[]).reduce(function(s,r){return s+(r.hombres||0);},0));
+  const [localMuj, setLocalMuj] = React.useState((v.rep||[]).reduce(function(s,r){return s+(r.mujeres||0);},0));
   const localTotT    = localHom + localMuj;
   const localPctH    = localTotT>0 ? Math.round((localHom/localTotT)*100) : 0;
   const localPctM    = localTotT>0 ? Math.round((localMuj/localTotT)*100) : 0;
@@ -4459,7 +4549,7 @@ function ProdEditableInner({ v, equipo, setEquipo, guardarProductividad, guardan
     // Calcular nuevo equipo sincrónicamente
     var nuevoEquipo = equipo.map(function(eq){
       if (eq.id !== v.id) return eq;
-      var rep = eq.rep.length>0 ? eq.rep.slice() : [{fecha:new Date().toLocaleDateString("es-CL"),contactos:0,cot:0,cierres:0,uf:0,dps:0,nota:"Ajuste",hombres:0,mujeres:0,conecta:0}];
+      var rep = (eq.rep||[]).length>0 ? (eq.rep||[]).slice() : [{fecha:new Date().toLocaleDateString("es-CL"),contactos:0,cot:0,cierres:0,uf:0,dps:0,nota:"Ajuste",hombres:0,mujeres:0,conecta:0}];
       var acum = function(campo) { return rep.slice(0,-1).reduce(function(s,r){return s+(r[campo]||0);},0); };
       var ultimo = Object.assign({}, rep[rep.length-1]);
       var _uf=parseFloat(localUF)||0, _dps=parseInt(localDPS)||0, _con=parseInt(localCon)||0, _hom=parseInt(localHom)||0, _muj=parseInt(localMuj)||0;
@@ -4561,7 +4651,7 @@ function ProdEditableInner({ v, equipo, setEquipo, guardarProductividad, guardan
       , React.createElement('button', { onClick: guardarCambios, style: {width:"100%",padding:"16px",background:guardandoProd?"#16A34A":RD,color:"#fff",border:"none",borderRadius:12,fontSize:16,fontWeight:700,cursor:"pointer",marginBottom:20,transition:"background .3s"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4091}}
         , guardandoProd ? "✅ ¡Guardado! El dashboard ya refleja los cambios" : "💾 Guardar mis cambios"
       )
-      , React.createElement(HistorialPersonal, { histV: v, histLogout: function(){}, info: info, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4094}} )
+      , React.createElement(HistorialPersonal, { histV: v, histLogout: function(){}, info: info, hallMeses: (typeof HALL_MESES !== "undefined" ? HALL_MESES : []) })
     )
   );
 }
@@ -4609,9 +4699,9 @@ function EditarDatosView({ equipo, setEquipo, info }) {
       return {
         uf:      v.uf,
         dps:     v.dps,
-        conecta: v.rep.reduce(function(s,r){ return s + (r.conecta||0); }, 0),
-        hombres: v.rep.reduce(function(s,r){ return s + (r.hombres||0); }, 0),
-        mujeres: v.rep.reduce(function(s,r){ return s + (r.mujeres||0); }, 0),
+        conecta: (v.rep||[]).reduce(function(s,r){ return s + (r.conecta||0); }, 0),
+        hombres: (v.rep||[]).reduce(function(s,r){ return s + (r.hombres||0); }, 0),
+        mujeres: (v.rep||[]).reduce(function(s,r){ return s + (r.mujeres||0); }, 0),
         meta:    v.metaUF,
       };
     }
@@ -4643,7 +4733,7 @@ function EditarDatosView({ equipo, setEquipo, info }) {
     var nuevoEquipo = equipo.map(function(eq) {
       if (String(eq.id) !== editVid) return eq;
       if (esMesActual) {
-        var rep = eq.rep.length > 0 ? eq.rep.slice() : [{ fecha: new Date().toLocaleDateString("es-CL"), contactos:0,cot:0,cierres:0,uf:0,dps:0,nota:"Ajuste supervisor",hombres:0,mujeres:0,conecta:0 }];
+        var rep = (eq.rep||[]).length > 0 ? (eq.rep||[]).slice() : [{ fecha: new Date().toLocaleDateString("es-CL"), contactos:0,cot:0,cierres:0,uf:0,dps:0,nota:"Ajuste supervisor",hombres:0,mujeres:0,conecta:0 }];
         var acum = function(campo) { return rep.slice(0,-1).reduce(function(s,r){ return s+(r[campo]||0); }, 0); };
         var ultimo = Object.assign({}, rep[rep.length-1]);
         ultimo.uf      = Math.max(0, parseFloat(localUF)  - acum("uf"));
@@ -5655,7 +5745,12 @@ function ExcelDataView({ equipo, setEquipo, info }) {
           var dpsVenta = parseInt(String(fila.dps_venta||fila.DPS_VENTA||fila.dpsVenta||fila.dpsVenta||"0")) || 0;
           if (!nombre || !mesKey2 || !/^\d{4}-\d{2}$/.test(mesKey2)) return;
           nuevoEquipo.forEach(function(v) {
-            if (v.nombre.toUpperCase().indexOf(nombre) >= 0 || nombre.indexOf(v.nombre.toUpperCase()) >= 0) {
+            // Match flexible: compare palabras del nombre del excel con palabras del ejecutivo
+            var palabrasExcel = nombre.split(/\s+/).filter(function(p){return p.length>1;});
+            var nombreEjecUp = v.nombre.toUpperCase();
+            var matches = palabrasExcel.filter(function(p){return nombreEjecUp.indexOf(p)>=0;}).length;
+            var umbral = Math.max(1, Math.floor(palabrasExcel.length * 0.5));
+            if (matches >= umbral || v.nombre.toUpperCase().indexOf(nombre) >= 0 || nombre.indexOf(v.nombre.toUpperCase()) >= 0) {
               var hist = v.historial;
               var mes = Object.assign({uf:0,dps:0,dpsVenta:0,conecta:0,hombres:0,mujeres:0}, hist[mesKey2]||{});
               if (uf > 0) mes.uf = uf;
