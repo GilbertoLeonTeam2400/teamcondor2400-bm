@@ -2984,10 +2984,46 @@ function abrirCalendario(cliente) {
     if(!crmForm.nombre)return;
     let data;
     if(crmEdit!==null){
+      // Si se está marcando como cerrado y antes NO era cerrado, sumar UF al ejecutivo
+      var contactoAnterior = crmData.find(function(c){return c.id===crmEdit;});
+      var eraYaCerrado = contactoAnterior && contactoAnterior.proxAct === "cerrado";
+      var seEstaCerrando = crmForm.proxAct === "cerrado" && !eraYaCerrado;
+      var ufACerrar = seEstaCerrando ? (parseFloat(crmForm.planUF)||0) : 0;
+      // Si estaba cerrado y ahora se reabre, restar la UF
+      var seEstaReanudando = eraYaCerrado && crmForm.proxAct !== "cerrado";
+      var ufARestar = seEstaReanudando ? (parseFloat(contactoAnterior.planUF)||0) : 0;
+      if ((ufACerrar > 0 || ufARestar > 0) && crmVid) {
+        var idEjec = Number(crmVid);
+        var nuevoEquipo = equipo.map(function(v) {
+          if (v.id !== idEjec) return v;
+          var nuevaUF = Math.max(0, parseFloat((v.uf + ufACerrar - ufARestar).toFixed(2)));
+          return Object.assign({}, v, { uf: nuevaUF });
+        });
+        setEquipo(nuevoEquipo);
+        if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
+          var key="equipo_"+info.mesKey;
+          window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",key),{equipo:nuevoEquipo,metaEquipo:metaEquipo});
+        }
+      }
       data=crmData.map(function(c){return c.id===crmEdit?Object.assign({},c,crmForm):c;});
     } else {
       const newId=Date.now();
-      data=crmData.concat([Object.assign({},crmForm,{id:newId,fecha:TODAY,planUF:crmForm.planUF})]);
+      var nuevoContacto = Object.assign({},crmForm,{id:newId,fecha:TODAY,planUF:crmForm.planUF});
+      // Si se crea directamente como cerrado, sumar UF al ejecutivo
+      if (crmForm.proxAct === "cerrado" && parseFloat(crmForm.planUF) > 0 && crmVid) {
+        var idEjec2 = Number(crmVid);
+        var ufNueva = parseFloat(crmForm.planUF)||0;
+        var nuevoEquipo2 = equipo.map(function(v) {
+          if (v.id !== idEjec2) return v;
+          return Object.assign({}, v, { uf: parseFloat((v.uf + ufNueva).toFixed(2)) });
+        });
+        setEquipo(nuevoEquipo2);
+        if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
+          var key2="equipo_"+info.mesKey;
+          window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",key2),{equipo:nuevoEquipo2,metaEquipo:metaEquipo});
+        }
+      }
+      data=crmData.concat([nuevoContacto]);
     }
     saveCrmData(data);setCrmModal(false);
   }
@@ -3114,7 +3150,7 @@ function abrirCalendario(cliente) {
                   )
                   , React.createElement('div', { style: {position:"relative",height:14,background:"rgba(255,255,255,.1)",borderRadius:99,border:"1px solid rgba(255,255,255,.12)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3065}}
                     , React.createElement('div', { style: {position:"absolute",left:0,top:0,height:"100%",width:Math.min((totUF/META_UF)*100,100)+"%",background:"linear-gradient(90deg,#8B1020,#C9A84C)",borderRadius:99,transition:"width 1s ease"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3066}} )
-                    , proyEq>0&&React.createElement('div', { style: {position:"absolute",top:-5,bottom:-5,left:Math.min((proyEq/META_UF)*100,100)+"%",width:2,background:"rgba(255,255,255,.7)",borderRadius:99}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3067}}, React.createElement('div', { style: {position:"absolute",top:-14,left:"50%",transform:"translateX(-50%)",fontSize:8,color:"rgba(255,255,255,.6)",whiteSpace:"nowrap",fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3067}}, "proyección"))
+                    , proyEq>0&&React.createElement('div', { style: {position:"absolute",top:-5,bottom:-5,left:Math.min((proyEq/META_UF)*100,100)+"%",width:2,background:"rgba(255,255,255,.7)",borderRadius:99}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3067}})
                     , React.createElement('div', { style: {position:"absolute",right:Math.max(0,100-Math.min((totUF/META_UF)*100,96))+"%",top:"50%",transform:"translate(50%,-50%)",background:(totUF/META_UF)*100>=100?"#4ADE80":(totUF/META_UF)*100>=60?"#C9A84C":"#FCA5A5",color:"#1a0a0a",fontWeight:900,fontSize:10,borderRadius:99,padding:"2px 6px",whiteSpace:"nowrap",boxShadow:"0 2px 6px rgba(0,0,0,.4)",pointerEvents:"none"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3068}}
                       , Math.round((totUF/META_UF)*100)+"%"
                     )
