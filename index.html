@@ -2281,7 +2281,7 @@ function HistorialTresMeses({ vid, info }) {
 }
 
 
-function HistorialPersonal({ histV, histLogout, info, hallMeses }) {
+function HistorialPersonal({ histV, histLogout, info, hallMeses, equipo }) {
   var R = "#e90729"; var RD = "#8B0418"; var BG = "#FFF5F6";
   var [modalMes, setModalMes] = React.useState(null);
 
@@ -2309,7 +2309,26 @@ function HistorialPersonal({ histV, histLogout, info, hallMeses }) {
     return obj;
   })();
   // Get position for each month from HALL_MESES
-  var HALL = hallMeses || window.HALL_MESES || [];
+  var HALL = (hallMeses || window.HALL_MESES || []).slice(); // copia para no mutar original
+  // Agregar top5 de meses recientes no en HALL (calcula desde historial del equipo)
+  if (equipo && Array.isArray(equipo)) {
+    var _meses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+    function _normL(l){ return (l||"").split(" ").filter(function(w){return w.toLowerCase()!=="de";}).join(" ").trim(); }
+    var _hallLabels = HALL.map(function(m){ return _normL(m.label); });
+    for (var _off = 1; _off <= 6; _off++) {
+      var _dx = new Date(); _dx.setDate(1); _dx.setMonth(_dx.getMonth() - _off);
+      var _mk = _dx.getFullYear() + "-" + String(_dx.getMonth()+1).padStart(2,"0");
+      var _lbl = _meses[_dx.getMonth()] + " " + _dx.getFullYear();
+      if (_hallLabels.indexOf(_lbl) >= 0) continue;
+      var _ranked = equipo
+        .map(function(v){ var h=(v.historial||{})[_mk]||{}; return {nombre:v.nombre,uf:h.uf||0}; })
+        .filter(function(v){ return v.uf >= 12; })
+        .sort(function(a,b){ return b.uf-a.uf; })
+        .slice(0,5)
+        .map(function(v,i){ return {nombre:v.nombre,pos:i+1,uf:v.uf}; });
+      if (_ranked.length) { HALL.push({label:_lbl, top:_ranked}); _hallLabels.push(_lbl); }
+    }
+  }
   function normLabel(l) {
     // "Abril De 2026" -> "Abril 2026" para comparar con HALL_MESES
     return (l||"").replace(/\s+[Dd]e\s+/g," ").replace(/\s+/g," ").trim();
@@ -2818,31 +2837,6 @@ function abrirCalendario(cliente) {
       { nombre:"RAMIREZ SAAVEDRA MARIANA", pos:5, uf:19.0 },
     ]},
   ];
-
-
-
-  // Calcula top5 de meses NO en HALL_MESES (ej: Abril 2026+) desde historial en memoria
-  const hallMesesCompleto = useMemo(function(){
-    if (!loaded) return HALL_MESES;
-    function normL(l){ return (l||"").replace(/\s+de\s+/gi," ").replace(/\s+/g," ").trim(); }
-    var hallLabels = HALL_MESES.map(function(m){ return normL(m.label); });
-    var extras = [];
-    for (var off = 1; off <= 6; off++) {
-      var dx = new Date(); dx.setDate(1); dx.setMonth(dx.getMonth() - off);
-      var mk = dx.getFullYear() + "-" + String(dx.getMonth()+1).padStart(2,"0");
-      var rawLbl = dx.toLocaleString("es-CL", {month:"long", year:"numeric"});
-      var lbl = normL(rawLbl.charAt(0).toUpperCase() + rawLbl.slice(1));
-      if (hallLabels.indexOf(lbl) >= 0) continue;
-      var ranked = equipo
-        .map(function(v){ var h=(v.historial||{})[mk]||{}; return {nombre:v.nombre, uf:h.uf||0}; })
-        .filter(function(v){ return v.uf >= 12; })
-        .sort(function(a,b){ return b.uf - a.uf; })
-        .slice(0,5)
-        .map(function(v,i){ return {nombre:v.nombre, pos:i+1, uf:v.uf}; });
-      if (ranked.length) extras.push({label:lbl, top:ranked});
-    }
-    return HALL_MESES.concat(extras);
-  }, [loaded, equipo]);
 
   const [mesAnt,   setMesAnt]   = useState(HALL_MESES[0]);
   const [mesAntIdx, setMesAntIdx] = useState(0);
@@ -3697,7 +3691,7 @@ function abrirCalendario(cliente) {
                         );
                       })()
                       /* Top5 del año */
-                      , React.createElement(Top5Badge, { nombre: histV.nombre, hallMeses: hallMesesCompleto })
+                      , React.createElement(Top5Badge, { nombre: histV.nombre, hallMeses: HALL_MESES })
                     )
                     , React.createElement(ProdEditableInner, { v: histV, equipo: equipo, setEquipo: setEquipo, guardarProductividad: guardarProductividad, guardandoProd: guardandoProd, info: info, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3495}} )
                   )
@@ -4789,7 +4783,7 @@ function ProdEditableInner({ v, equipo, setEquipo, guardarProductividad, guardan
             style: {background:"#C41230",color:"#fff",border:"none",borderRadius:10,padding:"10px 24px",fontSize:14,cursor:"pointer",fontFamily:"inherit",fontWeight:700}
           }, "🔒 Cerrar sesion")
       )
-      , React.createElement(HistorialPersonal, { histV: v, histLogout: function(){}, info: info, hallMeses: hallMesesCompleto })
+      , React.createElement(HistorialPersonal, { histV: v, histLogout: function(){}, info: info, hallMeses: HALL_MESES, equipo: equipo })
     )
   );
 }
