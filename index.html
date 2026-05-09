@@ -4744,7 +4744,7 @@ function ProdEditableInner({ v, equipo, setEquipo, guardarProductividad, guardan
         , React.createElement('div', { style: {fontSize:13,fontWeight:700,color:"#92400E",marginBottom:10} }, "¿Ya terminaste de actualizar? 👋 Recuerda cerrar tu sesion.")
         , React.createElement('button', { onClick: function(){ if(typeof histLogout==="function") histLogout(); },
             style: {background:"#C41230",color:"#fff",border:"none",borderRadius:10,padding:"10px 24px",fontSize:14,cursor:"pointer",fontFamily:"inherit",fontWeight:700}
-          }, "🔒 Cerrar sesion"
+          }, "🔒 Cerrar sesion")
       )
       , React.createElement(HistorialPersonal, { histV: v, histLogout: function(){}, info: info, hallMeses: (typeof HALL_MESES !== "undefined" ? HALL_MESES : []) })
     )
