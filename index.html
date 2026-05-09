@@ -2672,42 +2672,6 @@ function abrirCalendario(cliente) {
         setFbError(false);
         setLoaded(true);
         setSincronizado(true);
-        // Cargar top5 de meses recientes que no están en HALL_MESES (ej: Abril 2026+)
-        if (window.__fbGetDoc && window.__fbDoc) {
-          var extras = [];
-          var pendientes = 0;
-          for (var off = 1; off <= 6; off++) {
-            var dOff = new Date(); dOff.setDate(1); dOff.setMonth(dOff.getMonth() - off);
-            var mkOff = dOff.getFullYear() + "-" + String(dOff.getMonth()+1).padStart(2,"0");
-            var lblOff = (function(s){return s.charAt(0).toUpperCase()+s.slice(1);})(
-              dOff.toLocaleString("es-CL",{month:"long",year:"numeric"})
-            ).replace(/\s+[Dd]e\s+/g," ").trim();
-            var enHall = HALL_MESES.some(function(m){
-              return m.label.replace(/\s+[Dd]e\s+/g," ").trim() === lblOff;
-            });
-            if (!enHall) {
-              pendientes++;
-              (function(mk, lbl) {
-                var ref = window.__fbDoc(window.__fbDb, "equipos", "equipo_" + mk);
-                window.__fbGetDoc(ref).then(function(snap) {
-                  if (snap.exists) {
-                    var fd = snap.data();
-                    if (fd && fd.equipo && Array.isArray(fd.equipo)) {
-                      var ranked = fd.equipo
-                        .filter(function(v){ return (v.uf||0) >= 12; })
-                        .sort(function(a,b){ return (b.uf||0)-(a.uf||0); })
-                        .slice(0,5)
-                        .map(function(v,i){ return {nombre:v.nombre, pos:i+1, uf:v.uf||0}; });
-                      if (ranked.length) extras.push({label:lbl, top:ranked});
-                    }
-                  }
-                  pendientes--;
-                  if (pendientes === 0 && extras.length) setHallMesesExtra(extras);
-                }).catch(function(){ pendientes--; });
-              })(mkOff, lblOff);
-            }
-          }
-        }
       }, function(err) {
         fbRespondio = true;
         console.error("[LOAD] Firebase onSnapshot error:", err);
@@ -2856,10 +2820,30 @@ function abrirCalendario(cliente) {
   ];
 
 
-  const [hallMesesExtra, setHallMesesExtra] = useState([]); // top5 de meses no en HALL_MESES (cargados de Firebase)
+
+  // Calcula top5 de meses NO en HALL_MESES (ej: Abril 2026+) desde historial en memoria
   const hallMesesCompleto = useMemo(function(){
-    return HALL_MESES.concat(hallMesesExtra);
-  }, [hallMesesExtra]);
+    if (!loaded) return HALL_MESES;
+    function normL(l){ return (l||"").replace(/\s+de\s+/gi," ").replace(/\s+/g," ").trim(); }
+    var hallLabels = HALL_MESES.map(function(m){ return normL(m.label); });
+    var extras = [];
+    for (var off = 1; off <= 6; off++) {
+      var dx = new Date(); dx.setDate(1); dx.setMonth(dx.getMonth() - off);
+      var mk = dx.getFullYear() + "-" + String(dx.getMonth()+1).padStart(2,"0");
+      var rawLbl = dx.toLocaleString("es-CL", {month:"long", year:"numeric"});
+      var lbl = normL(rawLbl.charAt(0).toUpperCase() + rawLbl.slice(1));
+      if (hallLabels.indexOf(lbl) >= 0) continue;
+      var ranked = equipo
+        .map(function(v){ var h=(v.historial||{})[mk]||{}; return {nombre:v.nombre, uf:h.uf||0}; })
+        .filter(function(v){ return v.uf >= 12; })
+        .sort(function(a,b){ return b.uf - a.uf; })
+        .slice(0,5)
+        .map(function(v,i){ return {nombre:v.nombre, pos:i+1, uf:v.uf}; });
+      if (ranked.length) extras.push({label:lbl, top:ranked});
+    }
+    return HALL_MESES.concat(extras);
+  }, [loaded, equipo]);
+
   const [mesAnt,   setMesAnt]   = useState(HALL_MESES[0]);
   const [mesAntIdx, setMesAntIdx] = useState(0);
   const [editMes,  setEditMes]  = useState(false);
