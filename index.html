@@ -2819,7 +2819,54 @@ function abrirCalendario(cliente) {
     ]},
   ];
 
+
+  // Cargar top5 de meses recientes no incluidos en HALL_MESES (ej: Abril 2026 en adelante)
+  useEffect(function() {
+    if (!window.__fbDb || !window.__fbDoc || !window.__fbGetDoc) return;
+    // Calcular qué meses faltan en HALL_MESES (hasta 6 meses atrás)
+    var mesesFaltantes = [];
+    for (var off = 1; off <= 6; off++) {
+      var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - off);
+      var mk = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
+      var mesLabel = (function(s){return s.charAt(0).toUpperCase()+s.slice(1);})(
+        d.toLocaleString("es-CL",{month:"long",year:"numeric"})
+      ).replace(/\s+[Dd]e\s+/g," ");
+      var yaEnHall = HALL_MESES.some(function(m){
+        return m.label.replace(/\s+[Dd]e\s+/g," ").trim() === mesLabel.trim();
+      });
+      if (!yaEnHall) mesesFaltantes.push({ mk: mk, label: mesLabel });
+    }
+    if (!mesesFaltantes.length) return;
+
+    mesesFaltantes.forEach(function(mes) {
+      var ref = window.__fbDoc(window.__fbDb, "equipos", "equipo_" + mes.mk);
+      window.__fbGetDoc(ref).then(function(snap) {
+        if (!snap.exists) return;
+        var d = snap.data();
+        if (!d || !d.equipo || !Array.isArray(d.equipo)) return;
+        // Calcular top5 por UF
+        var ranked = d.equipo
+          .filter(function(v){ return (v.uf||0) >= 12; })
+          .sort(function(a,b){ return (b.uf||0)-(a.uf||0); })
+          .slice(0,5)
+          .map(function(v,i){ return { nombre: v.nombre, pos: i+1, uf: v.uf||0 }; });
+        if (!ranked.length) return;
+        // Agregar al HALL_MESES en la posición correcta (más reciente primero no, sino cronológico)
+        var yaExiste = HALL_MESES.some(function(m){
+          return m.label.replace(/\s+[Dd]e\s+/g," ").trim() === mes.label.trim();
+        });
+        if (!yaExiste) {
+          HALL_MESES.push({ label: mes.label, top: ranked });
+          window.HALL_MESES = HALL_MESES;
+          console.log("[HALL] Top5 cargado desde Firebase para", mes.label, ranked);
+          setHallVersion(function(v){ return v+1; }); // fuerza re-render
+        }
+      }).catch(function(e){ console.warn("[HALL] Error cargando top5 de", mes.label, e); });
+    });
+  }, [loaded]);
+
   const [mesAnt,   setMesAnt]   = useState(HALL_MESES[0]);
+  const [hallVersion, setHallVersion] = useState(0);
   const [mesAntIdx, setMesAntIdx] = useState(0);
   const [editMes,  setEditMes]  = useState(false);
   const [draft,    setDraft]    = useState(null);
@@ -4764,7 +4811,7 @@ function ProdEditableInner({ v, equipo, setEquipo, guardarProductividad, guardan
             style: {background:"#C41230",color:"#fff",border:"none",borderRadius:10,padding:"10px 24px",fontSize:14,cursor:"pointer",fontFamily:"inherit",fontWeight:700}
           }, "🔒 Cerrar sesion")
       )
-      , React.createElement(HistorialPersonal, { histV: v, histLogout: function(){}, info: info, hallMeses: (typeof HALL_MESES !== "undefined" ? HALL_MESES : []) })
+      , React.createElement(HistorialPersonal, { histV: v, histLogout: function(){}, info: info, hallMeses: HALL_MESES, key: "hist_"+hallVersion })
     )
   );
 }
