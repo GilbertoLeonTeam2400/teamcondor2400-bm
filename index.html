@@ -29,6 +29,7 @@
     window.__fbDb=db;window.__fbDoc=function(db,col,id){return db.collection(col).doc(id);};
     window.__fbSetDoc=function(ref,data){return ref.set(data);};
     window.__fbOnSnapshot=function(ref,onNext,onErr){return ref.onSnapshot(function(snap){onNext({exists:function(){return snap.exists;},data:function(){return snap.data();}});},onErr);};
+    window.__fbGetDoc=function(ref){return ref.get().then(function(snap){return {exists:snap.exists,data:function(){return snap.data();}}; });};
     console.log("Firebase conectado");}catch(e){console.warn("Firebase no disponible:",e);}
   </script>
   <script>const { useState, useMemo, useEffect } = React;
@@ -2309,15 +2310,32 @@ function HistorialPersonal({ histV, histLogout, info, hallMeses }) {
   })();
   // Get position for each month from HALL_MESES
   var HALL = hallMeses || window.HALL_MESES || [];
+  function normLabel(l) {
+    // "Abril De 2026" -> "Abril 2026" para comparar con HALL_MESES
+    return (l||"").replace(/\s+[Dd]e\s+/g," ").replace(/\s+/g," ").trim();
+  }
+  function normNombre(n) {
+    // Normaliza tildes y separa palabras de 4+ letras para matching robusto
+    return (n||"").trim().toUpperCase()
+      .replace(/Á/g,"A").replace(/É/g,"E").replace(/Í/g,"I").replace(/Ó/g,"O").replace(/Ú/g,"U")
+      .replace(/Ñ/g,"N").replace(/\s+/g," ");
+  }
+  function nombresCoinciden(a, b) {
+    var na = normNombre(a), nb = normNombre(b);
+    if (na === nb) return true;
+    // Compara palabras de 4+ letras: basta con 2 coincidencias
+    var pa = na.split(" ").filter(function(w){ return w.length >= 4; });
+    var pb = nb.split(" ").filter(function(w){ return w.length >= 4; });
+    return pa.filter(function(w){ return pb.indexOf(w) >= 0; }).length >= 2;
+  }
   function getPosicionMes(nombreEjec, labelMes) {
     try {
       if (!HALL || !HALL.length) return null;
-      var mes = HALL.find(function(m){ return m.label === labelMes; });
+      var nlm = normLabel(labelMes);
+      var mes = HALL.find(function(m){ return normLabel(m.label) === nlm; });
       if (!mes || !mes.top) return null;
-      var nombreUp = (nombreEjec||"").trim().toUpperCase();
       var entry = mes.top.slice(0,5).find(function(t){
-        var tN = (t.nombre||"").trim().toUpperCase();
-        return tN === nombreUp || tN.includes(nombreUp) || nombreUp.includes(tN);
+        return nombresCoinciden(t.nombre, nombreEjec);
       });
       return entry ? entry.pos : null;
     } catch(e) { return null; }
@@ -5235,55 +5253,70 @@ function UFLinealesView({ equipo, info }) {
   var [cargando, setCargando] = useState(true);
 
   useEffect(function() {
-    var offsets = [1, 2, 3, 4, 5, 6]; // ultimos 6 meses sin incluir el actual
+    var offsets = [1, 2, 3, 4, 5, 6];
+
+    function calcDesdeArray(arr, mk) {
+      var tot = 0, cal = [];
+      arr.forEach(function(vMes) {
+        var vA = equipo.find(function(e){ return String(e.id)===String(vMes.id); });
+        if (!vA) return;
+        var uf = vMes.uf || 0;
+        if (uf >= 12) { tot += uf; cal.push({ id: vMes.id, nombre: vA.nombre, uf: uf }); }
+      });
+      cal.sort(function(a,b){ return b.uf-a.uf; });
+      return { total: tot, calificados: cal };
+    }
+
+    function calcDesdeHistorial(mk) {
+      var tot = 0, cal = [];
+      equipo.forEach(function(v) {
+        var fbH = (v.historial||{})[mk] || {};
+        var exH = (HISTORIAL_EXCEL[v.id]||HISTORIAL_EXCEL[String(v.id)]||{})[mk] || {};
+        var uf = (typeof fbH.uf==="number" && fbH.uf>0) ? fbH.uf : (exH.uf||0);
+        if (uf >= 12) { tot += uf; cal.push({ id: v.id, nombre: v.nombre, uf: uf }); }
+      });
+      cal.sort(function(a,b){ return b.uf-a.uf; });
+      return { total: tot, calificados: cal };
+    }
+
     var promises = offsets.map(function(offset) {
       var mk = buildMesKey(offset);
-      var key = "equipo_" + mk;
-      return storageGet(key).then(function(data) {
-        return { offset: offset, mk: mk, label: buildMesLabel(offset), data: data };
+      var label = buildMesLabel(offset);
+
+      // Intentar leer desde Firebase directamente (cubre meses sin HISTORIAL_EXCEL como Abril 2026)
+      if (window.__fbDb && window.__fbDoc && window.__fbGetDoc) {
+        var ref = window.__fbDoc(window.__fbDb, "equipos", "equipo_" + mk);
+        return window.__fbGetDoc(ref).then(function(snap) {
+          if (snap.exists) {
+            var d = snap.data();
+            if (d && d.equipo && Array.isArray(d.equipo)) {
+              var r = calcDesdeArray(d.equipo, mk);
+              return { mk: mk, label: label, total: r.total, calificados: r.calificados };
+            }
+          }
+          // Sin datos en Firebase — fallback historial/Excel
+          var r = calcDesdeHistorial(mk);
+          return { mk: mk, label: label, total: r.total, calificados: r.calificados };
+        }).catch(function() {
+          var r = calcDesdeHistorial(mk);
+          return { mk: mk, label: label, total: r.total, calificados: r.calificados };
+        });
+      }
+      // Sin Firebase disponible — storage local o historial
+      return storageGet("equipo_" + mk).then(function(data) {
+        if (data && Array.isArray(data)) {
+          var r = calcDesdeArray(data, mk);
+          return { mk: mk, label: label, total: r.total, calificados: r.calificados };
+        }
+        var r = calcDesdeHistorial(mk);
+        return { mk: mk, label: label, total: r.total, calificados: r.calificados };
       }).catch(function() {
-        return { offset: offset, mk: mk, label: buildMesLabel(offset), data: null };
+        var r = calcDesdeHistorial(mk);
+        return { mk: mk, label: label, total: r.total, calificados: r.calificados };
       });
     });
-    Promise.all(promises).then(function(results) {
-      // Para cada mes, calcular UF lineales usando los datos de ese mes
-      var meses = results.map(function(res) {
-        var mk = res.mk;
-        var label = res.label;
-        var equipoMes = res.data; // array de ejecutivos con sus UF de ese mes
-        var totalLineal = 0;
-        var calificados = [];
 
-        if (equipoMes && Array.isArray(equipoMes)) {
-          // Datos del mes cargados desde storage
-          equipoMes.forEach(function(vMes) {
-            // Buscar el ejecutivo en el equipo actual para obtener el nombre
-            var vActual = equipo.find(function(e) { return String(e.id) === String(vMes.id); });
-            if (!vActual) return;
-            var uf = vMes.uf || 0;
-            if (uf >= 12) {
-              totalLineal += uf;
-              calificados.push({ id: vMes.id, nombre: vActual.nombre, uf: uf });
-            }
-          });
-        } else {
-          // Fallback: usar historial del equipo actual (HISTORIAL_EXCEL + ediciones manuales)
-          equipo.forEach(function(v) {
-            var hist = v.historial || {};
-            var excelBase = (HISTORIAL_EXCEL[v.id] || HISTORIAL_EXCEL[String(v.id)] || {})[mk] || {};
-            var manualEdit = hist[mk] || {};
-            var d = Object.keys(manualEdit).length > 0 ? manualEdit : excelBase;
-            var uf = d.uf || 0;
-            if (uf >= 12) {
-              totalLineal += uf;
-              calificados.push({ id: v.id, nombre: v.nombre, uf: uf });
-            }
-          });
-        }
-
-        calificados.sort(function(a, b) { return b.uf - a.uf; });
-        return { mk: mk, label: label, total: totalLineal, calificados: calificados };
-      });
+    Promise.all(promises).then(function(meses) {
       setMesesData(meses);
       setCargando(false);
     });
@@ -5461,7 +5494,7 @@ function MetasIndividualesView({ equipo, setEquipo, setMetaEquipo }) {
                 );
               }),
               React.createElement('td', { style: { padding: "8px 10px", textAlign: "center", background: "#FFF0F2", fontWeight: 900, color: RD, fontSize: 15 } },
-                mes > 0 ? mes+" UF" : "—"
+                mes > 0 ? (Math.round(mes * 10)/10)+" UF" : "—"
               )
             );
           }),
@@ -5475,20 +5508,20 @@ function MetasIndividualesView({ equipo, setEquipo, setMetaEquipo }) {
                 totSem[si]+" UF");
             }),
             React.createElement('td', { style: { padding: "12px 10px", textAlign: "center", fontWeight: 900, color: RD, fontSize: 16, background: "#FFE4E8" } },
-              totMes+" UF"
+              (Math.round(totMes * 10)/10)+" UF"
             )
           )
         )
       )
     ),
     React.createElement('div', { style: { marginTop: 16, padding: "12px 16px", background: "#F0FDF4", borderRadius: 10, border: "1px solid #86EFAC", fontSize: 13, color: "#15803D", fontWeight: 700 } },
-      "📊 Meta total del equipo si se guardan estos valores: ", totMes, " UF"),
+      "📊 Meta total del equipo si se guardan estos valores: ", Math.round(totMes*10)/10, " UF"),
     React.createElement('button', {
       onClick: guardar,
       style: { marginTop: 12, width: "100%", padding: "14px", background: saved ? "#16A34A" : R,
                color: "#fff", border: "none", borderRadius: 12, fontSize: 15, fontWeight: 700,
                cursor: "pointer", transition: "background .3s" }
-    }, saved ? "✅ ¡Metas guardadas! Meta del equipo actualizada a "+totMes+" UF" : "💾 Guardar metas y actualizar meta del equipo")
+    }, saved ? "✅ ¡Metas guardadas! Meta del equipo actualizada a "+(Math.round(totMes*10)/10)+" UF" : "💾 Guardar metas y actualizar meta del equipo")
   );
 }
 
