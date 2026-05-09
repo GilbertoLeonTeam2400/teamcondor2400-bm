@@ -3142,15 +3142,23 @@ function abrirCalendario(cliente) {
         @keyframes fadeIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
         @keyframes pulse  { 0%,100% { opacity:1; } 50% { opacity:.4; } }
         @media (max-width:640px) {
-          .grid-kpi   { grid-template-columns: 1fr 1fr !important; }
-          .grid-sup   { grid-template-columns: 1fr !important; }
-          .hide-mobile { display:none !important; }
+          .grid-kpi        { grid-template-columns: 1fr 1fr !important; }
+          .grid-sup        { grid-template-columns: 1fr !important; }
+          .hide-mobile     { display:none !important; }
+          .desktop-hero-layout { display:block !important; }
+          .desktop-row-3col    { display:block !important; }
+          .desktop-craks-grid  { grid-template-columns: repeat(3,1fr) !important; }
+        }
+        @media (min-width:641px) {
+          .desktop-hero-layout { display:block !important; }
+          .desktop-row-3col    { display:grid !important; grid-template-columns: 1fr 1fr 1fr; gap:18px; align-items:start; }
+          .desktop-craks-grid  { grid-template-columns: repeat(6,1fr) !important; }
         }
       `)
 
       /* HEADER */
       , React.createElement('div', { style: {background:"linear-gradient(135deg,#6B0115 0%,"+RD+" 35%,"+R+" 100%)",color:"#fff",boxShadow:"0 4px 24px rgba(233,7,41,.4)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2981}}
-        , React.createElement('div', { style: {maxWidth:1080,margin:"0 auto",padding:"18px 24px 0"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2982}}
+        , React.createElement('div', { style: {maxWidth:1400,margin:"0 auto",padding:"18px 24px 0"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2982}}
           , React.createElement('div', { style: {display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18,overflow:"hidden",gap:8}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2983}}
             , React.createElement('div', { style: {background:"#fff",borderRadius:12,padding:"10px 20px",boxShadow:"0 2px 12px rgba(0,0,0,.2)",flexShrink:0}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2984}}
               , React.createElement('div', { style: {fontSize:17,fontWeight:900,color:R,letterSpacing:"-0.02em"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2985}}, "Banmedica")
@@ -3174,12 +3182,12 @@ function abrirCalendario(cliente) {
         )
       )
 
-      , React.createElement('div', { style: {maxWidth:1080,margin:"28px auto 0",padding:"0 20px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3006}}
+      , React.createElement('div', { style: {maxWidth:1400,margin:"28px auto 0",padding:"0 20px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3006}}
 
         /* ===== EQUIPO ===== */
         , tab==="equipo" && (
-          React.createElement('div', { style: {maxWidth:680,margin:"0 auto"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3010}}
-            /* ── MARCADOR HERO ── */
+          React.createElement('div', { style: {maxWidth:"100%",margin:"0 auto"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3010}}
+            /* ── MARCADOR HERO FULL WIDTH ── */
             , React.createElement('div', { style: {background:"linear-gradient(135deg,#1a0a0a 0%,#3d0c14 45%,#6b1020 100%)",borderRadius:20,overflow:"hidden",marginBottom:18,boxShadow:"0 12px 48px rgba(0,0,0,.55)",position:"relative"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3012}}
               /* Logo Cóndor TEAM 2400 */
               , React.createElement('img', { src: CONDOR_LOGO_SRC, alt: "", style: {position:"absolute",left:"50%",top:"50%",transform:"translate(-50%,-50%)",width:400,height:400,opacity:.3,objectFit:"contain",pointerEvents:"none",userSelect:"none"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3014}} )
@@ -3301,7 +3309,9 @@ function abrirCalendario(cliente) {
                 )
               )
             )
-            , React.createElement('div', { style: {background:"#fff",borderRadius:18,padding:"22px 24px",boxShadow:"0 4px 20px rgba(233,7,41,.09)",border:"1px solid rgba(233,7,41,.1)",marginBottom:18}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3123}}
+            /* ── FILA INFERIOR 3 COLUMNAS ── */
+            , React.createElement('div', { className:"desktop-row-3col", style:{marginBottom:18,marginTop:18} }
+            , React.createElement('div', { style: {background:"#fff",borderRadius:18,padding:"22px 24px",boxShadow:"0 4px 20px rgba(233,7,41,.09)",border:"1px solid rgba(233,7,41,.1)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3123}}
               , React.createElement('div', { style: {display:"flex",alignItems:"center",gap:10,marginBottom:18}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3124}}
                 , React.createElement('div', { style: {background:R,borderRadius:10,padding:"6px 14px",color:"#fff",fontWeight:900,fontSize:13}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3125}}, "HOY")
                 , React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3126}}
@@ -3363,6 +3373,8 @@ function abrirCalendario(cliente) {
                 return React.createElement('div', { key: i, style: {display:"flex",gap:12,alignItems:"flex-start",marginBottom:8}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3182}}, React.createElement('div', { style: {background:R,color:"#fff",borderRadius:"50%",width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:12,flexShrink:0,marginTop:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3182}}, i+1), React.createElement('div', { style: {fontSize:14,color:"#555",lineHeight:1.55}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3182}}, t));
               })
             )
+
+            ) /* fin desktop-row-3col */
 
             /* ===== ESTOS SOMOS LOS CRAKS ===== */
             , React.createElement('div', { style: {height:18} })
@@ -3428,7 +3440,7 @@ function abrirCalendario(cliente) {
                   React.createElement('div', { style: {fontSize:13,color:"rgba(255,255,255,.75)",marginTop:6} }, "Equipo 2400 — Banmédica")
                 ),
 
-                React.createElement('div', { style: {display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,marginBottom:20} },
+                React.createElement('div', { className:"desktop-craks-grid", style: {display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,marginBottom:20} },
                   TEAM_MEMBERS.map(function(m, idx) {
                     var eqData = (equipo||[]).find(function(e){ return e.nombre && e.nombre.toUpperCase()===m.nombre.toUpperCase(); });
                     var fotoUrl = eqData && eqData.fotoUrl ? eqData.fotoUrl : null;
