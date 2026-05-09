@@ -3313,13 +3313,13 @@ function abrirCalendario(cliente) {
                 , React.createElement('div', { style: {background:"linear-gradient(135deg,"+RD+","+R+")",borderRadius:16,padding:"20px 22px",color:"#fff"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3132}}
                   , React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.7)",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:6}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3133}}, "UF cerradas hoy"  )
                   , React.createElement('div', { style: {fontSize:46,fontWeight:900,lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3134}}, fmtUF2(ufHoy))
-                  , React.createElement('div', { style: {fontSize:12,color:"rgba(255,255,255,.65)",marginTop:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3135}}, "Meta diaria: "+fmtUF2(META_UF/WD_MES)+" UF")
+                  , React.createElement('div', { style: {fontSize:12,color:"rgba(255,255,255,.65)",marginTop:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3135}}, "Cada UF suma al EQUIPO!")
                   , React.createElement('div', { style: {marginTop:10}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3136}}, React.createElement(Bar, { pct: (ufHoy/(META_UF/WD_MES))*100, color: "rgba(255,255,255,.8)", h: 6, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3136}} ))
                 )
-                , React.createElement('div', { style: {background:"linear-gradient(135deg,#065F46,#059669)",borderRadius:16,padding:"20px 22px",color:"#fff"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3138}}
+                , React.createElement('div', { style: {background:"linear-gradient(135deg,"+RD+","+R+")",borderRadius:16,padding:"20px 22px",color:"#fff"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3138}}
                   , React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.7)",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:6}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3139}}, "DPS realizadas hoy"  )
                   , React.createElement('div', { style: {fontSize:46,fontWeight:900,lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3140}}, dpsHoy)
-                  , React.createElement('div', { style: {fontSize:12,color:"rgba(255,255,255,.65)",marginTop:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3141}}, "Cada DPS suma al equipo!"    )
+                  , React.createElement('div', { style: {fontSize:12,color:"rgba(255,255,255,.65)",marginTop:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3141}}, "El primer paso a nuestros cierres!"    )
                 )
               )
             )
@@ -3359,12 +3359,133 @@ function abrirCalendario(cliente) {
             , React.createElement('div', { style: {height:18}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3178}} )
             , React.createElement('div', { style: {background:"#fff",borderRadius:16,padding:"20px 24px",boxShadow:"0 2px 10px rgba(233,7,41,.07)",border:"1px solid rgba(233,7,41,.07)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3179}}
               , React.createElement('div', { style: {fontSize:15,fontWeight:900,color:RD,marginBottom:12}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3180}}, "Como contribuir al marcador"   )
-              , ["Cada UF que cierras mueve la barra del equipo en tiempo real.","Envia tu reporte diario en Mi Reporte al cierre de jornada. Tus datos son confidenciales.","Meta aspiracional: que cada ejecutivo logre 50 UF este mes. Cada uno suma!"].map(function(t,i){
+              , ["Cada UF que cierras mueve la barra del equipo en tiempo real.","Envia tu reporte diario en Mi Reporte al cierre de jornada. Tus datos son confidenciales."].map(function(t,i){
                 return React.createElement('div', { key: i, style: {display:"flex",gap:12,alignItems:"flex-start",marginBottom:8}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3182}}, React.createElement('div', { style: {background:R,color:"#fff",borderRadius:"50%",width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:12,flexShrink:0,marginTop:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3182}}, i+1), React.createElement('div', { style: {fontSize:14,color:"#555",lineHeight:1.55}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3182}}, t));
               })
             )
+
+            /* ===== ESTOS SOMOS LOS CRAKS ===== */
+            , React.createElement('div', { style: {height:18} })
+            , (function(){
+              var TEAM_MEMBERS = [
+                {nombre:"GILBERTO LEON DURAN", cargo:"Supervisor", esLider:true},
+                {nombre:"RODRIGO ORTIZ", cargo:"Asesor Comercial", esLider:false},
+                {nombre:"MARCELA MERINO", cargo:"Asesor Comercial", esLider:false},
+                {nombre:"CHRISTIAN DOMINGUEZ", cargo:"Asesor Comercial", esLider:false},
+                {nombre:"LOLA PERDOMO", cargo:"Asesor Comercial", esLider:false},
+                {nombre:"PAMELA TRINCADO", cargo:"Asesor Comercial", esLider:false},
+                {nombre:"KENIA GÓMEZ", cargo:"Asesor Comercial", esLider:false},
+                {nombre:"LUISANA OVALLOS", cargo:"Asesor Comercial", esLider:false},
+                {nombre:"MARIANA RAMÍREZ", cargo:"Asesor Comercial", esLider:false},
+                {nombre:"CRISTINA UNDURRAGA", cargo:"Asesor Comercial", esLider:false},
+                {nombre:"LESLY SANDOVAL", cargo:"Asesor Comercial", esLider:false},
+                {nombre:"CAMILA URRUTIA", cargo:"Asesor Comercial", esLider:false},
+                {nombre:"CRISTIAN NEIRA", cargo:"Asesor Comercial", esLider:false},
+                {nombre:"LEONOR RAMÍREZ", cargo:"Asesor Comercial", esLider:false},
+                {nombre:"ROMINA SALINAS", cargo:"Asesor Comercial", esLider:false},
+                {nombre:"PERLA ROJAS", cargo:"Asesor Comercial", esLider:false},
+                {nombre:"ELIZABETH GALVEZ", cargo:"Asesor Comercial", esLider:false},
+                {nombre:"PAULINA OVALLE", cargo:"Asesor Comercial", esLider:false},
+                {nombre:"MARIA ELENA ÁLVAREZ", cargo:"Asesor Comercial", esLider:false},
+                {nombre:"ALEJANDRA CIFUENTES", cargo:"Asesor Comercial", esLider:false},
+                {nombre:"CATALINA FLORES", cargo:"Asesor Comercial", esLider:false},
+                {nombre:"ROMINA ROCHA", cargo:"Asesor Comercial", esLider:false},
+                {nombre:"ANA AVILES", cargo:"Asesor Comercial", esLider:false},
+                {nombre:"NICOLE MOLINETT", cargo:"Asesor Comercial", esLider:false}
+              ];
+
+              function getInitials(nombre) {
+                var parts = nombre.split(' ').filter(function(p){return p.length>0;});
+                if(parts.length>=2) return parts[0][0]+parts[1][0];
+                return parts[0]?parts[0][0]:'?';
+              }
+
+              function formatNombreCrak(m) {
+                if(m.esLider) return m.nombre;
+                var parts = m.nombre.split(' ');
+                if(parts.length===1) return parts[0]+' CRACK';
+                var primer = parts[0];
+                var resto = parts.slice(1).join(' ');
+                return primer+' CRACK '+resto;
+              }
+
+              var hoy = new Date();
+              var mesActual = hoy.getMonth()+1;
+              var cumpleMes = (equipo||[]).filter(function(e){
+                if(!e.fechaNac) return false;
+                var parts = e.fechaNac.split('-');
+                if(parts.length<2) return false;
+                return parseInt(parts[1])===mesActual;
+              });
+
+              return React.createElement('div', null,
+                React.createElement('div', { style: {background:"linear-gradient(135deg,#C41230,#8B0000)",borderRadius:16,padding:"20px 24px",marginBottom:16,boxShadow:"0 4px 20px rgba(196,18,48,.25)",textAlign:"center"} },
+                  React.createElement('div', { style: {fontSize:20,fontWeight:900,color:"#FCD34D",letterSpacing:"0.04em",textTransform:"uppercase"} }, "⭐ ESTOS SOMOS LOS CRAKS DE ESTE EQUIPO ⭐"),
+                  React.createElement('div', { style: {fontSize:13,color:"rgba(255,255,255,.75)",marginTop:6} }, "Equipo 2400 — Banmédica")
+                ),
+
+                React.createElement('div', { style: {display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:20} },
+                  TEAM_MEMBERS.map(function(m, idx) {
+                    var eqData = (equipo||[]).find(function(e){ return e.nombre && e.nombre.toUpperCase()===m.nombre.toUpperCase(); });
+                    var fotoUrl = eqData && eqData.fotoUrl ? eqData.fotoUrl : null;
+                    var initials = getInitials(m.nombre);
+                    var cardBg = "linear-gradient(135deg,#7F1D1D,#991B1B)";
+                    var borderStyle = m.esLider ? "3px solid #FCD34D" : "2px solid rgba(255,255,255,.15)";
+                    var displayNombre = formatNombreCrak(m);
+                    var nombreParts = displayNombre.split(' CRACK ');
+
+                    return React.createElement('div', { key: idx, style: {background:cardBg,borderRadius:14,padding:"14px 10px",textAlign:"center",border:borderStyle,boxShadow:"0 3px 12px rgba(0,0,0,.2)",position:"relative"} },
+                      m.esLider && React.createElement('div', { style: {position:"absolute",top:-8,left:"50%",transform:"translateX(-50%)",background:"#FCD34D",color:"#7F1D1D",fontSize:9,fontWeight:900,padding:"2px 8px",borderRadius:99,whiteSpace:"nowrap",letterSpacing:"0.05em"} }, "👑 LÍDER"),
+                      React.createElement('div', { style: {width:90,height:90,borderRadius:"50%",margin:"6px auto 12px",border:m.esLider?"3px solid #FCD34D":"2px solid rgba(255,255,255,.3)",overflow:"hidden",background:fotoUrl?"#000":"#6B1A1A",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0} },
+                        fotoUrl
+                          ? React.createElement('img', { src: fotoUrl, style: {width:"100%",height:"100%",objectFit:"cover"}, alt: m.nombre })
+                          : React.createElement('span', { style: {fontSize:30,fontWeight:900,color:"#FCD34D"} }, initials)
+                      ),
+                      nombreParts.length===2
+                        ? React.createElement('div', { style: {fontSize:10,fontWeight:900,color:"#fff",lineHeight:1.3,marginBottom:2} },
+                            React.createElement('span', null, nombreParts[0]+' '),
+                            React.createElement('span', { style: {color:"#FCD34D",fontSize:9} }, 'CRACK '),
+                            React.createElement('span', null, nombreParts[1])
+                          )
+                        : React.createElement('div', { style: {fontSize:10,fontWeight:900,color:"#fff",lineHeight:1.3,marginBottom:2} }, displayNombre),
+                      React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:"0.06em"} }, m.cargo)
+                    );
+                  })
+                ),
+
+                React.createElement('div', { style: {background: cumpleMes.length>0 ? "linear-gradient(135deg,#7C3AED,#4F46E5)" : "#F8FAFC", borderRadius:16, padding:"20px 24px", border: cumpleMes.length>0 ? "2px solid #A78BFA" : "1px solid #E5E7EB", boxShadow: cumpleMes.length>0 ? "0 4px 24px rgba(124,58,237,.25)" : "none"} },
+                  cumpleMes.length > 0
+                    ? React.createElement('div', { style: {textAlign:"center"} },
+                        React.createElement('div', { style: {fontSize:32,marginBottom:8} }, "🎂🎉🎊"),
+                        React.createElement('div', { style: {fontSize:cumpleMes.length===1?"22px":"18px",fontWeight:900,color:"#FCD34D",marginBottom:16,letterSpacing:"0.04em",textTransform:"uppercase",textShadow:"0 2px 8px rgba(0,0,0,.3)"} },
+                          "🌟 FELICITACIONES "+(cumpleMes.length===1?"CRACK":"CRACKS")+"! 🌟"
+                        ),
+                        React.createElement('div', { style: {display:"flex",justifyContent:"center",gap:16,flexWrap:"wrap",marginBottom:12} },
+                          cumpleMes.map(function(c,ci){
+                            var initials = c.nombre ? c.nombre.split(' ').slice(0,2).map(function(p){return p[0];}).join('') : '?';
+                            return React.createElement('div', { key: ci, style: {textAlign:"center"} },
+                              React.createElement('div', { style: {width:72,height:72,borderRadius:"50%",border:"3px solid #FCD34D",overflow:"hidden",background:c.fotoUrl?"#000":"#6D28D9",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 6px",boxShadow:"0 0 0 4px rgba(252,211,77,.3)"} },
+                                c.fotoUrl
+                                  ? React.createElement('img', { src: c.fotoUrl, style: {width:"100%",height:"100%",objectFit:"cover"} })
+                                  : React.createElement('span', { style: {fontSize:24,fontWeight:900,color:"#FCD34D"} }, initials)
+                              ),
+                              React.createElement('div', { style: {fontSize:11,fontWeight:900,color:"#fff",maxWidth:80} }, c.nombre)
+                            );
+                          })
+                        ),
+                        React.createElement('div', { style: {fontSize:13,color:"rgba(255,255,255,.8)"} }, "¡El equipo 2400 los celebra este mes! 🥳")
+                      )
+                    : React.createElement('div', { style: {textAlign:"center",padding:"10px 0"} },
+                        React.createElement('div', { style: {fontSize:28,marginBottom:6} }, "🎂"),
+                        React.createElement('div', { style: {fontSize:14,fontWeight:700,color:RD,marginBottom:4} }, "Cumpleañeros del mes"),
+                        React.createElement('div', { style: {fontSize:12,color:"#9CA3AF"} }, "Sin cumpleañeros este mes — ¡el próximo llegará pronto!")
+                      )
+                )
+              );
+            })()
           )
         )
+        /* FIN CRAKS */
 
         /* ===== MI REPORTE ===== */
         , tab==="formulario" && (
@@ -4211,7 +4332,7 @@ function abrirCalendario(cliente) {
                     )
                     , React.createElement('div', { style: {overflowX:"auto"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3692}}
                       , React.createElement('table', { style: {width:"100%",borderCollapse:"collapse",fontSize:13}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3693}}
-                        , React.createElement('thead', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3694}}, React.createElement('tr', { style: {background:"#F8FAFC",borderBottom:"2px solid #E5E7EB"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3694}}, ["#","Nombre","RUT","Email corporativo","PIN personal","Meta UF",""].map(function(h){return React.createElement('th', { key: h, style: {padding:"10px 12px",textAlign:"left",fontSize:11,color:"#6B7280",fontWeight:700,textTransform:"uppercase"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3694}}, h);})))
+                        , React.createElement('thead', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3694}}, React.createElement('tr', { style: {background:"#F8FAFC",borderBottom:"2px solid #E5E7EB"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3694}}, ["#","Nombre","RUT","Email corporativo","PIN personal","Meta UF","Cumpleaños",""].map(function(h){return React.createElement('th', { key: h, style: {padding:"10px 12px",textAlign:"left",fontSize:11,color:"#6B7280",fontWeight:700,textTransform:"uppercase"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3694}}, h);})))
                         , React.createElement('tbody', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3695}}
                           , equipo.map(function(v,i){return (
                             React.createElement('tr', { key: v.id, style: {borderBottom:"1px solid #F0F4FA",background:i%2===0?"#fff":"#FAFBFF"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3697}}
@@ -4225,6 +4346,20 @@ function abrirCalendario(cliente) {
                               )
                               , React.createElement('td', { style: {padding:"10px 12px",color:"#6B7280",fontFamily:"monospace",fontWeight:700,fontSize:16}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3700}}, v.pin)
                               , React.createElement('td', { style: {padding:"10px 12px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3701}}, React.createElement('span', { style: {background:"rgba(233,7,41,.08)",color:"#E9192A",fontWeight:700,borderRadius:8,padding:"3px 8px",fontSize:12}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3701}}, v.metaUF+" UF"))
+                              , React.createElement('td', { style: {padding:"10px 12px"} }
+                                , React.createElement('input', { 
+                                    type: "date",
+                                    defaultValue: v.fechaNac||"",
+                                    title: "Fecha de nacimiento",
+                                    onBlur: function(e){ 
+                                      var val=e.target.value; 
+                                      var newEq=equipo.map(function(eq){ return eq.id===v.id ? Object.assign({},eq,{fechaNac:val}) : eq; });
+                                      setEquipo(newEq);
+                                      if(window.__fbDb){ window.__fbDoc(window.__fbDb,"equipo2400","datos").get().then(function(snap){ var d=snap.data()||{}; var arr=(d.equipo||[]).map(function(eq){ return eq.id===v.id?Object.assign({},eq,{fechaNac:val}):eq; }); window.__fbDoc(window.__fbDb,"equipo2400","datos").set(Object.assign({},d,{equipo:arr})); }); }
+                                    },
+                                    style: {padding:"4px 6px",fontSize:11,borderRadius:7,border:"1.5px solid #D1D5DB",outline:"none",fontFamily:"inherit",color:"#374151",width:130}
+                                  })
+                              )
                               , React.createElement('td', { style: {padding:"10px 12px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3705}}, React.createElement('button', { onClick: function(){if(window.confirm("Eliminar a "+v.nombre+"?"))eliminarEjecutivo(v.id);}, style: {background:"#FEE2E2",color:"#B91C1C",border:"none",borderRadius:8,padding:"4px 8px",fontSize:11,cursor:"pointer",fontFamily:"inherit",fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3705}}, "🗑️")
                               , React.createElement('button', { onClick: function(){const n=window.prompt("Nuevo nombre:",v.nombre);if(n)renombrarEjecutivo(v.id,n);}, style: {background:"#EFF6FF",color:"#1D4ED8",border:"none",borderRadius:8,padding:"4px 8px",fontSize:11,cursor:"pointer",fontFamily:"inherit",fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3706}}, "✏️")
                               , React.createElement('button', { onClick: function(){subirEjecutivo(v.id);}, style: {background:"#F0FDF4",color:"#15803D",border:"none",borderRadius:8,padding:"4px 8px",fontSize:11,cursor:"pointer",fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3707}}, "↑")
