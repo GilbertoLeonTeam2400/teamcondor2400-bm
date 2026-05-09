@@ -3422,13 +3422,13 @@ function abrirCalendario(cliente) {
                 cumpleMes = [{nombre:"Supervisor", fotoUrl:null, esSupervisor:true}].concat(cumpleMes);
               }
 
-              return React.createElement('div', null,
-                React.createElement('div', { style: {background:"linear-gradient(135deg,#C41230,#8B0000)",borderRadius:16,padding:"20px 24px",marginBottom:16,boxShadow:"0 4px 20px rgba(196,18,48,.25)",textAlign:"center"} },
-                  React.createElement('div', { style: {fontSize:20,fontWeight:900,color:"#FCD34D",letterSpacing:"0.04em",textTransform:"uppercase"} }, "⭐ ESTOS SOMOS LOS CRAKS DE ESTE EQUIPO ⭐"),
+              return React.createElement('div', { style: {width:"100%",boxSizing:"border-box",overflow:"hidden"} },
+                React.createElement('div', { style: {background:"linear-gradient(135deg,#C41230,#8B0000)",borderRadius:16,padding:"16px 12px",marginBottom:12,boxShadow:"0 4px 20px rgba(196,18,48,.25)",textAlign:"center"} },
+                  React.createElement('div', { style: {fontSize:"clamp(13px,4vw,20px)",fontWeight:900,color:"#FCD34D",letterSpacing:"0.02em",textTransform:"uppercase"} }, "⭐ ESTOS SOMOS LOS CRAKS DE ESTE EQUIPO ⭐"),
                   React.createElement('div', { style: {fontSize:13,color:"rgba(255,255,255,.75)",marginTop:6} }, "Equipo 2400 — Banmédica")
                 ),
 
-                React.createElement('div', { style: {display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:20} },
+                React.createElement('div', { style: {display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,marginBottom:20} },
                   TEAM_MEMBERS.map(function(m, idx) {
                     var eqData = (equipo||[]).find(function(e){ return e.nombre && e.nombre.toUpperCase()===m.nombre.toUpperCase(); });
                     var fotoUrl = eqData && eqData.fotoUrl ? eqData.fotoUrl : null;
@@ -3438,22 +3438,22 @@ function abrirCalendario(cliente) {
                     var displayNombre = formatNombreCrak(m);
                     var nombreParts = displayNombre.split(' CRACK ');
 
-                    return React.createElement('div', { key: idx, style: {background:cardBg,borderRadius:14,padding:"6px 6px 10px",textAlign:"center",border:borderStyle,boxShadow:"0 3px 12px rgba(0,0,0,.2)",position:"relative",display:"flex",flexDirection:"column",alignItems:"center"} },
-                      m.esLider && React.createElement('div', { style: {position:"absolute",top:-8,left:"50%",transform:"translateX(-50%)",background:"#FCD34D",color:"#7F1D1D",fontSize:9,fontWeight:900,padding:"2px 8px",borderRadius:99,whiteSpace:"nowrap",letterSpacing:"0.05em"} }, "👑 LÍDER"),
-                      React.createElement('div', { style: {width:130,height:130,borderRadius:"50%",margin:"10px auto 0",border:m.esLider?"3px solid #FCD34D":"2px solid rgba(255,255,255,.3)",overflow:"hidden",background:fotoUrl?"#000":"#6B1A1A",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0} },
+                    return React.createElement('div', { key: idx, style: {background:cardBg,borderRadius:12,padding:"4px 4px 8px",textAlign:"center",border:borderStyle,boxShadow:"0 3px 12px rgba(0,0,0,.2)",position:"relative",display:"flex",flexDirection:"column",alignItems:"center",minWidth:0} },
+                      m.esLider && React.createElement('div', { style: {position:"absolute",top:-7,left:"50%",transform:"translateX(-50%)",background:"#FCD34D",color:"#7F1D1D",fontSize:7,fontWeight:900,padding:"2px 6px",borderRadius:99,whiteSpace:"nowrap",letterSpacing:"0.04em",zIndex:1} }, "👑 LÍDER"),
+                      React.createElement('div', { style: {width:"clamp(70px,22vw,110px)",height:"clamp(70px,22vw,110px)",borderRadius:"50%",margin:"10px auto 0",border:m.esLider?"3px solid #FCD34D":"2px solid rgba(255,255,255,.3)",overflow:"hidden",background:fotoUrl?"#000":"#6B1A1A",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0} },
                         fotoUrl
                           ? React.createElement('img', { src: fotoUrl, style: {width:"100%",height:"100%",objectFit:"cover"}, alt: m.nombre })
-                          : React.createElement('span', { style: {fontSize:42,fontWeight:900,color:"#FCD34D"} }, initials)
+                          : React.createElement('span', { style: {fontSize:"clamp(20px,7vw,36px)",fontWeight:900,color:"#FCD34D"} }, initials)
                       ),
-                      React.createElement('div', { style: {marginTop:"auto",paddingTop:8} },
+                      React.createElement('div', { style: {marginTop:"auto",paddingTop:6,width:"100%",overflow:"hidden"} },
                         nombreParts.length===2
-                          ? React.createElement('div', { style: {fontSize:10,fontWeight:900,color:"#fff",lineHeight:1.3,marginBottom:2} },
+                          ? React.createElement('div', { style: {fontSize:"clamp(8px,2.2vw,10px)",fontWeight:900,color:"#fff",lineHeight:1.3,marginBottom:2,wordBreak:"break-word"} },
                               React.createElement('span', null, nombreParts[0]+' '),
-                              React.createElement('span', { style: {color:"#FCD34D",fontSize:9} }, 'CRACK '),
+                              React.createElement('span', { style: {color:"#FCD34D",fontSize:"clamp(7px,2vw,9px)"} }, 'CRACK '),
                               React.createElement('span', null, nombreParts[1])
                             )
-                          : React.createElement('div', { style: {fontSize:10,fontWeight:900,color:"#fff",lineHeight:1.3,marginBottom:2} }, displayNombre),
-                        React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:"0.06em"} }, m.cargo)
+                          : React.createElement('div', { style: {fontSize:"clamp(8px,2.2vw,10px)",fontWeight:900,color:"#fff",lineHeight:1.3,marginBottom:2,wordBreak:"break-word"} }, displayNombre),
+                        React.createElement('div', { style: {fontSize:"clamp(7px,1.8vw,9px)",color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:"0.04em"} }, m.cargo)
                       )
                     );
                   })
