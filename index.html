@@ -2638,6 +2638,60 @@ function abrirCalendario(cliente) {
   window.open(url, "_blank");
 }
 
+// ── Supervisor Photo Card (proper component to allow hooks) ──────
+function SupervisorFotoCard() {
+  var [supFotoState, setSupFotoState] = React.useState(window.__supFotoGlobal || null);
+
+  React.useEffect(function(){
+    if(window.__supFotoGlobal) { setSupFotoState(window.__supFotoGlobal); return; }
+    if(window.__fbDb && window.__fbDoc && window.__fbGetDoc) {
+      window.__fbGetDoc(window.__fbDoc(window.__fbDb,"supervisor","perfil"))
+        .then(function(snap){
+          if(snap.exists){
+            var d = snap.data();
+            if(d && d.fotoUrl){ window.__supFotoGlobal = d.fotoUrl; setSupFotoState(d.fotoUrl); }
+          }
+        }).catch(function(){});
+    }
+  }, []);
+
+  return React.createElement('div', { style: {background:"linear-gradient(135deg,#1a0a0a,#3d0c14)",borderRadius:16,padding:"18px 20px",marginBottom:20,border:"2px solid rgba(201,168,76,.35)",display:"flex",alignItems:"center",gap:18}},
+    React.createElement('div', { style: {display:"flex",flexDirection:"column",alignItems:"center",gap:8,flexShrink:0}},
+      React.createElement('div', { style: {width:80,height:80,borderRadius:"50%",overflow:"hidden",background:supFotoState?"#000":"#6B1A1A",border:"3px solid #C9A84C",display:"flex",alignItems:"center",justifyContent:"center"}},
+        supFotoState
+          ? React.createElement('img', { src: supFotoState, style: {width:"100%",height:"100%",objectFit:"cover"}, alt: "Supervisor" })
+          : React.createElement('span', { style: {fontSize:28,fontWeight:900,color:"#C9A84C"}}, "GL")
+      ),
+      React.createElement('label', { style: {fontSize:10,fontWeight:700,color:"#C9A84C",cursor:"pointer",background:"rgba(201,168,76,.2)",borderRadius:8,padding:"5px 10px",textAlign:"center",whiteSpace:"nowrap"}},
+        supFotoState ? "📷 Cambiar foto" : "📷 Subir mi foto",
+        React.createElement('input', {
+          type: "file", accept: "image/*", style: {display:"none"},
+          onChange: function(e) {
+            var file = e.target.files[0];
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function(ev) {
+              var dataUrl = ev.target.result;
+              window.__supFotoGlobal = dataUrl;
+              setSupFotoState(dataUrl);
+              if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc) {
+                window.__fbSetDoc(window.__fbDoc(window.__fbDb,"supervisor","perfil"),{fotoUrl:dataUrl}).catch(function(){});
+              }
+            };
+            reader.readAsDataURL(file);
+          }
+        })
+      )
+    ),
+    React.createElement('div', {},
+      React.createElement('div', { style: {fontSize:11,color:"rgba(201,168,76,.7)",textTransform:"uppercase",letterSpacing:"0.12em",marginBottom:4,fontWeight:700}}, "👑 Mi foto — Supervisor"),
+      React.createElement('div', { style: {fontSize:15,fontWeight:900,color:"#FCD34D",marginBottom:6}}, "GILBERTO LEON DURAN"),
+      React.createElement('div', { style: {fontSize:12,color:"rgba(255,255,255,.6)",lineHeight:1.5}}, "Esta foto aparece en la sección \"ESTOS SOMOS LOS CRACKS\" como líder del equipo."),
+      React.createElement('div', { style: {fontSize:11,color:"rgba(201,168,76,.6)",marginTop:6,fontStyle:"italic"}}, "⚡ No afecta las estadísticas del equipo.")
+    )
+  );
+}
+
  function App() {
   const info = useMemo(hoyInfo, []);
 
@@ -2965,6 +3019,21 @@ function abrirCalendario(cliente) {
     setPinFormOk(false);
     setPinFormulario("");
     setPinFormErr(false);
+    // Guardar resumen CRM del ejecutivo para pipeline del supervisor
+    try {
+      var crmRaw = localStorage.getItem("crm_"+id);
+      if (crmRaw) {
+        var crmArr = JSON.parse(crmRaw);
+        var calientes = crmArr.filter(function(c){return c.temperatura==="caliente"&&c.proxAct!=="cerrado"&&c.proxAct!=="perdido";}).length;
+        var tibios = crmArr.filter(function(c){return c.temperatura==="tibio"&&c.proxAct!=="cerrado"&&c.proxAct!=="perdido";}).length;
+        var ufPot = crmArr.filter(function(c){return c.proxAct!=="cerrado"&&c.proxAct!=="perdido";}).reduce(function(s,c){return s+(parseFloat(c.planUF)||0);},0);
+        var equipoCRM = nuevoEquipo.map(function(v){
+          return v.id===id ? Object.assign({},v,{crmResumen:{calientes:calientes,tibios:tibios,ufPotencial:Math.round(ufPot*100)/100}}) : v;
+        });
+        setEquipo(equipoCRM);
+        nuevoEquipo = equipoCRM;
+      }
+    } catch(e) {}
     // Guardar en Firebase directamente
     if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
       skipSnapshot.current=true;
@@ -3472,21 +3541,8 @@ function abrirCalendario(cliente) {
 
               var hoy = new Date();
               var mesActual = hoy.getMonth()+1;
-              // Load supervisor photo from Firebase (cached in window.__supFotoGlobal)
+              // Supervisor photo: use window cache (loaded by SupervisorFotoCard component)
               var supFotoFromStorage = window.__supFotoGlobal || null;
-              // Load supervisor photo from Firebase once and cache in window
-              React.useEffect(function(){
-                if(window.__supFotoGlobal) return; // already loaded
-                if(window.__fbDb && window.__fbDoc && window.__fbGetDoc) {
-                  window.__fbGetDoc(window.__fbDoc(window.__fbDb,"supervisor","perfil"))
-                    .then(function(snap){
-                      if(snap.exists) {
-                        var d = snap.data();
-                        if(d && d.fotoUrl) { window.__supFotoGlobal = d.fotoUrl; }
-                      }
-                    }).catch(function(){});
-                }
-              }, []);
               var cumpleMes = (equipo||[]).filter(function(e){
                 if(!e.fechaNac) return false;
                 var parts = e.fechaNac.split('-');
@@ -4413,60 +4469,7 @@ function abrirCalendario(cliente) {
                     , React.createElement('div', { style: {color:"#6B7280",fontSize:14,marginBottom:16}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3687}}, "Agrega o elimina ejecutivos. Los cambios se guardan automaticamente."        )
 
                     /* ── FOTO SUPERVISOR (separada, no suma estadísticas) ── */
-                    , (function(){
-                        var [supFotoState, setSupFotoState] = React.useState(window.__supFotoGlobal || null);
-
-                        // Load from Firebase on mount if not cached
-                        React.useEffect(function(){
-                          if(window.__supFotoGlobal) { setSupFotoState(window.__supFotoGlobal); return; }
-                          if(window.__fbDb && window.__fbDoc && window.__fbGetDoc) {
-                            window.__fbGetDoc(window.__fbDoc(window.__fbDb,"supervisor","perfil"))
-                              .then(function(snap){
-                                if(snap.exists){
-                                  var d = snap.data();
-                                  if(d && d.fotoUrl){ window.__supFotoGlobal = d.fotoUrl; setSupFotoState(d.fotoUrl); }
-                                }
-                              }).catch(function(){});
-                          }
-                        }, []);
-                        var initials = "GL";
-                        return React.createElement('div', { style: {background:"linear-gradient(135deg,#1a0a0a,#3d0c14)",borderRadius:16,padding:"18px 20px",marginBottom:20,border:"2px solid rgba(201,168,76,.35)",display:"flex",alignItems:"center",gap:18}},
-                          React.createElement('div', { style: {display:"flex",flexDirection:"column",alignItems:"center",gap:8,flexShrink:0}},
-                            React.createElement('div', { style: {width:80,height:80,borderRadius:"50%",overflow:"hidden",background:supFotoState?"#000":"#6B1A1A",border:"3px solid #C9A84C",display:"flex",alignItems:"center",justifyContent:"center"}},
-                              supFotoState
-                                ? React.createElement('img', { src: supFotoState, style: {width:"100%",height:"100%",objectFit:"cover"}, alt: "Supervisor" })
-                                : React.createElement('span', { style: {fontSize:28,fontWeight:900,color:"#C9A84C"}}, initials)
-                            ),
-                            React.createElement('label', { style: {fontSize:10,fontWeight:700,color:"#C9A84C",cursor:"pointer",background:"rgba(201,168,76,.2)",borderRadius:8,padding:"5px 10px",textAlign:"center",whiteSpace:"nowrap"}},
-                              supFotoState ? "📷 Cambiar foto" : "📷 Subir mi foto",
-                              React.createElement('input', {
-                                type: "file", accept: "image/*", style: {display:"none"},
-                                onChange: function(e) {
-                                  var file = e.target.files[0];
-                                  if (!file) return;
-                                  var reader = new FileReader();
-                                  reader.onload = function(ev) {
-                                    var dataUrl = ev.target.result;
-                                    window.__supFotoGlobal = dataUrl;
-                                    setSupFotoState(dataUrl);
-                                    // Save to Firebase — persists across all devices
-                                    if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc) {
-                                      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"supervisor","perfil"),{fotoUrl:dataUrl}).catch(function(){});
-                                    }
-                                  };
-                                  reader.readAsDataURL(file);
-                                }
-                              })
-                            )
-                          ),
-                          React.createElement('div', {},
-                            React.createElement('div', { style: {fontSize:11,color:"rgba(201,168,76,.7)",textTransform:"uppercase",letterSpacing:"0.12em",marginBottom:4,fontWeight:700}}, "👑 Mi foto — Supervisor"),
-                            React.createElement('div', { style: {fontSize:15,fontWeight:900,color:"#FCD34D",marginBottom:6}}, "GILBERTO LEON DURAN"),
-                            React.createElement('div', { style: {fontSize:12,color:"rgba(255,255,255,.6)",lineHeight:1.5}}, "Esta foto aparece en la sección \"ESTOS SOMOS LOS CRACKS\" como líder del equipo."),
-                            React.createElement('div', { style: {fontSize:11,color:"rgba(201,168,76,.6)",marginTop:6,fontStyle:"italic"}}, "⚡ No afecta las estadísticas del equipo.")
-                          )
-                        );
-                      })()
+                    , React.createElement(SupervisorFotoCard, null)
                     , React.createElement('div', { style: {display:"flex",gap:10,marginBottom:22}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3688}}
                       , React.createElement('input', { value: nuevoNom, onChange: function(e){setNuevoNom(e.target.value);}, style: Object.assign({},INP,{flex:1}), placeholder: "Nombre completo del nuevo ejecutivo..."    , __self: this, __source: {fileName: _jsxFileName, lineNumber: 3689}} )
                       , React.createElement('button', { onClick: agregarEjecutivo, style: Object.assign({},BTN,{padding:"11px 22px",fontSize:14}), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3690}}, "Agregar")
@@ -4675,6 +4678,102 @@ function abrirCalendario(cliente) {
                         , React.createElement('button', { onClick: abrirCarga, style: {background:BG,color:R,border:"1.5px solid "+R,borderRadius:10,padding:"7px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit",fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3779}}, "Editar valores" )
                       )
                       , React.createElement(PanelAlertas, { equipo: equipo, proyV: proyV, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3781}} )
+
+                      /* ── SILENCIO: Ejecutivos sin reporte reciente ── */
+                      , (function(){
+                          var hoyDate = new Date();
+                          function diasSinReporte(v) {
+                            var reps = v.rep || [];
+                            if (reps.length === 0) return null; // nunca ha reportado
+                            var fechas = reps.map(function(r){
+                              if (!r.fecha) return null;
+                              var parts = r.fecha.split("/");
+                              if (parts.length < 3) return null;
+                              return new Date(parts[2]+"-"+parts[1]+"-"+parts[0]);
+                            }).filter(Boolean);
+                            if (fechas.length === 0) return null;
+                            var ultima = fechas.reduce(function(a,b){return a>b?a:b;});
+                            var diff = Math.floor((hoyDate - ultima) / (1000*60*60*24));
+                            return diff;
+                          }
+                          var conSilencio = equipo.map(function(v){
+                            return { v:v, dias: diasSinReporte(v) };
+                          }).filter(function(x){return x.dias !== null && x.dias >= 2;})
+                            .sort(function(a,b){return b.dias-a.dias;});
+
+                          if (conSilencio.length === 0) return React.createElement('div', { style: {background:"#F0FDF4",borderRadius:14,padding:"14px 18px",marginBottom:16,border:"1px solid #86EFAC",display:"flex",alignItems:"center",gap:10} },
+                            React.createElement('div', { style: {fontSize:22} }, "✅"),
+                            React.createElement('div', null,
+                              React.createElement('div', { style: {fontWeight:700,color:"#15803D",fontSize:13} }, "Todo el equipo reportó recientemente"),
+                              React.createElement('div', { style: {fontSize:12,color:"#6B7280",marginTop:2} }, "Nadie lleva más de 1 día sin enviar reporte.")
+                            )
+                          );
+                          return React.createElement('div', { style: {background:"#FFF7ED",borderRadius:14,padding:"14px 18px",marginBottom:16,border:"1px solid #FED7AA"} },
+                            React.createElement('div', { style: {display:"flex",alignItems:"center",gap:8,marginBottom:10} },
+                              React.createElement('div', { style: {fontSize:20} }, "🔕"),
+                              React.createElement('div', null,
+                                React.createElement('div', { style: {fontWeight:800,color:"#92400E",fontSize:13} }, "Silencio detectado — sin reporte reciente"),
+                                React.createElement('div', { style: {fontSize:11,color:"#78350F",marginTop:1} }, conSilencio.length+" ejecutivo(s) llevan 2+ días sin enviar reporte")
+                              )
+                            ),
+                            React.createElement('div', { style: {display:"flex",flexWrap:"wrap",gap:8} },
+                              conSilencio.map(function(x){
+                                var p = x.v.nombre.split(" ");
+                                var corto = p.length>=2 ? p[0]+" "+p[1] : p[0];
+                                var urgente = x.dias >= 5;
+                                return React.createElement('div', { key: x.v.id, style: {background:urgente?"#FEE2E2":"#FEF3C7",borderRadius:99,padding:"4px 12px",fontSize:12,fontWeight:700,color:urgente?"#B91C1C":"#92400E",display:"flex",alignItems:"center",gap:5} },
+                                  React.createElement('span', null, urgente?"🆘":"⚠️"),
+                                  React.createElement('span', null, corto),
+                                  React.createElement('span', { style: {opacity:.7} }, "·"+x.dias+"d")
+                                );
+                              })
+                            )
+                          );
+                        })()
+
+                      /* ── TEMPERATURA DEL PIPELINE (CRM del equipo) ── */
+                      , (function(){
+                          // Aggregate CRM data from all ejecutivos via equipo state
+                          // CRM data is stored in localStorage per ejecutivo - we can show team-level counts
+                          // from the crmData structure if loaded, otherwise show prompt
+                          var totalCalientes = 0, totalTibios = 0, totalUFPotencial = 0;
+                          // We count from each ejecutivo's stored CRM summary if available
+                          equipo.forEach(function(v){
+                            if (v.crmResumen) {
+                              totalCalientes += v.crmResumen.calientes || 0;
+                              totalTibios += v.crmResumen.tibios || 0;
+                              totalUFPotencial += v.crmResumen.ufPotencial || 0;
+                            }
+                          });
+                          var hayCRM = totalCalientes > 0 || totalTibios > 0 || totalUFPotencial > 0;
+                          return React.createElement('div', { style: {background:"linear-gradient(135deg,#0f2027,#203a43,#2c5364)",borderRadius:14,padding:"16px 18px",marginBottom:20,border:"1px solid rgba(56,189,248,.25)"} },
+                            React.createElement('div', { style: {display:"flex",alignItems:"center",gap:8,marginBottom:10} },
+                              React.createElement('div', { style: {fontSize:20} }, "🌡️"),
+                              React.createElement('div', null,
+                                React.createElement('div', { style: {fontWeight:800,color:"#7DD3FC",fontSize:13} }, "Temperatura del pipeline — equipo"),
+                                React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.4)",marginTop:1} }, "Clientes en gestión activa del equipo (sin identificar de quién)")
+                              )
+                            ),
+                            hayCRM
+                              ? React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10} },
+                                  React.createElement('div', { style: {background:"rgba(239,68,68,.15)",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid rgba(239,68,68,.3)"} },
+                                    React.createElement('div', { style: {fontSize:28,fontWeight:900,color:"#FCA5A5"} }, totalCalientes),
+                                    React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.4)",textTransform:"uppercase",marginTop:4} }, "🔥 Calientes")
+                                  ),
+                                  React.createElement('div', { style: {background:"rgba(234,179,8,.12)",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid rgba(234,179,8,.3)"} },
+                                    React.createElement('div', { style: {fontSize:28,fontWeight:900,color:"#FCD34D"} }, totalTibios),
+                                    React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.4)",textTransform:"uppercase",marginTop:4} }, "🌤 Tibios")
+                                  ),
+                                  React.createElement('div', { style: {background:"rgba(56,189,248,.1)",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid rgba(56,189,248,.25)"} },
+                                    React.createElement('div', { style: {fontSize:22,fontWeight:900,color:"#7DD3FC",lineHeight:1} }, fmtUF2(totalUFPotencial)+" UF"),
+                                    React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.4)",textTransform:"uppercase",marginTop:4} }, "UF potencial")
+                                  )
+                                )
+                              : React.createElement('div', { style: {textAlign:"center",padding:"10px 0",color:"rgba(255,255,255,.35)",fontSize:12} },
+                                  "Los ejecutivos aún no tienen clientes activos en su Agenda de Clientes, o los datos no se han sincronizado."
+                                )
+                          );
+                        })()
                       , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:20}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3782}}
                         , [{l:"UF equipo",v:fmtUF(totUF),c:R},{l:"vs Proyección",v:fmtUF2(proyEq)+" UF",c:colSem(pctEq)},{l:"DPS totales",v:totDPS,c:"#15803D"},{l:"Con reportes",v:equipo.filter(function(v){return (v.rep||[]).length>0;}).length,c:"#7C3AED"}].map(function(k){return React.createElement('div', { key: k.l, style: {background:"#F8FAFC",borderRadius:12,padding:"12px 14px",borderLeft:"3px solid "+k.c}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3783}}, React.createElement('div', { style: {fontSize:20,fontWeight:900,color:RD}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3783}}, k.v), React.createElement('div', { style: {fontSize:11,color:"#9CA3AF",marginTop:2}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3783}}, k.l));})
                       )
@@ -6657,6 +6756,149 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
               );
             })()
           )
+
+          /* ── CARD 3: Velocidad de cierre semanal ── */
+          , (function(){
+              var reps = v.rep || [];
+              var hoyDate = new Date();
+              var diaHoy = hoyDate.getDate();
+              var semActual = diaHoy<=7?0:diaHoy<=14?1:diaHoy<=21?2:3;
+              var semAnterior = semActual > 0 ? semActual - 1 : null;
+              var limSem = [[1,7],[8,14],[15,21],[22,31]];
+              function ufEnSem(s) {
+                if (s === null) return null;
+                var lim = limSem[s];
+                return reps.filter(function(r){
+                  if (!r.fecha) return false;
+                  var d = new Date(r.fecha.split("/").reverse().join("-"));
+                  var dia = d.getDate();
+                  return dia >= lim[0] && dia <= lim[1];
+                }).reduce(function(sum,r){return sum+(r.uf||0);},0);
+              }
+              var ufEsta = ufEnSem(semActual);
+              var ufAnterior = ufEnSem(semAnterior);
+              var diff = semAnterior !== null ? ufEsta - ufAnterior : null;
+              var mejora = diff !== null && diff > 0;
+              var igual = diff !== null && Math.abs(diff) < 0.01;
+              var semLabel = ["1ª","2ª","3ª","4ª"];
+              return React.createElement('div', { style: {background:"linear-gradient(135deg,#1e1b4b,#312e81)",borderRadius:20,padding:"22px 24px",marginBottom:20,boxShadow:"0 8px 32px rgba(49,46,129,.3)"} },
+                React.createElement('div', { style: {fontSize:12,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:"0.2em",marginBottom:6} }, "⚡ Velocidad de cierre"),
+                React.createElement('div', { style: {fontSize:15,fontWeight:900,color:"#A5B4FC",marginBottom:16} }, "¿Voy mejor o peor que la semana pasada?"),
+                React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14} },
+                  React.createElement('div', { style: {background:"rgba(255,255,255,.1)",borderRadius:14,padding:"16px",textAlign:"center"} },
+                    React.createElement('div', { style: {fontSize:10,color:"rgba(255,255,255,.5)",textTransform:"uppercase",marginBottom:6} }, "Esta semana ("+semLabel[semActual]+")"),
+                    React.createElement('div', { style: {fontSize:38,fontWeight:900,color:"#A5B4FC",lineHeight:1} }, fmtUF2(ufEsta)),
+                    React.createElement('div', { style: {fontSize:10,color:"rgba(255,255,255,.4)",marginTop:4} }, "UF cerradas")
+                  ),
+                  React.createElement('div', { style: {background:"rgba(255,255,255,.07)",borderRadius:14,padding:"16px",textAlign:"center"} },
+                    React.createElement('div', { style: {fontSize:10,color:"rgba(255,255,255,.5)",textTransform:"uppercase",marginBottom:6} }, semAnterior!==null ? "Semana pasada ("+semLabel[semAnterior]+")" : "Sin semana anterior aún"),
+                    React.createElement('div', { style: {fontSize:38,fontWeight:900,color:"rgba(255,255,255,.4)",lineHeight:1} }, semAnterior!==null ? fmtUF2(ufAnterior) : "—"),
+                    React.createElement('div', { style: {fontSize:10,color:"rgba(255,255,255,.4)",marginTop:4} }, "UF cerradas")
+                  )
+                ),
+                diff !== null && React.createElement('div', { style: {background: igual?"rgba(255,255,255,.1)":mejora?"rgba(74,222,128,.15)":"rgba(252,165,165,.15)", borderRadius:12, padding:"12px 16px", border:"1px solid "+(igual?"rgba(255,255,255,.2)":mejora?"rgba(74,222,128,.4)":"rgba(252,165,165,.4)"), textAlign:"center"} },
+                  React.createElement('div', { style: {fontSize:22,fontWeight:900,color:igual?"#fff":mejora?"#4ADE80":"#FCA5A5"} },
+                    igual ? "➡️ Ritmo igual" : (mejora?"📈 ":"📉 ")+(mejora?"+":"")+fmtUF2(diff)+" UF "+( mejora?"más que la semana pasada":"menos que la semana pasada")
+                  ),
+                  React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.5)",marginTop:4} },
+                    mejora ? "¡Vas acelerando! Mantén ese ritmo 💪" : igual ? "Semana pareja — toca acelerar" : "Esta semana bajó el ritmo — ¡a reactivar!"
+                  )
+                )
+              );
+            })()
+
+          /* ── CARD 4: Proyección de cierre del mes ── */
+          , (function(){
+              var ufTotal = v.uf || 0;
+              var metaUF = v.metaUF || ufMeta || 1;
+              var diasTotales = info.elapsed + info.left;
+              var ritmoActual = info.elapsed > 0 ? ufTotal / info.elapsed : 0;
+              var proyeccion = ritmoActual * diasTotales;
+              var pct = Math.round((ufTotal / metaUF) * 100);
+              var proyPct = Math.min(Math.round((proyeccion / metaUF) * 100), 200);
+              var llegaAMeta = proyeccion >= metaUF;
+              var diferencia = proyeccion - metaUF;
+              var colorSemaforo = llegaAMeta ? "#4ADE80" : pct >= 60 ? "#FCD34D" : "#FCA5A5";
+              var bgSemaforo = llegaAMeta ? "rgba(74,222,128,.15)" : pct >= 60 ? "rgba(252,211,77,.12)" : "rgba(252,165,165,.12)";
+              var emoji = llegaAMeta ? "🟢" : pct >= 60 ? "🟡" : "🔴";
+              return React.createElement('div', { style: {background:"linear-gradient(135deg,#1c1917,#292524)",borderRadius:20,padding:"22px 24px",marginBottom:20,boxShadow:"0 8px 32px rgba(0,0,0,.3)"} },
+                React.createElement('div', { style: {fontSize:12,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:"0.2em",marginBottom:6} }, "🔮 Proyección al cierre del mes"),
+                React.createElement('div', { style: {fontSize:15,fontWeight:900,color:"#FCD34D",marginBottom:16} }, "Con tu ritmo actual, ¿llegas a la meta?"),
+                React.createElement('div', { style: {background:bgSemaforo, border:"1px solid "+colorSemaforo+"55", borderRadius:16, padding:"20px", textAlign:"center", marginBottom:14} },
+                  React.createElement('div', { style: {fontSize:42,marginBottom:8} }, emoji),
+                  React.createElement('div', { style: {fontSize:"clamp(28px,8vw,48px)",fontWeight:900,color:colorSemaforo,lineHeight:1,marginBottom:6} }, fmtUF2(proyeccion)+" UF"),
+                  React.createElement('div', { style: {fontSize:13,color:"rgba(255,255,255,.6)",marginBottom:10} }, "proyección a fin de mes con tu ritmo actual"),
+                  React.createElement('div', { style: {fontSize:14,fontWeight:700,color:colorSemaforo} },
+                    llegaAMeta
+                      ? "✅ Vas a "+( diferencia>0?"superar":"cumplir exacto")+" tu meta"+(diferencia>0?" por "+fmtUF2(diferencia)+" UF extra!":"!")
+                      : "⚠️ Faltan "+fmtUF2(Math.abs(diferencia))+" UF para llegar — ¡acelera!"
+                  )
+                ),
+                React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10} },
+                  React.createElement('div', { style: {background:"rgba(255,255,255,.07)",borderRadius:12,padding:"12px",textAlign:"center"} },
+                    React.createElement('div', { style: {fontSize:18,fontWeight:900,color:"#FCD34D"} }, fmtUF2(ritmoActual)),
+                    React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.4)",textTransform:"uppercase",marginTop:4} }, "UF/día actual")
+                  ),
+                  React.createElement('div', { style: {background:"rgba(255,255,255,.07)",borderRadius:12,padding:"12px",textAlign:"center"} },
+                    React.createElement('div', { style: {fontSize:18,fontWeight:900,color:"#FCD34D"} }, info.left),
+                    React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.4)",textTransform:"uppercase",marginTop:4} }, "Días que quedan")
+                  ),
+                  React.createElement('div', { style: {background:"rgba(255,255,255,.07)",borderRadius:12,padding:"12px",textAlign:"center"} },
+                    React.createElement('div', { style: {fontSize:18,fontWeight:900,color:llegaAMeta?"#4ADE80":"#FCA5A5"} },
+                      llegaAMeta ? fmtUF2(ritmoActual) : fmtUF2(info.left>0?Math.max(0,metaUF-ufTotal)/info.left:0)
+                    ),
+                    React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.4)",textTransform:"uppercase",marginTop:4} }, llegaAMeta?"UF/día suficiente":"UF/día necesario")
+                  )
+                )
+              );
+            })()
+
+          /* ── CARD 5: Tasa de conversión DPS → Cierre ── */
+          , (function(){
+              var reps = v.rep || [];
+              var totalDPS = reps.reduce(function(s,r){return s+(r.dps||0);},0);
+              var totalCierres = reps.reduce(function(s,r){return s+(r.cierres||0);},0);
+              var totalContactos = reps.reduce(function(s,r){return s+(r.contactos||0);},0);
+              var tasaDPS = totalDPS > 0 ? Math.round((totalCierres/totalDPS)*100) : 0;
+              var tasaContacto = totalContactos > 0 ? Math.round((totalCierres/totalContactos)*100) : 0;
+              var colorTasa = tasaDPS >= 40 ? "#4ADE80" : tasaDPS >= 20 ? "#FCD34D" : totalDPS > 0 ? "#FCA5A5" : "#9CA3AF";
+              return React.createElement('div', { style: {background:"linear-gradient(135deg,#0c1445,#162056)",borderRadius:20,padding:"22px 24px",marginBottom:20,boxShadow:"0 8px 32px rgba(12,20,69,.4)"} },
+                React.createElement('div', { style: {fontSize:12,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:"0.2em",marginBottom:6} }, "📐 Calidad de mi gestión"),
+                React.createElement('div', { style: {fontSize:15,fontWeight:900,color:"#93C5FD",marginBottom:16} }, "¿Cuántas DPS se convierten en cierres?"),
+                totalDPS === 0
+                  ? React.createElement('div', { style: {textAlign:"center",padding:"20px",color:"rgba(255,255,255,.4)",fontSize:13} }, "Registra DPS y cierres para ver tu tasa de conversión")
+                  : React.createElement('div', null,
+                      React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:14} },
+                        React.createElement('div', { style: {background:"rgba(255,255,255,.08)",borderRadius:12,padding:"14px",textAlign:"center"} },
+                          React.createElement('div', { style: {fontSize:28,fontWeight:900,color:"#93C5FD"} }, totalContactos),
+                          React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.4)",textTransform:"uppercase",marginTop:4} }, "Contactos")
+                        ),
+                        React.createElement('div', { style: {background:"rgba(255,255,255,.08)",borderRadius:12,padding:"14px",textAlign:"center"} },
+                          React.createElement('div', { style: {fontSize:28,fontWeight:900,color:"#86EFAC"} }, totalDPS),
+                          React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.4)",textTransform:"uppercase",marginTop:4} }, "DPS tomadas")
+                        ),
+                        React.createElement('div', { style: {background:"rgba(255,255,255,.08)",borderRadius:12,padding:"14px",textAlign:"center"} },
+                          React.createElement('div', { style: {fontSize:28,fontWeight:900,color:"#FCD34D"} }, totalCierres),
+                          React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.4)",textTransform:"uppercase",marginTop:4} }, "Cierres")
+                        )
+                      ),
+                      React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:12} },
+                        React.createElement('div', { style: {background:"rgba(255,255,255,.07)",borderRadius:14,padding:"16px",textAlign:"center",border:"1px solid "+colorTasa+"44"} },
+                          React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.5)",marginBottom:6,textTransform:"uppercase"} }, "DPS → Cierre"),
+                          React.createElement('div', { style: {fontSize:42,fontWeight:900,color:colorTasa,lineHeight:1} }, tasaDPS+"%"),
+                          React.createElement('div', { style: {fontSize:10,color:"rgba(255,255,255,.4)",marginTop:6} },
+                            tasaDPS>=40 ? "🏆 Excelente conversión" : tasaDPS>=20 ? "👍 Conversión normal" : "📈 Hay que mejorar el cierre"
+                          )
+                        ),
+                        React.createElement('div', { style: {background:"rgba(255,255,255,.07)",borderRadius:14,padding:"16px",textAlign:"center"} },
+                          React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.5)",marginBottom:6,textTransform:"uppercase"} }, "Contacto → Cierre"),
+                          React.createElement('div', { style: {fontSize:42,fontWeight:900,color:"#93C5FD",lineHeight:1} }, tasaContacto+"%"),
+                          React.createElement('div', { style: {fontSize:10,color:"rgba(255,255,255,.4)",marginTop:6} }, totalContactos+" contactos este mes")
+                        )
+                      )
+                    )
+              );
+            })()
 
           , React.createElement('button', { onClick: function(){setPinOk(false);setSelId("");setPinCal("");},
             style: {width:"100%",padding:"12px",background:"#F3F4F6",color:"#374151",border:"none",borderRadius:10,fontSize:14,cursor:"pointer",fontWeight:600}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4838}}, "Cerrar sesión"
