@@ -3260,7 +3260,7 @@ function abrirCalendario(cliente) {
                   )
                   , React.createElement('div', { style: {background:"rgba(255,255,255,.06)",borderRadius:12,padding:"12px 10px",textAlign:"center",border:"1px solid rgba(201,168,76,.2)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3083}}
                     , React.createElement('div', { style: {fontSize:"clamp(18px,4vw,26px)",fontWeight:900,color:"#C9A84C",lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3084}}, xCrack)
-                    , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:"0.12em",marginTop:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3085}}, "UF por crack"  )
+                    , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:"0.12em",marginTop:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3085}}, "Faltan estas UF por cada Crack"  )
                   )
                 )
                 /* Pill de proyección */
@@ -3277,30 +3277,90 @@ function abrirCalendario(cliente) {
                 })()
               )
               /* Fila de estado ejecutivos */
-              , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",borderTop:"1px solid rgba(255,255,255,.08)"}}
-                , React.createElement('div', { style: {padding:"12px 8px",textAlign:"center",borderRight:"1px solid rgba(255,255,255,.08)"}}
-                  , (function(){
-                      var cracks = equipo.filter(function(v){return v.uf>0;});
-                      if(cracks.length===0) return React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.4)",fontStyle:"italic",paddingTop:6}}, "Aún no hay CRACKS sumando, ¡VAMOS!");
-                      return React.createElement('div', null,
-                        React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}, "🌟 cracks que ya comenzaron a sumar!"),
-                        React.createElement('div', { style: {display:"flex",flexWrap:"wrap",gap:4,justifyContent:"center"}},
-                          cracks.map(function(v){
-                            var p = v.nombre.trim().split(/\s+/); var nombreCorto = p.length >= 2 ? p[0] + " " + p[1] : p[0];
-                            return React.createElement('span', {key:v.id, style: {background:"rgba(253,224,71,.2)",color:"#FDE047",borderRadius:99,padding:"3px 10px",fontSize:11,fontWeight:800}}, nombreCorto);
-                          })
-                        )
-                      );
-                    })()
-                )
-                , React.createElement('div', { style: {padding:"12px 0",textAlign:"center",borderRight:"1px solid rgba(255,255,255,.08)"}}
-                  , React.createElement('div', { style: {fontSize:24,fontWeight:900,color:"#86EFAC"}}, equipo.filter(function(v){return v.uf>=18;}).length)
-                  , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:"0.1em",marginTop:3}}, "comisionando")
-                )
-                , React.createElement('div', { style: {padding:"12px 0",textAlign:"center"}}
-                  , React.createElement('div', { style: {fontSize:24,fontWeight:900,color:"#FDE047"}}, equipo.filter(function(v){return v.uf>=(info.elapsed<=14?12:25);}).length)
-                  , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:"0.1em",marginTop:3}}, "gran rendimiento" )
-                )
+              , React.createElement('div', { style: {borderTop:"1px solid rgba(255,255,255,.08)",padding:"10px 14px",display:"flex",flexDirection:"column",gap:10}}
+
+                /* 1. CRACKS que ya comenzaron a sumar */
+                , (function(){
+                    var cracks = equipo.filter(function(v){return v.uf>0;});
+                    if(cracks.length===0) return React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.4)",fontStyle:"italic",padding:"6px 0"}}, "Aún no hay CRACKS sumando, ¡VAMOS!");
+                    return React.createElement('div', { style: {background:"rgba(253,224,71,.07)",borderRadius:12,padding:"10px 12px"}},
+                      React.createElement('div', { style: {fontSize:9,color:"rgba(253,224,71,.7)",textTransform:"uppercase",letterSpacing:"0.15em",marginBottom:7,fontWeight:700}}, "🌟 CRACKS que ya comenzaron a sumar!"),
+                      React.createElement('div', { style: {display:"flex",flexWrap:"wrap",gap:5,justifyContent:"center"}},
+                        cracks.map(function(v){
+                          var p = v.nombre.trim().split(/\s+/); var nombreCorto = p.length >= 2 ? p[0] + " " + p[1] : p[0];
+                          return React.createElement('span', {key:v.id, style: {background:"rgba(253,224,71,.2)",color:"#FDE047",borderRadius:99,padding:"3px 10px",fontSize:11,fontWeight:800}}, nombreCorto);
+                        })
+                      )
+                    );
+                  })()
+
+                /* 2. SUMA LINEAL — cracks con ≥12 UF */
+                , (function(){
+                    var sumaLineal = equipo.filter(function(v){return v.uf>=12;});
+                    return React.createElement('div', { style: {background:"rgba(134,239,172,.08)",borderRadius:12,padding:"10px 12px",border:"1px solid rgba(134,239,172,.2)"}},
+                      React.createElement('div', { style: {fontSize:9,color:"rgba(134,239,172,.9)",textTransform:"uppercase",letterSpacing:"0.15em",marginBottom:7,fontWeight:700}}, "⚡ CRACKS que ya aportan en la SUMA LINEAL del TEAM!"),
+                      sumaLineal.length===0
+                        ? React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.4)",fontStyle:"italic"}}, "Aún nadie supera 12 UF — ¡vamos TEAM!")
+                        : React.createElement('div', { style: {display:"flex",flexWrap:"wrap",gap:5,justifyContent:"center"}},
+                            sumaLineal.map(function(v){
+                              var p = v.nombre.trim().split(/\s+/); var nombreCorto = p.length >= 2 ? p[0] + " " + p[1] : p[0];
+                              return React.createElement('span', {key:v.id, style: {background:"rgba(134,239,172,.2)",color:"#86EFAC",borderRadius:99,padding:"3px 10px",fontSize:11,fontWeight:800}}, nombreCorto + " · " + (function(){var t=Math.floor(v.uf*100)/100;return parseFloat(t.toFixed(2)).toString().replace(".",",");}()) + " UF");
+                            })
+                          )
+                    );
+                  })()
+
+                /* 3. CRACKS ya Comisionando (≥18 UF) */
+                , (function(){
+                    var comisionando = equipo.filter(function(v){return v.uf>=18;});
+                    return React.createElement('div', { style: {background:"rgba(56,189,248,.08)",borderRadius:12,padding:"10px 12px",border:"1px solid rgba(56,189,248,.2)"}},
+                      React.createElement('div', { style: {fontSize:9,color:"rgba(125,211,252,.9)",textTransform:"uppercase",letterSpacing:"0.15em",marginBottom:7,fontWeight:700}}, "💰 CRACKS ya Comisionando!"),
+                      comisionando.length===0
+                        ? React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.4)",fontStyle:"italic"}}, "¡A llegar a las 18 UF y activar la comisión!")
+                        : React.createElement('div', { style: {display:"flex",flexWrap:"wrap",gap:5,justifyContent:"center"}},
+                            comisionando.map(function(v){
+                              var p = v.nombre.trim().split(/\s+/); var nombreCorto = p.length >= 2 ? p[0] + " " + p[1] : p[0];
+                              return React.createElement('span', {key:v.id, style: {background:"rgba(56,189,248,.2)",color:"#7DD3FC",borderRadius:99,padding:"3px 10px",fontSize:11,fontWeight:800}}, nombreCorto);
+                            })
+                          )
+                    );
+                  })()
+
+                /* 4. Gran Rendimiento */
+                , (function(){
+                    var granRend = equipo.filter(function(v){return v.uf>=(info.elapsed<=14?12:25);});
+                    return React.createElement('div', { style: {background:"rgba(253,224,71,.06)",borderRadius:12,padding:"10px 12px",border:"1px solid rgba(253,224,71,.2)"}},
+                      React.createElement('div', { style: {fontSize:9,color:"rgba(253,224,71,.9)",textTransform:"uppercase",letterSpacing:"0.15em",marginBottom:7,fontWeight:700}}, "🏆 Gran Rendimiento"),
+                      granRend.length===0
+                        ? React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.4)",fontStyle:"italic"}}, "¡El primer gran rendimiento está por llegar!")
+                        : React.createElement('div', { style: {display:"flex",flexWrap:"wrap",gap:5,justifyContent:"center"}},
+                            granRend.map(function(v){
+                              var p = v.nombre.trim().split(/\s+/); var nombreCorto = p.length >= 2 ? p[0] + " " + p[1] : p[0];
+                              return React.createElement('span', {key:v.id, style: {background:"rgba(253,224,71,.2)",color:"#FDE047",borderRadius:99,padding:"3px 10px",fontSize:11,fontWeight:800}}, nombreCorto);
+                            })
+                          )
+                    );
+                  })()
+
+                /* 5. CRACKS que sumaron HOY */
+                , (function(){
+                    var hoyStr2 = (function(){var d=new Date();return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+d.getFullYear();})();
+                    var cracksHoy = equipo.filter(function(v){return (v.rep||[]).some(function(r){return r.fecha===hoyStr2&&(r.uf||0)>0;});});
+                    return React.createElement('div', { style: {background:"linear-gradient(135deg,rgba(201,168,76,.15),rgba(201,168,76,.05))",borderRadius:12,padding:"10px 12px",border:"1px solid rgba(201,168,76,.35)"}},
+                      React.createElement('div', { style: {fontSize:9,color:"#C9A84C",textTransform:"uppercase",letterSpacing:"0.15em",marginBottom:7,fontWeight:700}}, "🔥 CRACKS que sumaron HOY al TEAM!"),
+                      cracksHoy.length===0
+                        ? React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.4)",fontStyle:"italic"}}, "Hoy aún no hay cierres — ¡sé el primero en sumar!")
+                        : React.createElement('div', null,
+                            React.createElement('div', { style: {display:"flex",flexWrap:"wrap",gap:5,justifyContent:"center",marginBottom:5}},
+                              cracksHoy.map(function(v){
+                                var p = v.nombre.trim().split(/\s+/); var nombreCorto = p.length >= 2 ? p[0] + " " + p[1] : p[0];
+                                var ufHoyV = (v.rep||[]).filter(function(r){return r.fecha===hoyStr2;}).reduce(function(s,r){return s+(r.uf||0);},0);
+                                return React.createElement('span', {key:v.id, style: {background:"rgba(201,168,76,.25)",color:"#C9A84C",borderRadius:99,padding:"3px 10px",fontSize:11,fontWeight:800}}, "🔥 "+nombreCorto+" +"+(function(){var t=Math.floor(ufHoyV*100)/100;return parseFloat(t.toFixed(2)).toString().replace(".",",");}())+" UF");
+                              })
+                            )
+                          )
+                    );
+                  })()
               )
               /* ── Logros del día + Distribución integrados en el tablero ── */
               , React.createElement('div', { style: {borderTop:"1px solid rgba(255,255,255,.12)",margin:"0 22px",padding:"18px 0 0"} }
@@ -3412,6 +3472,21 @@ function abrirCalendario(cliente) {
 
               var hoy = new Date();
               var mesActual = hoy.getMonth()+1;
+              // Load supervisor photo from Firebase (cached in window.__supFotoGlobal)
+              var supFotoFromStorage = window.__supFotoGlobal || null;
+              // Load supervisor photo from Firebase once and cache in window
+              React.useEffect(function(){
+                if(window.__supFotoGlobal) return; // already loaded
+                if(window.__fbDb && window.__fbDoc && window.__fbGetDoc) {
+                  window.__fbGetDoc(window.__fbDoc(window.__fbDb,"supervisor","perfil"))
+                    .then(function(snap){
+                      if(snap.exists) {
+                        var d = snap.data();
+                        if(d && d.fotoUrl) { window.__supFotoGlobal = d.fotoUrl; }
+                      }
+                    }).catch(function(){});
+                }
+              }, []);
               var cumpleMes = (equipo||[]).filter(function(e){
                 if(!e.fechaNac) return false;
                 var parts = e.fechaNac.split('-');
@@ -3432,7 +3507,7 @@ function abrirCalendario(cliente) {
                 React.createElement('div', { className:"desktop-craks-grid", style: {display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,marginBottom:20} },
                   TEAM_MEMBERS.map(function(m, idx) {
                     var eqData = (equipo||[]).find(function(e){ return e.nombre && e.nombre.toUpperCase()===m.nombre.toUpperCase(); });
-                    var fotoUrl = eqData && eqData.fotoUrl ? eqData.fotoUrl : null;
+                    var fotoUrl = m.esLider ? supFotoFromStorage : (eqData && eqData.fotoUrl ? eqData.fotoUrl : null);
                     var initials = getInitials(m.nombre);
                     var cardBg = "linear-gradient(135deg,#7F1D1D,#991B1B)";
                     var borderStyle = m.esLider ? "3px solid #FCD34D" : "2px solid rgba(255,255,255,.15)";
@@ -4335,18 +4410,106 @@ function abrirCalendario(cliente) {
                 , supVista==="gestion"&&(
                   React.createElement('div', { style: {background:"#fff",borderRadius:18,padding:26,boxShadow:"0 3px 16px rgba(233,7,41,.07)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3685}}
                     , React.createElement('div', { style: {fontSize:19,fontWeight:900,color:RD,marginBottom:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3686}}, "Gestionar Equipo" )
-                    , React.createElement('div', { style: {color:"#6B7280",fontSize:14,marginBottom:20}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3687}}, "Agrega o elimina ejecutivos. Los cambios se guardan automaticamente."        )
+                    , React.createElement('div', { style: {color:"#6B7280",fontSize:14,marginBottom:16}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3687}}, "Agrega o elimina ejecutivos. Los cambios se guardan automaticamente."        )
+
+                    /* ── FOTO SUPERVISOR (separada, no suma estadísticas) ── */
+                    , (function(){
+                        var [supFotoState, setSupFotoState] = React.useState(window.__supFotoGlobal || null);
+
+                        // Load from Firebase on mount if not cached
+                        React.useEffect(function(){
+                          if(window.__supFotoGlobal) { setSupFotoState(window.__supFotoGlobal); return; }
+                          if(window.__fbDb && window.__fbDoc && window.__fbGetDoc) {
+                            window.__fbGetDoc(window.__fbDoc(window.__fbDb,"supervisor","perfil"))
+                              .then(function(snap){
+                                if(snap.exists){
+                                  var d = snap.data();
+                                  if(d && d.fotoUrl){ window.__supFotoGlobal = d.fotoUrl; setSupFotoState(d.fotoUrl); }
+                                }
+                              }).catch(function(){});
+                          }
+                        }, []);
+                        var initials = "GL";
+                        return React.createElement('div', { style: {background:"linear-gradient(135deg,#1a0a0a,#3d0c14)",borderRadius:16,padding:"18px 20px",marginBottom:20,border:"2px solid rgba(201,168,76,.35)",display:"flex",alignItems:"center",gap:18}},
+                          React.createElement('div', { style: {display:"flex",flexDirection:"column",alignItems:"center",gap:8,flexShrink:0}},
+                            React.createElement('div', { style: {width:80,height:80,borderRadius:"50%",overflow:"hidden",background:supFotoState?"#000":"#6B1A1A",border:"3px solid #C9A84C",display:"flex",alignItems:"center",justifyContent:"center"}},
+                              supFotoState
+                                ? React.createElement('img', { src: supFotoState, style: {width:"100%",height:"100%",objectFit:"cover"}, alt: "Supervisor" })
+                                : React.createElement('span', { style: {fontSize:28,fontWeight:900,color:"#C9A84C"}}, initials)
+                            ),
+                            React.createElement('label', { style: {fontSize:10,fontWeight:700,color:"#C9A84C",cursor:"pointer",background:"rgba(201,168,76,.2)",borderRadius:8,padding:"5px 10px",textAlign:"center",whiteSpace:"nowrap"}},
+                              supFotoState ? "📷 Cambiar foto" : "📷 Subir mi foto",
+                              React.createElement('input', {
+                                type: "file", accept: "image/*", style: {display:"none"},
+                                onChange: function(e) {
+                                  var file = e.target.files[0];
+                                  if (!file) return;
+                                  var reader = new FileReader();
+                                  reader.onload = function(ev) {
+                                    var dataUrl = ev.target.result;
+                                    window.__supFotoGlobal = dataUrl;
+                                    setSupFotoState(dataUrl);
+                                    // Save to Firebase — persists across all devices
+                                    if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc) {
+                                      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"supervisor","perfil"),{fotoUrl:dataUrl}).catch(function(){});
+                                    }
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              })
+                            )
+                          ),
+                          React.createElement('div', {},
+                            React.createElement('div', { style: {fontSize:11,color:"rgba(201,168,76,.7)",textTransform:"uppercase",letterSpacing:"0.12em",marginBottom:4,fontWeight:700}}, "👑 Mi foto — Supervisor"),
+                            React.createElement('div', { style: {fontSize:15,fontWeight:900,color:"#FCD34D",marginBottom:6}}, "GILBERTO LEON DURAN"),
+                            React.createElement('div', { style: {fontSize:12,color:"rgba(255,255,255,.6)",lineHeight:1.5}}, "Esta foto aparece en la sección \"ESTOS SOMOS LOS CRACKS\" como líder del equipo."),
+                            React.createElement('div', { style: {fontSize:11,color:"rgba(201,168,76,.6)",marginTop:6,fontStyle:"italic"}}, "⚡ No afecta las estadísticas del equipo.")
+                          )
+                        );
+                      })()
                     , React.createElement('div', { style: {display:"flex",gap:10,marginBottom:22}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3688}}
                       , React.createElement('input', { value: nuevoNom, onChange: function(e){setNuevoNom(e.target.value);}, style: Object.assign({},INP,{flex:1}), placeholder: "Nombre completo del nuevo ejecutivo..."    , __self: this, __source: {fileName: _jsxFileName, lineNumber: 3689}} )
                       , React.createElement('button', { onClick: agregarEjecutivo, style: Object.assign({},BTN,{padding:"11px 22px",fontSize:14}), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3690}}, "Agregar")
                     )
                     , React.createElement('div', { style: {overflowX:"auto"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3692}}
                       , React.createElement('table', { style: {width:"100%",borderCollapse:"collapse",fontSize:13}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3693}}
-                        , React.createElement('thead', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3694}}, React.createElement('tr', { style: {background:"#F8FAFC",borderBottom:"2px solid #E5E7EB"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3694}}, ["#","Nombre","RUT","Email corporativo","PIN personal","Meta UF","Cumpleaños",""].map(function(h){return React.createElement('th', { key: h, style: {padding:"10px 12px",textAlign:"left",fontSize:11,color:"#6B7280",fontWeight:700,textTransform:"uppercase"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3694}}, h);})))
+                        , React.createElement('thead', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3694}}, React.createElement('tr', { style: {background:"#F8FAFC",borderBottom:"2px solid #E5E7EB"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3694}}, ["#","Foto","Nombre","RUT","Email corporativo","PIN personal","Meta UF","Cumpleaños",""].map(function(h){return React.createElement('th', { key: h, style: {padding:"10px 12px",textAlign:"left",fontSize:11,color:"#6B7280",fontWeight:700,textTransform:"uppercase"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3694}}, h);})))
                         , React.createElement('tbody', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3695}}
                           , equipo.map(function(v,i){return (
                             React.createElement('tr', { key: v.id, style: {borderBottom:"1px solid #F0F4FA",background:i%2===0?"#fff":"#FAFBFF"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3697}}
                               , React.createElement('td', { style: {padding:"10px 12px",color:"#9CA3AF",fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3698}}, i+1)
+                              , React.createElement('td', { style: {padding:"6px 10px"} },
+                                (function(){
+                                  var initials = (function(){var p=v.nombre.split(' ').filter(function(x){return x.length>0;});return p.length>=2?p[0][0]+p[1][0]:p[0]?p[0][0]:'?';})();
+                                  return React.createElement('div', { style: {display:"flex",flexDirection:"column",alignItems:"center",gap:4}},
+                                    React.createElement('div', { style: {width:52,height:52,borderRadius:"50%",overflow:"hidden",background:v.fotoUrl?"#000":"#FEE2E2",border:"2px solid #E5E7EB",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}},
+                                      v.fotoUrl
+                                        ? React.createElement('img', { src: v.fotoUrl, style: {width:"100%",height:"100%",objectFit:"cover"}, alt: v.nombre })
+                                        : React.createElement('span', { style: {fontSize:18,fontWeight:900,color:"#C41230"}}, initials)
+                                    ),
+                                    React.createElement('label', { style: {fontSize:9,fontWeight:700,color:"#1D4ED8",cursor:"pointer",textAlign:"center",lineHeight:1.2,background:"#EFF6FF",borderRadius:6,padding:"3px 6px",whiteSpace:"nowrap"}},
+                                      v.fotoUrl ? "📷 Cambiar" : "📷 Subir foto",
+                                      React.createElement('input', {
+                                        type: "file", accept: "image/*", style: {display:"none"},
+                                        onChange: function(e) {
+                                          var file = e.target.files[0];
+                                          if (!file) return;
+                                          var reader = new FileReader();
+                                          reader.onload = function(ev) {
+                                            var dataUrl = ev.target.result;
+                                            var newEquipo = equipo.map(function(eq){ return eq.id===v.id ? Object.assign({},eq,{fotoUrl:dataUrl}) : eq; });
+                                            setEquipo(newEquipo);
+                                            if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc) {
+                                              window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",info.mesKey),{equipo:newEquipo}).catch(function(err){console.warn("Foto save err",err);});
+                                            }
+                                          };
+                                          reader.readAsDataURL(file);
+                                        }
+                                      })
+                                    )
+                                  );
+                                })()
+                              )
                               , React.createElement('td', { style: {padding:"10px 12px",fontWeight:700,color:RD}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3699}}, v.nombre)
                               , React.createElement('td', { style: {padding:"10px 12px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3699}}
                                 , React.createElement('input', { defaultValue: v.rut||"", placeholder: "RUT ejecutivo", onBlur: function(e){ var val=e.target.value.trim(); if(val) { setEquipo(equipo.map(function(eq){ return eq.id===v.id ? Object.assign({},eq,{rut:val}) : eq; })); } }, style: {width:130,padding:"5px 8px",fontSize:12,fontFamily:"monospace",borderRadius:7,border:"1.5px solid #D1D5DB",outline:"none",fontWeight:700,color:"#1D4ED8"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3699}} )
@@ -6461,7 +6624,7 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
                     React.createElement('div', { style: {fontSize:13,color:"rgba(255,255,255,.6)",marginTop:4} }, "de "+ufMeta+" comprometidas")
                   ),
                   React.createElement('div', { style: {background:"rgba(110,231,183,.15)",borderRadius:16,padding:"20px 18px",textAlign:"center",border:"2px solid rgba(110,231,183,.4)"} },
-                    React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:4} }, "Comisión lograda"),
+                    React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:4} }, "Remuneración Lograda"),
                     React.createElement('div', { style: {fontSize:"clamp(15px,4.5vw,26px)",fontWeight:900,color:"#6EE7B7",lineHeight:1,whiteSpace:"nowrap"} }, fmt(calcComision(ufTotal))),
                     React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.5)",marginTop:4} }, "según UF cerradas")
                   )
