@@ -2725,9 +2725,11 @@ function SupervisorFotoCard() {
       const ref = window.__fbDoc(window.__fbDb, "equipos", key);
       var fbRespondio = false;
 
-      // Cargar meses anteriores (hasta 6) desde Firebase y mezclar en historial
-      function cargarHistorialMesesAnteriores(equipoBase) {
+      // Cargar meses anteriores en window.__historialMeses (fuera del estado React)
+      // para NO disparar el save useEffect
+      function cargarHistorialMesesAnteriores() {
         if (!window.__fbGetDoc) return;
+        window.__historialMeses = window.__historialMeses || {};
         var offsets = [1,2,3,4,5,6];
         var promises = offsets.map(function(offset) {
           var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - offset);
@@ -2735,30 +2737,25 @@ function SupervisorFotoCard() {
           var fbKey = "equipo_" + mk;
           var ref2 = window.__fbDoc(window.__fbDb, "equipos", fbKey);
           return window.__fbGetDoc(ref2).then(function(snap2) {
-            if (!snap2.exists) return null;
-            var snapData2 = snap2.data();
-            if (!snapData2 || !Array.isArray(snapData2.equipo)) return null;
-            return { mk: mk, datos: snapData2.equipo };
-          }).catch(function(){ return null; });
-        });
-
-        Promise.all(promises).then(function(resultados) {
-          // Construir el equipo con historial enriquecido de una sola vez
-          var equipoEnriquecido = equipoBase.map(function(vBase) {
-            var histNuevo = Object.assign({}, vBase.historial || {});
-            resultados.forEach(function(res) {
-              if (!res) return;
-              var mk = res.mk;
-              // No sobreescribir si ya hay dato manual para ese mes
-              if (histNuevo[mk] && histNuevo[mk].uf > 0) return;
-              var vMes = res.datos.find(function(x){ return String(x.id)===String(vBase.id); });
-              if (!vMes || !(vMes.uf > 0)) return;
-              histNuevo[mk] = { uf: vMes.uf, dps: vMes.dps||0 };
+            if (!snap2.exists) return;
+            var data2 = snap2.data();
+            if (!data2 || !Array.isArray(data2.equipo)) return;
+            // Guardar en global indexado por ejecutivo id
+            data2.equipo.forEach(function(vMes) {
+              if (!(vMes.uf > 0)) return;
+              if (!window.__historialMeses[String(vMes.id)]) window.__historialMeses[String(vMes.id)] = {};
+              // Solo setear si no hay ya dato para ese mes
+              if (!window.__historialMeses[String(vMes.id)][mk]) {
+                window.__historialMeses[String(vMes.id)][mk] = { uf: vMes.uf, dps: vMes.dps||0 };
+              }
             });
-            return Object.assign({}, vBase, { historial: histNuevo });
-          });
-          setEquipo(equipoEnriquecido);
+            console.log("[HISTORIAL] Cargado: " + mk);
+          }).catch(function(){});
+        });
+        Promise.all(promises).then(function(){
           console.log("[HISTORIAL] Meses anteriores cargados OK");
+          // Forzar re-render de UFLinealesView sin tocar el estado del equipo
+          setSincronizado(function(v){ return v; });
         });
       }
 
@@ -2778,8 +2775,7 @@ function SupervisorFotoCard() {
             console.log("[LOAD] Firebase datos recibidos OK");
             merged = merged.map(function(x){ return Object.assign({rep:[]}, x); });
             setEquipo(merged);
-            // Cargar historial de meses anteriores en segundo plano
-            setTimeout(function(){ cargarHistorialMesesAnteriores(merged); }, 800);
+            setTimeout(cargarHistorialMesesAnteriores, 800);
           }
           const m = snapData.metaEquipo;
           if (m && typeof m === "number") setMetaEquipo(m);
@@ -5763,10 +5759,15 @@ function UFLinealesView({ equipo, info }) {
   // Para cada ejecutivo y mes: usa historial Firebase/manual, fallback a HISTORIAL_EXCEL
   function getUFMes(v, mk) {
     if (mk === info.mesKey) return v.uf || 0; // mes actual: dato en vivo
+    // 1. Historial manual/Firebase guardado en el objeto ejecutivo
     var manualEdit = (v.historial || {})[mk] || {};
-    var excelBase  = (HISTORIAL_EXCEL[v.id] || HISTORIAL_EXCEL[String(v.id)] || {})[mk] || {};
-    var d = Object.keys(manualEdit).length > 0 ? manualEdit : excelBase;
-    return d.uf || 0;
+    if (manualEdit.uf > 0) return manualEdit.uf;
+    // 2. Historial cargado en segundo plano desde docs anteriores de Firebase
+    var globalHist = (window.__historialMeses || {})[String(v.id)] || {};
+    if (globalHist[mk] && globalHist[mk].uf > 0) return globalHist[mk].uf;
+    // 3. HISTORIAL_EXCEL hardcodeado
+    var excelBase = (HISTORIAL_EXCEL[v.id] || HISTORIAL_EXCEL[String(v.id)] || {})[mk] || {};
+    return excelBase.uf || 0;
   }
 
   function calcMes(mk) {
