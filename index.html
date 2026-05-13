@@ -2693,7 +2693,8 @@ function SupervisorFotoCard() {
       )
     ),
     React.createElement('div', {},
-      React.createElement('div', { style: {fontSize:15,fontWeight:900,color:"#FCD34D",marginBottom:6}}, "GILBERTO LEON DURAN")
+      React.createElement('div', { style: {fontSize:15,fontWeight:900,color:"#FCD34D",marginBottom:2}}, "GILBERTO LEON DURAN"),
+      React.createElement('div', { style: {fontSize:11,color:"rgba(201,168,76,.8)",fontWeight:700,letterSpacing:"0.05em",textTransform:"uppercase"}}, "Supervisor de Ventas Team 2400")
     )
   );
 }
@@ -3419,10 +3420,10 @@ function SupervisorFotoCard() {
 
                 /* 5. CRACKS que sumaron HOY */
                 , (function(){
-                    var hoyStr2 = (function(){var d=new Date();return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+d.getFullYear();})();
+                    var hoyStr2 = TODAY;
                     var cracksHoy = equipo.filter(function(v){return (v.rep||[]).some(function(r){return r.fecha===hoyStr2&&(r.uf||0)>0;});});
                     return React.createElement('div', { style: {background:"linear-gradient(135deg,rgba(201,168,76,.15),rgba(201,168,76,.05))",borderRadius:12,padding:"10px 12px",border:"1px solid rgba(201,168,76,.35)"}},
-                      React.createElement('div', { style: {fontSize:9,color:"#C9A84C",textTransform:"uppercase",letterSpacing:"0.15em",marginBottom:7,fontWeight:700}}, "🔥 CRACKS que sumaron HOY al TEAM!"),
+                      React.createElement('div', { style: {fontSize:9,color:"#C9A84C",textTransform:"uppercase",letterSpacing:"0.15em",marginBottom:7,fontWeight:700,display:"flex",alignItems:"center",gap:6}}, "🔥 CRACKS que sumaron HOY al TEAM!", cracksHoy.length>0&&React.createElement('span',{style:{background:"rgba(201,168,76,.35)",color:"#C9A84C",borderRadius:99,padding:"1px 8px",fontSize:10,fontWeight:900}},cracksHoy.length)),
                       cracksHoy.length===0
                         ? React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.4)",fontStyle:"italic"}}, "Hoy aún no hay cierres — ¡sé el primero en sumar!")
                         : React.createElement('div', null,
@@ -6276,13 +6277,16 @@ function BorrarMesesView({ equipo, setEquipo, info, MESES_ORDEN, MESES_LABEL }) 
 
 function ExcelDataView({ equipo, setEquipo, info }) {
   const RD = "#C41230", R = "#E9192A";
-  // Últimos 6 meses dinámicos (sin incluir el mes en curso)
+  // Últimos 6 meses dinámicos + mes actual
   const MESES_ORDEN = (function() {
     var meses = [];
-    for (var i = 1; i <= 6; i++) {
+    for (var i = 6; i >= 1; i--) {
       var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i);
       meses.push(d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0"));
     }
+    // Agregar mes actual al final
+    var now = new Date();
+    meses.push(now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2,"0"));
     return meses;
   })();
   const MESES_LABEL = (function() {
@@ -6291,7 +6295,9 @@ function ExcelDataView({ equipo, setEquipo, info }) {
       var parts = mk.split("-");
       var d = new Date(parseInt(parts[0]), parseInt(parts[1])-1, 1);
       var mes = d.toLocaleString("es-CL",{month:"short"});
-      labels[mk] = mes.charAt(0).toUpperCase()+mes.slice(1)+" "+String(parts[0]).slice(2);
+      var now = new Date();
+      var nowKey = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2,"0");
+      labels[mk] = mes.charAt(0).toUpperCase()+mes.slice(1)+" "+String(parts[0]).slice(2) + (mk===nowKey?" ★":"");
     });
     return labels;
   })();
@@ -6516,9 +6522,16 @@ function ExcelDataView({ equipo, setEquipo, info }) {
                   v.nombre
                 ),
                 MESES_ORDEN.map(function(mk){
+                  var nowKey = (function(){var n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");})();
                   var excelBase = (HISTORIAL_EXCEL[v.id]||HISTORIAL_EXCEL[String(v.id)]||{})[mk]||{};
                   var manualEdit = hist[mk]||{};
-                  var d = Object.keys(manualEdit).length>0 ? manualEdit : excelBase;
+                  // Mes actual: usar datos en vivo del equipo
+                  var d;
+                  if (mk===nowKey) {
+                    d = { uf: v.uf||0, dps: v.dps||0, dpsVenta: (manualEdit.dpsVenta||excelBase.dpsVenta||0) };
+                  } else {
+                    d = Object.keys(manualEdit).length>0 ? manualEdit : excelBase;
+                  }
                   var uf=d.uf||0, dps=d.dps||0, dpsV=d.dpsVenta||0;
                   var pct = v.metaUF>0 ? Math.round((uf/v.metaUF)*100) : 0;
                   var col = pct>=100?"#16A34A":pct>=60?"#D97706":uf>0?"#DC2626":"#9CA3AF";
@@ -6535,9 +6548,25 @@ function ExcelDataView({ equipo, setEquipo, info }) {
             React.createElement("tr", {style:{background:"#FFF5F6",fontWeight:900,borderTop:"2px solid rgba(233,7,41,.2)"}},
               React.createElement("td", {style:{padding:"9px 10px",color:RD,fontSize:11,position:"sticky",left:0,background:"#FFF5F6"}}, "TOTAL"),
               MESES_ORDEN.map(function(mk){
-                var tUF  = Object.values(HISTORIAL_EXCEL).reduce(function(s,h){return s+((h[mk]||{}).uf||0);},0);
-                var tDPS = Object.values(HISTORIAL_EXCEL).reduce(function(s,h){return s+((h[mk]||{}).dps||0);},0);
-                var tDPV = Object.values(HISTORIAL_EXCEL).reduce(function(s,h){return s+((h[mk]||{}).dpsVenta||0);},0);
+                // Sum from equipo (Firebase) first, fallback to HISTORIAL_EXCEL for missing entries
+                var tUF  = equipo.reduce(function(s,v){
+                  var excelBase = (HISTORIAL_EXCEL[v.id]||HISTORIAL_EXCEL[String(v.id)]||{})[mk]||{};
+                  var manualEdit = (v.historial||{})[mk]||{};
+                  var d = Object.keys(manualEdit).length>0 ? manualEdit : excelBase;
+                  return s+(d.uf||0);
+                },0);
+                var tDPS = equipo.reduce(function(s,v){
+                  var excelBase = (HISTORIAL_EXCEL[v.id]||HISTORIAL_EXCEL[String(v.id)]||{})[mk]||{};
+                  var manualEdit = (v.historial||{})[mk]||{};
+                  var d = Object.keys(manualEdit).length>0 ? manualEdit : excelBase;
+                  return s+(d.dps||0);
+                },0);
+                var tDPV = equipo.reduce(function(s,v){
+                  var excelBase = (HISTORIAL_EXCEL[v.id]||HISTORIAL_EXCEL[String(v.id)]||{})[mk]||{};
+                  var manualEdit = (v.historial||{})[mk]||{};
+                  var d = Object.keys(manualEdit).length>0 ? manualEdit : excelBase;
+                  return s+(d.dpsVenta||0);
+                },0);
                 return [
                   React.createElement("td", {key:mk+"uf",  style:{padding:"9px 2px",textAlign:"center",color:RD,fontWeight:900,fontSize:12}}, fmtUF(tUF)),
                   React.createElement("td", {key:mk+"dps", style:{padding:"9px 2px",textAlign:"center",color:"#16A34A",fontWeight:900}}, tDPS),
@@ -6604,7 +6633,13 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
   const v = equipo.find(function(e){ return e.id===Number(selId); });
 
   function loginCal() {
-    if (v && pinCal===v.pin) { setPinOk(true); setPinErr(false); setUfSim(v.metaUF); setUfMeta(v.metaPropia||v.metaUF); }
+    if (v && pinCal===v.pin) {
+      setPinOk(true); setPinErr(false);
+      setUfSim(v.metaUF); setUfMeta(v.metaPropia||v.metaUF);
+      // Restaurar cantidad Conecta comprometida guardada
+      var cantConectaGuardada = v.metaConecta||0;
+      setPremios([{id:1, nombre: nombrePremio||"Premio Plan Conecta", valorUnitario:premioConecta||100000, cantidad:cantConectaGuardada}]);
+    }
     else { setPinErr(true); setPinCal(""); }
   }
 
@@ -6632,8 +6667,9 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
 
   function guardarMeta() {
     if (!v || ufMeta<=0) return;
+    var cantConecta = premios[0]?premios[0].cantidad||0:0;
     var newEquipo = equipo.map(function(eq){
-      return eq.id===v.id ? Object.assign({},eq,{metaPropia:ufMeta}) : eq;
+      return eq.id===v.id ? Object.assign({},eq,{metaPropia:ufMeta, metaConecta:cantConecta}) : eq;
     });
     setEquipo(newEquipo);
     if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc) {
@@ -6740,7 +6776,7 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
               var metasSem = v.metasSemanas || [Math.round(v.metaUF*0.25),Math.round(v.metaUF*0.25),Math.round(v.metaUF*0.25),Math.round(v.metaUF*0.25)];
               // Conecta logrados
               var conectaLogrado = reps.reduce(function(s,r){return s+(r.conecta||0);},0);
-              var conectaComprometido = premios[0]?premios[0].cantidad||0:0;
+              var conectaComprometido = premios[0]&&premios[0].cantidad>0 ? premios[0].cantidad : (v.metaConecta||0);
               // UF por semana real (agrupar reportes por semana del mes)
               var ufPorSemana = [0,0,0,0];
               reps.forEach(function(r) {
