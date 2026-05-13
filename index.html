@@ -2720,7 +2720,8 @@ function SupervisorFotoCard() {
   const skipSnapshot = React.useRef(false);
 
   useEffect(function() {
-    const key = "equipo_" + info.mesKey;
+    const key = info.mesKey;
+    const storageKey = "equipo_" + info.mesKey;
     if (window.__fbDb && window.__fbDoc && window.__fbOnSnapshot) {
       const ref = window.__fbDoc(window.__fbDb, "equipos", key);
       var fbRespondio = false;
@@ -2734,7 +2735,7 @@ function SupervisorFotoCard() {
         var promises = offsets.map(function(offset) {
           var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - offset);
           var mk = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
-          var fbKey = "equipo_" + mk;
+          var fbKey = mk;
           var ref2 = window.__fbDoc(window.__fbDb, "equipos", fbKey);
           return window.__fbGetDoc(ref2).then(function(snap2) {
             if (!snap2.exists) return;
@@ -2790,7 +2791,7 @@ function SupervisorFotoCard() {
         console.error("[LOAD] Firebase onSnapshot error:", err);
         setFbError(true);
         setSincronizado(false);
-        storageGet(key).then(function(d){
+        storageGet(storageKey).then(function(d){
           if(d && Array.isArray(d)) {
             var fallback = d.map(function(x){ return Object.assign({rep:[]}, x); });
             setEquipo(fallback);
@@ -2807,7 +2808,7 @@ function SupervisorFotoCard() {
       }, 12000);
       return function() { unsub(); clearTimeout(fbTimeout); };
     } else {
-      storageGet(key).then(function(d){
+      storageGet(storageKey).then(function(d){
         if(d&&Array.isArray(d)){
           var merged2 = d.map(function(v){
             var eh = HISTORIAL_EXCEL[v.id] || HISTORIAL_EXCEL[String(v.id)] || {};
@@ -2825,8 +2826,9 @@ function SupervisorFotoCard() {
   // Guardar cuando cambia el estado - FUENTE UNICA DE VERDAD
   useEffect(function() {
     if (!loaded) return;
-    const key = "equipo_" + info.mesKey;
-    storageSet(key, equipo);
+    const key = info.mesKey;
+    const storageKey = "equipo_" + info.mesKey;
+    storageSet(storageKey, equipo);
     if (window.__fbDb && window.__fbDoc && window.__fbSetDoc) {
       skipSnapshot.current = true;
       var dataToSave = {equipo: equipo, metaEquipo: metaEquipo};
@@ -3076,8 +3078,7 @@ function SupervisorFotoCard() {
     // Guardar en Firebase directamente
     if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
       skipSnapshot.current=true;
-      var key="equipo_"+info.mesKey;
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",key),{equipo:nuevoEquipo,metaEquipo:metaEquipo})
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",info.mesKey),{equipo:nuevoEquipo,metaEquipo:metaEquipo})
         .then(function(){skipSnapshot.current=false;})
         .catch(function(){skipSnapshot.current=false;});
     }
@@ -3088,10 +3089,9 @@ function SupervisorFotoCard() {
   }
   function guardarEnFirebaseAhora(equipoActual, metaActual) {
     if (!window.__fbDb || !window.__fbDoc || !window.__fbSetDoc) return;
-    const key = "equipo_" + info.mesKey;
     const data = {equipo: equipoActual, metaEquipo: metaActual};
     console.log("[GUARDAR_AHORA] Forzando escritura en Firebase");
-    return window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",key), data)
+    return window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",info.mesKey), data)
       .then(function(){ console.log("[GUARDAR_AHORA] OK"); })
       .catch(function(e){ console.error("[GUARDAR_AHORA] ERROR:", e); });
   }
@@ -3104,9 +3104,8 @@ function SupervisorFotoCard() {
     setEquipo(equipoLimpio);
     // Borrar en Firebase
     if (window.__fbDb && window.__fbDoc && window.__fbSetDoc) {
-      const key = "equipo_" + info.mesKey;
       skipSnapshot.current = true;
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb, "equipos", key), {equipo: equipoLimpio, metaEquipo: metaEquipo})
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb, "equipos", info.mesKey), {equipo: equipoLimpio, metaEquipo: metaEquipo})
         .then(function(){ console.log("[RESET] Mes limpiado OK"); skipSnapshot.current = false; })
         .catch(function(e){ console.error("[RESET] Error:", e); skipSnapshot.current = false; });
     }
@@ -5176,8 +5175,9 @@ function ProdEditableInner({ v, equipo, setEquipo, guardarProductividad, guardan
     // Actualizar estado
     setEquipo(nuevoEquipo);
     // Guardar DIRECTAMENTE en Firebase
-    var keyP = "equipo_" + info.mesKey;
-    storageSet(keyP, nuevoEquipo);
+    var keyP = info.mesKey;
+    var storageKeyP = "equipo_" + info.mesKey;
+    storageSet(storageKeyP, nuevoEquipo);
     if (window.__fbDb && window.__fbDoc && window.__fbSetDoc) {
       window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",keyP), {equipo: nuevoEquipo, metaEquipo: META_UF})
         .then(function(){ console.log("[Productividad] OK"); })
@@ -5385,8 +5385,8 @@ function EditarDatosView({ equipo, setEquipo, info }) {
     setEquipo(nuevoEquipo);
 
     // 2. Guardar DIRECTAMENTE en Firebase con los datos nuevos
-    var key = "equipo_" + info.mesKey;
-    storageSet(key, nuevoEquipo);
+    var key = info.mesKey;
+    storageSet("equipo_" + info.mesKey, nuevoEquipo);
     if (window.__fbDb && window.__fbDoc && window.__fbSetDoc) {
       window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",key), {equipo: nuevoEquipo})
         .then(function(){ console.log("[EditarDatos] Firebase OK"); })
