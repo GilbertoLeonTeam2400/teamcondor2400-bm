@@ -458,7 +458,16 @@ const CONDOR_LOGO_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAlgAAAJYC
 const WD_MES  = 22;
 const WD_SEM  = 5;
 var META_UF = 550; // Valor por defecto, se sobreescribe con el estado
-const PIN_SUP = "240024";
+const PIN_SUP_DEFAULT = "240024";
+var __supPinActual = PIN_SUP_DEFAULT;
+// Cargar PIN supervisor desde Firebase al iniciar
+(function(){
+  if(window.__fbDb&&window.__fbDoc&&window.__fbGetDoc){
+    window.__fbGetDoc(window.__fbDoc(window.__fbDb,"supervisor","config")).then(function(snap){
+      if(snap.exists){var d=snap.data();if(d&&d.pin)__supPinActual=d.pin;}
+    }).catch(function(){});
+  }
+})();
 const R       = "#e90729";
 const RD      = "#8B0418";
 const BG      = "#FFF5F6";
@@ -2826,17 +2835,43 @@ function SupervisorFotoCard() {
   // Guardar cuando cambia el estado - FUENTE UNICA DE VERDAD
   useEffect(function() {
     if (!loaded) return;
+    // PROTECCIÓN CRÍTICA: nunca guardar si el equipo está vacío o sin nombres
+    // Esto evita sobreescribir datos reales con un array vacío
+    if (!equipo || equipo.length === 0) return;
+    if (!equipo.some(function(v){ return v.nombre && v.nombre.length > 0; })) return;
+
     const key = info.mesKey;
     const storageKey = "equipo_" + info.mesKey;
     storageSet(storageKey, equipo);
+
+    // BACKUP AUTOMÁTICO en localStorage con timestamp
+    // Se guarda ANTES de enviar a Firebase — siempre hay copia local
+    var backupKey = "BACKUP_" + info.mesKey;
+    var ufTotal = equipo.reduce(function(s,v){ return s+(v.uf||0); }, 0);
+    if (ufTotal > 0) { // Solo hacer backup si hay datos reales
+      try {
+        var backup = {
+          timestamp: new Date().toISOString(),
+          mesKey: info.mesKey,
+          ufTotal: ufTotal,
+          equipo: equipo,
+          metaEquipo: metaEquipo
+        };
+        localStorage.setItem(backupKey, JSON.stringify(backup));
+        localStorage.setItem("BACKUP_ULTIMO", backupKey);
+        console.log("[BACKUP] ✅ Backup local guardado:", backupKey, "UF:", ufTotal.toFixed(2));
+      } catch(e) {
+        console.warn("[BACKUP] No se pudo guardar backup local:", e);
+      }
+    }
+
     if (window.__fbDb && window.__fbDoc && window.__fbSetDoc) {
       skipSnapshot.current = true;
       var dataToSave = {equipo: equipo, metaEquipo: metaEquipo};
-      console.log("[SAVE] Guardando en Firebase:", key, "UF[0]:", equipo[0] ? equipo[0].uf : "?");
+      console.log("[SAVE] Guardando en Firebase:", key, "UF total:", ufTotal.toFixed(2), "Ejecutivos:", equipo.length);
       window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",key), dataToSave)
         .then(function(){
-          console.log("[SAVE] Firebase OK - datos guardados correctamente");
-          // Resetear skipSnapshot después de confirmación
+          console.log("[SAVE] Firebase OK ✅");
           setTimeout(function(){ skipSnapshot.current = false; }, 2000);
         })
         .catch(function(e){
@@ -2975,20 +3010,53 @@ function SupervisorFotoCard() {
   useEffect(function(){
     if(!form.vid) { setHistorialMeses([]); return; }
     const vid = form.vid;
-    Promise.all([
-      storageGet("mes_"+vid+"_"+buildMesKey(1)),
-      storageGet("mes_"+vid+"_"+buildMesKey(2)),
-      storageGet("mes_"+vid+"_"+buildMesKey(3)),
-    ]).then(function(results){
-      const meses = [];
-      [1,2,3].forEach(function(offset, i){
-        const data = results[i];
-        if(data && data.uf > 0){
-          meses.push(Object.assign({key:buildMesKey(offset), label:buildMesLabel(offset)}, data));
-        }
+
+    function cargarDesdeLocal(){
+      Promise.all([
+        storageGet("mes_"+vid+"_"+buildMesKey(1)),
+        storageGet("mes_"+vid+"_"+buildMesKey(2)),
+        storageGet("mes_"+vid+"_"+buildMesKey(3)),
+      ]).then(function(results){
+        const meses = [];
+        [1,2,3].forEach(function(offset, i){
+          const data = results[i];
+          if(data && data.uf > 0){
+            meses.push(Object.assign({key:buildMesKey(offset), label:buildMesLabel(offset)}, data));
+          }
+        });
+        setHistorialMeses(meses);
       });
-      setHistorialMeses(meses);
-    });
+    }
+
+    if(window.__fbDb && window.__fbDoc && window.__fbGetDoc){
+      // Cargar los 3 meses anteriores desde Firebase
+      var offsets = [1,2,3];
+      Promise.all(offsets.map(function(offset){
+        var snapKey = "mes_"+vid+"_"+buildMesKey(offset);
+        return window.__fbGetDoc(window.__fbDoc(window.__fbDb,"snapshots",snapKey))
+          .then(function(snap){
+            if(snap.exists){ var d=snap.data(); return {offset:offset, data:d}; }
+            return {offset:offset, data:null};
+          }).catch(function(){ return {offset:offset, data:null}; });
+      })).then(function(results){
+        var meses = [];
+        var todosVacios = true;
+        results.forEach(function(r){
+          if(r.data && r.data.uf > 0){
+            todosVacios = false;
+            meses.push(Object.assign({key:buildMesKey(r.offset), label:buildMesLabel(r.offset)}, r.data));
+          }
+        });
+        if(todosVacios){
+          // Firebase vacío → usar localStorage
+          cargarDesdeLocal();
+        } else {
+          setHistorialMeses(meses);
+        }
+      }).catch(cargarDesdeLocal);
+    } else {
+      cargarDesdeLocal();
+    }
   }, [form.vid]);
 
   // Save current month snapshot to storage when equipo changes
@@ -3002,14 +3070,22 @@ function SupervisorFotoCard() {
           cot:       (v.rep||[]).reduce(function(s,r){return s+r.cot;},0),
           cierres:   (v.rep||[]).reduce(function(s,r){return s+r.cierres;},0),
         };
-        storageSet("mes_"+v.id+"_"+info.mesKey, snap);
+        var snapKey = "mes_"+v.id+"_"+info.mesKey;
+        // Guardar en localStorage Y Firebase
+        storageSet(snapKey, snap);
+        if(window.__fbDb && window.__fbDoc && window.__fbSetDoc){
+          window.__fbSetDoc(
+            window.__fbDoc(window.__fbDb, "snapshots", snapKey),
+            Object.assign({}, snap, { ejecutivoId: v.id, mesKey: info.mesKey, ts: Date.now() })
+          ).catch(function(){});
+        }
       }
     });
   }, [equipo, loaded]);
 
   //  Handlers 
   function entrar() {
-    if (pin===PIN_SUP){setAcceso(true);setPinErr(false);const init={};equipo.forEach(function(v){init[v.id]={uf:v.uf>0?String(v.uf):"",dps:v.dps>0?String(v.dps):""};});setBulk(init);}
+    if (pin===__supPinActual){setAcceso(true);setPinErr(false);const init={};equipo.forEach(function(v){init[v.id]={uf:v.uf>0?String(v.uf):"",dps:v.dps>0?String(v.dps):""};});setBulk(init);}
     else{setPinErr(true);setPin("");}
   }
   function abrirCarga(){setSupVista("carga");const init={};equipo.forEach(function(v){init[v.id]={uf:v.uf>0?String(v.uf):"",dps:v.dps>0?String(v.dps):""};});setBulk(init);}
@@ -3185,15 +3261,54 @@ function SupervisorFotoCard() {
     const v=equipo.find(function(v){return v.id===Number(crmVid);});
     if(v&&crmPin===v.pin){
       setCrmAcc(true);setCrmErr(false);
-      storageGet("crm_"+crmVid).then(function(data){setCrmData(data||[]);});
+      // Cargar desde Firebase primero (persiste entre dispositivos)
+      // Si no hay Firebase, usar localStorage como fallback
+      if(window.__fbDb && window.__fbDoc && window.__fbGetDoc){
+        window.__fbGetDoc(window.__fbDoc(window.__fbDb,"crm",String(crmVid))).then(function(snap){
+          if(snap.exists){
+            var d = snap.data();
+            if(d && Array.isArray(d.contactos) && d.contactos.length > 0){
+              setCrmData(d.contactos);
+              // Sincronizar también a localStorage
+              storageSet("crm_"+crmVid, d.contactos);
+              return;
+            }
+          }
+          // Firebase vacío → usar localStorage
+          storageGet("crm_"+crmVid).then(function(data){ setCrmData(data||[]); });
+        }).catch(function(){
+          storageGet("crm_"+crmVid).then(function(data){ setCrmData(data||[]); });
+        });
+      } else {
+        storageGet("crm_"+crmVid).then(function(data){ setCrmData(data||[]); });
+      }
     } else{setCrmErr(true);setCrmPin("");}
   }
   function crmLogout(){setCrmAcc(false);setCrmPin("");setCrmVid("");setCrmData([]);}
+
   function saveCrmData(data){
     setCrmData(data);
-    storageSet("crm_"+crmVid,data);
+    storageSet("crm_"+crmVid, data);
+    // Guardar también en Firebase para que persista entre dispositivos y sesiones
+    if(window.__fbDb && window.__fbDoc && window.__fbSetDoc){
+      window.__fbSetDoc(
+        window.__fbDoc(window.__fbDb, "crm", String(crmVid)),
+        { contactos: data, actualizado: Date.now() }
+      ).catch(function(e){ console.warn("[CRM] Error guardando en Firebase:", e); });
+    }
   }
-  function abrirNuevoContacto(){setCrmForm({nombre:"",email:"",tel:"",plan:"",planUF:"",proxAct:"",proxFecha:"",nota:""});setCrmEdit(null);setCrmModal(true);}
+
+  function abrirNuevoContacto(){
+    setCrmForm({
+      nombre:"", email:"", tel:"", plan:"", planUF:"",
+      proxAct:"", proxFecha:"", nota:"",
+      canal:"", canalDetalle:"",
+      temperatura:"tibio", oportunidad:"cotizando",
+      fechaCierre:"", motivoNoConcretar:""
+    });
+    setCrmEdit(null);
+    setCrmModal(true);
+  }
   function abrirEditContacto(c){setCrmForm({nombre:c.nombre||"",email:c.email||"",tel:c.tel||"",plan:c.plan||"",planUF:c.planUF||"",proxAct:c.proxAct||"",proxFecha:c.proxFecha||"",nota:c.nota||"",canal:c.canal||"",canalDetalle:c.canalDetalle||"",temperatura:c.temperatura||"tibio",oportunidad:c.oportunidad||"cotizando",fechaCierre:c.fechaCierre||"",motivoNoConcretar:c.motivoNoConcretar||""});setCrmEdit(c.id);setCrmModal(true);}
   function guardarContacto(){
     if(!crmForm.nombre)return;
@@ -4493,11 +4608,35 @@ function SupervisorFotoCard() {
                     })
                   )
                   , React.createElement('div', { style: {display:"flex",gap:8,alignItems:"center"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3675}}
-                    , React.createElement('button', { onClick: exportarCSV, style: {background:"#DCFCE7",color:"#15803D",border:"1px solid #86EFAC",borderRadius:10,padding:"8px 16px",fontSize:13,cursor:"pointer",fontFamily:"inherit",fontWeight:700,display:"flex",alignItems:"center",gap:6}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3676}}, "↓ Exportar CSV"
-
-                    )
+                    , React.createElement('button', { onClick: exportarCSV, style: {background:"#DCFCE7",color:"#15803D",border:"1px solid #86EFAC",borderRadius:10,padding:"8px 16px",fontSize:13,cursor:"pointer",fontFamily:"inherit",fontWeight:700,display:"flex",alignItems:"center",gap:6}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3676}}, "↓ Exportar CSV")
+                    , React.createElement('button', { onClick: function() {
+                        var ultimoKey = localStorage.getItem("BACKUP_ULTIMO");
+                        if (!ultimoKey) { alert("No hay backup local disponible."); return; }
+                        var raw = localStorage.getItem(ultimoKey);
+                        if (!raw) { alert("Backup no encontrado."); return; }
+                        var bk = JSON.parse(raw);
+                        var fecha = new Date(bk.timestamp).toLocaleString("es-CL");
+                        if (!window.confirm("¿Restaurar backup del " + fecha + " con " + bk.ufTotal.toFixed(2) + " UF?\nEsto reemplazará los datos actuales.")) return;
+                        setEquipo(bk.equipo);
+                        if (bk.metaEquipo) setMetaEquipo(bk.metaEquipo);
+                        alert("✅ Backup restaurado. Los datos se guardarán en Firebase automáticamente.");
+                      }, style: {background:"#FEF3C7",color:"#92400E",border:"1px solid #FCD34D",borderRadius:10,padding:"8px 16px",fontSize:13,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}, "🔄 Restaurar Backup")
+                    , React.createElement('button', {
+                        onClick: function(){
+                          var nuevoPinSup = window.prompt("Nuevo PIN de supervisor (6 dígitos):", "");
+                          if (!nuevoPinSup) return;
+                          nuevoPinSup = nuevoPinSup.trim();
+                          if (!/^\d{6}$/.test(nuevoPinSup)) { window.alert("El PIN debe ser exactamente 6 dígitos numéricos."); return; }
+                          __supPinActual = nuevoPinSup;
+                          if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
+                            window.__fbSetDoc(window.__fbDoc(window.__fbDb,"supervisor","config"),{pin:nuevoPinSup})
+                              .then(function(){ window.alert("✅ PIN de supervisor actualizado correctamente."); })
+                              .catch(function(e){ window.alert("Error: " + e.message); });
+                          }
+                        },
+                        style: {background:"#FEF3C7",color:"#92400E",border:"1px solid #FCD34D",borderRadius:10,padding:"8px 16px",fontSize:13,cursor:"pointer",fontFamily:"inherit",fontWeight:700}
+                      }, "🔑 Cambiar mi PIN")
                     , React.createElement('button', { onClick: salir, style: {background:"#FEE2E2",color:R,border:"none",borderRadius:10,padding:"8px 16px",fontSize:13,cursor:"pointer",fontFamily:"inherit",fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3679}}, "Cerrar sesion" )
-            
                   )
                 )
 
@@ -4567,7 +4706,30 @@ function SupervisorFotoCard() {
                               , React.createElement('td', { style: {padding:"10px 12px"}}
                                 , React.createElement('input', { defaultValue: v.email||"", placeholder: "correo@empresa.com", onBlur: function(e){ var val=e.target.value.trim(); setEquipo(equipo.map(function(eq){ return eq.id===v.id ? Object.assign({},eq,{email:val}) : eq; })); }, style: {width:180,padding:"5px 8px",fontSize:12,fontFamily:"inherit",borderRadius:7,border:"1.5px solid #D1D5DB",outline:"none",color:"#374151"}} )
                               )
-                              , React.createElement('td', { style: {padding:"10px 12px",color:"#6B7280",fontFamily:"monospace",fontWeight:700,fontSize:16}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3700}}, v.pin)
+                              , React.createElement('td', { style: {padding:"8px 12px"}},
+                                (function(){
+                                  return React.createElement('div', { style: {display:"flex",alignItems:"center",gap:6}},
+                                    React.createElement('span', { style: {fontFamily:"monospace",fontWeight:700,fontSize:15,color:"#374151",letterSpacing:"0.1em"}}, v.pin),
+                                    React.createElement('button', {
+                                      title: "Cambiar PIN",
+                                      onClick: function(){
+                                        var nuevoPin = window.prompt("Nuevo PIN de 6 dígitos para " + v.nombre + ":", "");
+                                        if (!nuevoPin) return;
+                                        nuevoPin = nuevoPin.trim();
+                                        if (!/^\d{6}$/.test(nuevoPin)) { window.alert("El PIN debe ser exactamente 6 dígitos numéricos."); return; }
+                                        var newEquipo = equipo.map(function(eq){ return eq.id===v.id ? Object.assign({},eq,{pin:nuevoPin}) : eq; });
+                                        setEquipo(newEquipo);
+                                        if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
+                                          window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",info.mesKey),{equipo:newEquipo,metaEquipo:metaEquipo})
+                                            .then(function(){ window.alert("✅ PIN actualizado para " + v.nombre); })
+                                            .catch(function(e){ window.alert("Error al guardar PIN: " + e.message); });
+                                        }
+                                      },
+                                      style: {background:"#EFF6FF",color:"#1D4ED8",border:"1px solid #BFDBFE",borderRadius:7,padding:"3px 8px",fontSize:11,cursor:"pointer",fontWeight:700,fontFamily:"inherit"}
+                                    }, "🔑 Cambiar")
+                                  );
+                                })()
+                              )
                               , React.createElement('td', { style: {padding:"10px 12px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3701}}, React.createElement('span', { style: {background:"rgba(233,7,41,.08)",color:"#E9192A",fontWeight:700,borderRadius:8,padding:"3px 8px",fontSize:12}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3701}}, v.metaUF+" UF"))
                               , React.createElement('td', { style: {padding:"10px 12px"} },
                                 (function(){
