@@ -2790,7 +2790,7 @@ function SupervisorFotoCard() {
             setTimeout(cargarHistorialMesesAnteriores, 800);
           }
           const m = snapData.metaEquipo;
-          if (m && typeof m === "number") setMetaEquipo(m);
+          if (m && typeof m === "number" && !isNaN(m) && m > 0) setMetaEquipo(m);
         } else {
           console.log("[LOAD] Firebase: documento no existe todavia");
         }
@@ -3596,7 +3596,7 @@ function SupervisorFotoCard() {
                     , React.createElement('div', { style: {fontSize:38,fontWeight:900,lineHeight:1,color:"#C9A84C"} }, fmtUF2(ufHoy))
                     , React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.45)",marginTop:4} }, "Cada UF suma al EQUIPO!")
                     , React.createElement('div', { style: {marginTop:8,background:"rgba(255,255,255,.1)",borderRadius:99,height:5,overflow:"hidden"} }
-                      , React.createElement('div', { style: {width:Math.min((ufHoy/(META_UF/WD_MES))*100,100)+"%",height:"100%",background:"linear-gradient(90deg,#8B1020,#C9A84C)",borderRadius:99} })
+                      , React.createElement('div', { style: {width:Math.min(META_UF>0?(ufHoy/(META_UF/WD_MES))*100:0,100)+"%",height:"100%",background:"linear-gradient(90deg,#8B1020,#C9A84C)",borderRadius:99} })
                     )
                   )
                   /* DPS HOY */
@@ -3789,8 +3789,8 @@ function SupervisorFotoCard() {
             , React.createElement('div', { style: {background:"linear-gradient(135deg,"+RD+","+R+")",borderRadius:16,padding:"18px 22px",color:"#fff",marginBottom:20,display:"flex",alignItems:"center",gap:18}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3191}}
               , React.createElement('div', { style: {textAlign:"center",minWidth:80}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3192}}, React.createElement('div', { style: {fontSize:34,fontWeight:900,lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3192}}, fmtUF2(totUF)), React.createElement('div', { style: {fontSize:10,color:"rgba(255,255,255,.65)",textTransform:"uppercase",letterSpacing:"0.12em",marginTop:3}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3192}}, "UF equipo" ))
               , React.createElement('div', { style: {flex:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3193}}
-                , React.createElement('div', { style: {display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:7,fontWeight:600}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3194}}, React.createElement('span', { style: {color:"rgba(255,255,255,.75)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3194}}, "Avance del equipo"  ), React.createElement('span', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3194}}, Math.round((totUF/META_UF)*100)+"% de "+META_UF+" UF"))
-                , React.createElement(Bar, { pct: Math.round((totUF/META_UF)*100), color: "rgba(255,255,255,.9)", h: 10, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3195}} )
+                , React.createElement('div', { style: {display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:7,fontWeight:600}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3194}}, React.createElement('span', { style: {color:"rgba(255,255,255,.75)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3194}}, "Avance del equipo"  ), React.createElement('span', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3194}}, (META_UF>0?Math.round((totUF/META_UF)*100):0)+"% de "+META_UF+" UF"))
+                , React.createElement(Bar, { pct: META_UF>0?Math.round((totUF/META_UF)*100):0, color: "rgba(255,255,255,.9)", h: 10, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3195}} )
                 , React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.6)",marginTop:6}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3196}}, "Faltan "+fmtUF2(falta)+" UF para la meta del equipo")
               )
             )
@@ -4620,7 +4620,7 @@ function SupervisorFotoCard() {
                         var fecha = new Date(bk.timestamp).toLocaleString("es-CL");
                         if (!window.confirm("¿Restaurar backup del " + fecha + " con " + bk.ufTotal.toFixed(2) + " UF?\nEsto reemplazará los datos actuales.")) return;
                         setEquipo(bk.equipo);
-                        if (bk.metaEquipo) setMetaEquipo(bk.metaEquipo);
+                        if (bk.metaEquipo && !isNaN(bk.metaEquipo) && bk.metaEquipo > 0) setMetaEquipo(bk.metaEquipo);
                         alert("✅ Backup restaurado. Los datos se guardarán en Firebase automáticamente.");
                       }, style: {background:"#FEF3C7",color:"#92400E",border:"1px solid #FCD34D",borderRadius:10,padding:"8px 16px",fontSize:13,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}, "🔄 Restaurar Backup")
                     , React.createElement('button', {
@@ -6033,11 +6033,12 @@ function MetasIndividualesView({ equipo, setEquipo, setMetaEquipo }) {
   var [saved, setSaved] = useState(false);
   var [metas, setMetas] = useState(function() {
     return equipo.map(function(v) {
+      var metaBase = parseFloat(v.metaUF) || 0;
       var ms = v.metasSemanas && v.metasSemanas.length === 4 ? v.metasSemanas : [
-        Math.round(v.metaUF * 0.25),
-        Math.round(v.metaUF * 0.25),
-        Math.round(v.metaUF * 0.25),
-        Math.round(v.metaUF * 0.25)
+        Math.round(metaBase * 0.25),
+        Math.round(metaBase * 0.25),
+        Math.round(metaBase * 0.25),
+        Math.round(metaBase * 0.25)
       ];
       return { id: v.id, nombre: v.nombre, ufActual: v.uf||0, semanas: ms.slice(0,4) };
     });
@@ -6067,7 +6068,7 @@ function MetasIndividualesView({ equipo, setEquipo, setMetaEquipo }) {
       return Object.assign({}, v, { metaUF: metaMes(m), metasSemanas: m.semanas });
     }));
     // Actualizar meta global del equipo = suma de todas las metas mes
-    if (typeof setMetaEquipo === "function") setMetaEquipo(totMes);
+    if (typeof setMetaEquipo === "function") { var tm = parseFloat(totMes)||0; if(tm>0) setMetaEquipo(tm); }
     setSaved(true);
     setTimeout(function() { setSaved(false); }, 3000);
   }
