@@ -462,11 +462,18 @@ const PIN_SUP_DEFAULT = "240024";
 var __supPinActual = PIN_SUP_DEFAULT;
 // Cargar PIN supervisor desde Firebase al iniciar
 (function(){
-  // Intentar cargar desde localStorage primero (disponible siempre)
+  // 1. localStorage primero (disponible inmediatamente)
   try { var local = localStorage.getItem("SUP_PIN_LOCAL"); if(local && /^\d{6}$/.test(local)) __supPinActual = local; } catch(e){}
+  // 2. Leer desde documento principal del equipo (tiene permisos)
   if(window.__fbDb&&window.__fbDoc&&window.__fbGetDoc){
+    var now = new Date();
+    var mesKey = now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0");
+    window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey)).then(function(snap){
+      if(snap.exists){var d=snap.data();if(d&&d.supPin&&/^\d{6}$/.test(d.supPin)){__supPinActual=d.supPin;try{localStorage.setItem("SUP_PIN_LOCAL",d.supPin);}catch(e){}}}
+    }).catch(function(){});
+    // 3. Intentar también supervisor/config (puede fallar por permisos, ok)
     window.__fbGetDoc(window.__fbDoc(window.__fbDb,"supervisor","config")).then(function(snap){
-      if(snap.exists){var d=snap.data();if(d&&d.pin)__supPinActual=d.pin;}
+      if(snap.exists){var d=snap.data();if(d&&d.pin&&/^\d{6}$/.test(d.pin))__supPinActual=d.pin;}
     }).catch(function(){});
   }
 })();
@@ -2790,7 +2797,23 @@ function SupervisorFotoCard() {
             setTimeout(cargarHistorialMesesAnteriores, 800);
           }
           const m = snapData.metaEquipo;
-          if (m && typeof m === "number" && !isNaN(m) && m > 0) setMetaEquipo(m);
+          if (m && typeof m === "number" && !isNaN(m) && m > 0) {
+            setMetaEquipo(m);
+          } else if (m !== undefined && (isNaN(m) || m <= 0)) {
+            // Valor corrupto en Firebase — corregir automáticamente a 550
+            console.warn("[FIX] metaEquipo corrupto en Firebase (" + m + "), restaurando a 550");
+            setMetaEquipo(550);
+            if (window.__fbDb && window.__fbDoc && window.__fbSetDoc) {
+              window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",key), Object.assign({}, snapData, {metaEquipo: 550}))
+                .then(function(){ console.log("[FIX] metaEquipo corregido en Firebase"); })
+                .catch(function(e){ console.warn("[FIX] No se pudo corregir en Firebase:", e); });
+            }
+          }
+          // Cargar PIN supervisor desde este mismo documento (tiene permisos)
+          if (snapData.supPin && /^\d{6}$/.test(snapData.supPin)) {
+            __supPinActual = snapData.supPin;
+            try { localStorage.setItem("SUP_PIN_LOCAL", snapData.supPin); } catch(e) {}
+          }
         } else {
           console.log("[LOAD] Firebase: documento no existe todavia");
         }
@@ -4630,13 +4653,16 @@ function SupervisorFotoCard() {
                           nuevoPinSup = nuevoPinSup.trim();
                           if (!/^\d{6}$/.test(nuevoPinSup)) { window.alert("El PIN debe ser exactamente 6 dígitos numéricos."); return; }
                           __supPinActual = nuevoPinSup;
-                          // Guardar en localStorage (siempre funciona)
+                          // Guardar en localStorage (siempre funciona, todos los dispositivos que ya lo tienen)
                           try { localStorage.setItem("SUP_PIN_LOCAL", nuevoPinSup); } catch(e){}
-                          // Intentar guardar en Firebase (puede fallar por permisos)
-                          if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
-                            window.__fbSetDoc(window.__fbDoc(window.__fbDb,"supervisor","config"),{pin:nuevoPinSup})
-                              .then(function(){ window.alert("✅ PIN de supervisor actualizado correctamente."); })
-                              .catch(function(){ window.alert("✅ PIN actualizado en esta sesión.\n⚠️ No se pudo sincronizar con la nube (permisos). El PIN quedó guardado localmente en este dispositivo."); });
+                          // Guardar en el documento principal del equipo (tiene permisos de escritura)
+                          if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc&&window.__fbGetDoc){
+                            var mesKey = info.mesKey;
+                            window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey)).then(function(snap){
+                              var base = snap.exists() ? (snap.data()||{}) : {};
+                              return window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey), Object.assign({},base,{supPin:nuevoPinSup}));
+                            }).then(function(){ window.alert("✅ PIN actualizado y sincronizado en la nube."); })
+                              .catch(function(){ window.alert("✅ PIN actualizado localmente.\n⚠️ No se pudo sincronizar (error de red)."); });
                           } else {
                             window.alert("✅ PIN actualizado en esta sesión (guardado localmente).");
                           }
