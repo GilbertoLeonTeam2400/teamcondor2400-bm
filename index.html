@@ -5359,29 +5359,38 @@ function ProdEditableInner({ v, equipo, setEquipo, guardarProductividad, guardan
   const localColMeta = localPctMeta>=100?"#16A34A":localPctMeta>=60?"#D97706":"#DC2626";
 
   function guardarCambios() {
-    // Calcular nuevo equipo sincrónicamente
+    var _uf  = parseFloat(localUF)  || 0;
+    var _dps = parseInt(localDPS)   || 0;
+    var _con = parseInt(localCon)   || 0;
+    var _hom = parseInt(localHom)   || 0;
+    var _muj = parseInt(localMuj)   || 0;
+
     var nuevoEquipo = equipo.map(function(eq){
       if (eq.id !== v.id) return eq;
-      var rep = (eq.rep||[]).length>0 ? (eq.rep||[]).slice() : [{fecha:new Date().toLocaleDateString("es-CL"),contactos:0,cot:0,cierres:0,uf:0,dps:0,nota:"Ajuste",hombres:0,mujeres:0,conecta:0}];
-      var acum = function(campo) { return rep.slice(0,-1).reduce(function(s,r){return s+(r[campo]||0);},0); };
-      var ultimo = Object.assign({}, rep[rep.length-1]);
-      var _uf=parseFloat(localUF)||0, _dps=parseInt(localDPS)||0, _con=parseInt(localCon)||0, _hom=parseInt(localHom)||0, _muj=parseInt(localMuj)||0;
-      ultimo.uf      = Math.max(0, _uf  - acum("uf"));
-      ultimo.dps     = Math.max(0, _dps - acum("dps"));
-      ultimo.conecta = Math.max(0, _con - acum("conecta"));
-      ultimo.hombres = Math.max(0, _hom - acum("hombres"));
-      ultimo.mujeres = Math.max(0, _muj - acum("mujeres"));
-      rep[rep.length-1] = ultimo;
-      return Object.assign({}, eq, {rep:rep, uf:parseFloat(_uf.toFixed(2)), dps:_dps});
+      // Supervisor manda: reemplazar rep completo con un único registro autoritativo
+      var repNuevo = [{
+        fecha:     new Date().toLocaleDateString("es-CL"),
+        contactos: (eq.rep||[]).reduce(function(s,r){return s+(r.contactos||0);},0),
+        cot:       (eq.rep||[]).reduce(function(s,r){return s+(r.cot||0);},0),
+        cierres:   (eq.rep||[]).reduce(function(s,r){return s+(r.cierres||0);},0),
+        uf:        parseFloat(_uf.toFixed(2)),
+        dps:       _dps,
+        nota:      "Ajuste supervisor",
+        hombres:   _hom,
+        mujeres:   _muj,
+        conecta:   _con,
+        dpsVenta:  (eq.rep||[]).reduce(function(s,r){return s+(r.dpsVenta||0);},0),
+      }];
+      return Object.assign({}, eq, { rep: repNuevo, uf: parseFloat(_uf.toFixed(2)), dps: _dps });
     });
-    // Actualizar estado
+
     setEquipo(nuevoEquipo);
-    // Guardar DIRECTAMENTE en Firebase
     var keyP = info.mesKey;
     var storageKeyP = "equipo_" + info.mesKey;
     storageSet(storageKeyP, nuevoEquipo);
     if (window.__fbDb && window.__fbDoc && window.__fbSetDoc) {
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",keyP), {equipo: nuevoEquipo, metaEquipo: META_UF})
+      var safeMetaToSave = (isNaN(META_UF)||META_UF<=0) ? 550 : META_UF;
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",keyP), {equipo: nuevoEquipo, metaEquipo: safeMetaToSave})
         .then(function(){ console.log("[Productividad] OK"); })
         .catch(function(e){ console.error("[Productividad] Error:", e); });
     }
@@ -5548,53 +5557,54 @@ function EditarDatosView({ equipo, setEquipo, info }) {
     if (!vSel || !mesEditando) return;
     setSaving(true);
     var esMesActual = mesEditando.key === info.mesKey;
+    var _uf  = parseFloat(parseFloat(localUF).toFixed(2))  || 0;
+    var _dps = parseInt(localDPS)   || 0;
+    var _con = parseInt(localCon)   || 0;
+    var _hom = parseInt(localHom)   || 0;
+    var _muj = parseInt(localMuj)   || 0;
+    var _meta= parseFloat(localMeta)|| vSel.metaUF;
 
-    // Calcular el nuevo equipo SINCRÓNICAMENTE para poder guardarlo de inmediato
     var nuevoEquipo = equipo.map(function(eq) {
       if (String(eq.id) !== editVid) return eq;
       if (esMesActual) {
-        var rep = (eq.rep||[]).length > 0 ? (eq.rep||[]).slice() : [{ fecha: new Date().toLocaleDateString("es-CL"), contactos:0,cot:0,cierres:0,uf:0,dps:0,nota:"Ajuste supervisor",hombres:0,mujeres:0,conecta:0 }];
-        var acum = function(campo) { return rep.slice(0,-1).reduce(function(s,r){ return s+(r[campo]||0); }, 0); };
-        var ultimo = Object.assign({}, rep[rep.length-1]);
-        ultimo.uf      = Math.max(0, parseFloat(localUF)  - acum("uf"));
-        ultimo.dps     = Math.max(0, parseInt(localDPS)   - acum("dps"));
-        ultimo.conecta = Math.max(0, parseInt(localCon)   - acum("conecta"));
-        ultimo.hombres = Math.max(0, parseInt(localHom)   - acum("hombres"));
-        ultimo.mujeres = Math.max(0, parseInt(localMuj)   - acum("mujeres"));
-        rep[rep.length-1] = ultimo;
-        return Object.assign({}, eq, {
-          rep: rep,
-          uf:  parseFloat(parseFloat(localUF).toFixed(2)),
-          dps: parseInt(localDPS),
-          metaUF: parseFloat(localMeta) || eq.metaUF,
-        });
+        // Supervisor manda: reemplazar rep completo con un único registro autoritativo
+        var repNuevo = [{
+          fecha:     new Date().toLocaleDateString("es-CL"),
+          contactos: (eq.rep||[]).reduce(function(s,r){return s+(r.contactos||0);},0),
+          cot:       (eq.rep||[]).reduce(function(s,r){return s+(r.cot||0);},0),
+          cierres:   (eq.rep||[]).reduce(function(s,r){return s+(r.cierres||0);},0),
+          uf:        _uf,
+          dps:       _dps,
+          nota:      "Ajuste supervisor",
+          hombres:   _hom,
+          mujeres:   _muj,
+          conecta:   _con,
+          dpsVenta:  (eq.rep||[]).reduce(function(s,r){return s+(r.dpsVenta||0);},0),
+        }];
+        return Object.assign({}, eq, { rep: repNuevo, uf: _uf, dps: _dps, metaUF: _meta });
       } else {
         var hist = Object.assign({}, eq.historial || {});
         hist[mesEditando.key] = {
-          uf:      parseFloat(parseFloat(localUF).toFixed(2)),
-          dps:     parseInt(localDPS),
-          conecta: parseInt(localCon),
-          hombres: parseInt(localHom),
-          mujeres: parseInt(localMuj),
-          meta:    parseFloat(localMeta) || eq.metaUF,
-          label:   mesEditando.label,
+          uf: _uf, dps: _dps, conecta: _con,
+          hombres: _hom, mujeres: _muj,
+          meta: _meta, label: mesEditando.label,
         };
-        return Object.assign({}, eq, { historial: hist, metaUF: parseFloat(localMeta)||eq.metaUF });
+        return Object.assign({}, eq, { historial: hist, metaUF: _meta });
       }
     });
 
     // 1. Actualizar estado React
     setEquipo(nuevoEquipo);
 
-    // 2. Guardar DIRECTAMENTE en Firebase con los datos nuevos
+    // 2. Guardar DIRECTAMENTE en Firebase
     var key = info.mesKey;
     storageSet("equipo_" + info.mesKey, nuevoEquipo);
     if (window.__fbDb && window.__fbDoc && window.__fbSetDoc) {
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",key), {equipo: nuevoEquipo})
+      var safeMetaToSave = (isNaN(META_UF)||META_UF<=0) ? 550 : META_UF;
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",key), {equipo: nuevoEquipo, metaEquipo: safeMetaToSave})
         .then(function(){ console.log("[EditarDatos] Firebase OK"); })
         .catch(function(e){ console.error("[EditarDatos] Error Firebase:", e); });
     }
-    // Mostrar confirmacion inmediatamente (no esperar Firebase)
     setSaving(false);
     setSaved(true);
     setTimeout(function() { setSaved(false); setMesEditando(null); }, 2000);
