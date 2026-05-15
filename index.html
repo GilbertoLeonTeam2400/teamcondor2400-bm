@@ -1660,7 +1660,36 @@ const EJECUTIVOS_BASE = [
   { id: 24, nombre: "AVILES RAMOS ANA JULIA", rut: "Ingresar RUT", pin: "563917", metaUF: 50, metaDPS: 30 },
 ];
 
-// ── Formateador UF: hasta 3 decimales, sin ceros finales, coma decimal ──────
+// ── HERRAMIENTA DE RECUPERACIÓN DE DATOS ─────────────────────────────────────
+// Ejecutar desde consola: window.recuperarDatos()
+window.recuperarDatos = function() {
+  if (!window.__fbDb || !window.__fbDoc || !window.__fbSetDoc || !window.__fbGetDoc) {
+    console.error("Firebase no disponible"); return;
+  }
+  var mesKey = new Date().getFullYear() + "-" + String(new Date().getMonth()+1).padStart(2,"0");
+  console.log("Recuperando datos para:", mesKey);
+  // Leer el documento actual
+  window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey)).then(function(snap) {
+    var actual = snap.exists ? (snap.data() || {}) : {};
+    var equipoActual = actual.equipo || [];
+    console.log("Equipo actual en Firebase:", equipoActual.length, "miembros");
+    // Reconstruir con EJECUTIVOS_BASE — preservar UF y datos del ejecutivo que quedó
+    var reconstruido = EJECUTIVOS_BASE.map(function(base) {
+      var existente = equipoActual.find(function(e){ return e && String(e.id) === String(base.id); });
+      return Object.assign({rep:[], uf:0, dps:0, historial:{}}, base, existente || {});
+    });
+    console.log("Reconstruyendo equipo con", reconstruido.length, "miembros...");
+    var metaSave = actual.metaEquipo && !isNaN(actual.metaEquipo) && actual.metaEquipo > 0 ? actual.metaEquipo : 550;
+    window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey), {equipo: reconstruido, metaEquipo: metaSave})
+      .then(function(){ 
+        console.log("✅ DATOS RECUPERADOS. Recarga la página.");
+        window.alert("✅ Datos recuperados. Recarga la página para ver el equipo completo.");
+      })
+      .catch(function(e){ console.error("Error:", e); });
+  }).catch(function(e){ console.error("Error leyendo Firebase:", e); });
+};
+console.log("💡 Si faltan ejecutivos, ejecuta: window.recuperarDatos()");
+// ─────────────────────────────────────────────────────────────────────────────
 function fmtUF(n) {
   if (n === null || n === undefined || isNaN(n)) return "0";
   var fixed = parseFloat(n.toFixed(3));
@@ -2379,7 +2408,6 @@ function SupervisorFotoCard() {
               return Object.assign({}, v, { historial: mergedHist });
             });
             console.log("[LOAD] Firebase datos recibidos OK");
-            var mergedRaw = merged.slice();
             merged = merged.map(function(x){
               return Object.assign({rep:[]}, x, {
                 uf:  parseFloat(x.uf)  || 0,
@@ -2387,14 +2415,6 @@ function SupervisorFotoCard() {
                 metaUF: parseFloat(x.metaUF) || 25
               });
             }).filter(function(x){ return x && x.nombre && typeof x.nombre === 'string' && x.nombre.trim() !== ''; });
-            // Auto-heal: si habia entradas corruptas, guardar versión limpia en Firebase
-            if (merged.length < mergedRaw.length && window.__fbDb && window.__fbDoc && window.__fbSetDoc) {
-              console.warn("[FIX] Entradas corruptas encontradas (" + (mergedRaw.length - merged.length) + "), limpiando Firebase...");
-              var safeMetaHeal = (isNaN(META_UF)||META_UF<=0) ? 550 : META_UF;
-              window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",key), {equipo: merged, metaEquipo: safeMetaHeal})
-                .then(function(){ console.log("[FIX] Firebase limpiado OK"); })
-                .catch(function(e){ console.warn("[FIX] Error limpiando:", e); });
-            }
             setEquipo(merged);
             // Cargar fotos desde colección separada para no saturar el doc principal
             if (window.__fbDb && window.__fbDoc && window.__fbGetDoc) {
@@ -2473,7 +2493,6 @@ function SupervisorFotoCard() {
   useEffect(function() {
     if (!loaded) return;
     // PROTECCIÓN CRÍTICA: nunca guardar si el equipo está vacío o sin nombres
-    // Esto evita sobreescribir datos reales con un array vacío
     if (!equipo || equipo.length === 0) return;
     if (!equipo.some(function(v){ return v.nombre && v.nombre.length > 0; })) return;
 
@@ -2481,28 +2500,82 @@ function SupervisorFotoCard() {
     const storageKey = "equipo_" + info.mesKey;
     storageSet(storageKey, equipo);
 
-    // BACKUP AUTOMÁTICO en localStorage con timestamp
-    // Se guarda ANTES de enviar a Firebase — siempre hay copia local
-    var backupKey = "BACKUP_" + info.mesKey;
     var ufTotal = equipo.reduce(function(s,v){ return s+(v.uf||0); }, 0);
-    if (ufTotal > 0) { // Solo hacer backup si hay datos reales
+    var ahora = new Date();
+
+    // ── MEJORA 1: Múltiples backups locales (últimos 5) ──────────────────────
+    if (ufTotal > 0) {
       try {
         var backup = {
-          timestamp: new Date().toISOString(),
+          timestamp: ahora.toISOString(),
           mesKey: info.mesKey,
           ufTotal: ufTotal,
           equipo: equipo,
           metaEquipo: metaEquipo
         };
-        localStorage.setItem(backupKey, JSON.stringify(backup));
+        var backupKey = "BACKUP_" + info.mesKey;
+        // Guardar backup rotativo con timestamp (mantiene últimos 5)
+        var tsKey = "BACKUP_" + info.mesKey + "_" + ahora.getTime();
+        localStorage.setItem(tsKey, JSON.stringify(backup));
+        localStorage.setItem(backupKey, JSON.stringify(backup)); // siempre actualizar el principal
         localStorage.setItem("BACKUP_ULTIMO", backupKey);
-        console.log("[BACKUP] ✅ Backup local guardado:", backupKey, "UF:", ufTotal.toFixed(2));
+        // Rotar: eliminar backups viejos si hay más de 5
+        var allBackupKeys = Object.keys(localStorage).filter(function(k){
+          return k.startsWith("BACKUP_" + info.mesKey + "_");
+        }).sort();
+        if (allBackupKeys.length > 5) {
+          allBackupKeys.slice(0, allBackupKeys.length - 5).forEach(function(k){
+            localStorage.removeItem(k);
+          });
+        }
+        console.log("[BACKUP] ✅ Backup local guardado:", backupKey, "UF:", ufTotal.toFixed(2), "| Versiones guardadas:", Math.min(allBackupKeys.length, 5));
       } catch(e) {
         console.warn("[BACKUP] No se pudo guardar backup local:", e);
       }
     }
 
+    // ── MEJORA 3: Backup diario fijo (se guarda una vez por día) ─────────────
+    if (ufTotal > 0) {
+      try {
+        var fechaHoy = ahora.toISOString().slice(0,10); // YYYY-MM-DD
+        var dailyKey = "BACKUP_DAILY_" + info.mesKey + "_" + fechaHoy;
+        var existeDaily = localStorage.getItem(dailyKey);
+        var existeUF = existeDaily ? (JSON.parse(existeDaily).ufTotal || 0) : 0;
+        // Guardar/actualizar el backup diario solo si las UF crecieron
+        if (ufTotal > existeUF) {
+          localStorage.setItem(dailyKey, JSON.stringify({
+            timestamp: ahora.toISOString(),
+            mesKey: info.mesKey,
+            ufTotal: ufTotal,
+            equipo: equipo,
+            metaEquipo: metaEquipo,
+            tipo: "daily"
+          }));
+          console.log("[BACKUP-DAILY] ✅ Backup diario actualizado:", fechaHoy, "UF:", ufTotal.toFixed(2));
+        }
+      } catch(e) {
+        console.warn("[BACKUP-DAILY] Error:", e);
+      }
+    }
+
     if (window.__fbDb && window.__fbDoc && window.__fbSetDoc) {
+      // PROTECCIÓN: nunca guardar si el equipo tiene menos de 5 miembros
+      if (equipo.length < 5) {
+        console.warn("[SAVE] BLOQUEADO - equipo tiene solo", equipo.length, "miembros. No se guarda.");
+        skipSnapshot.current = false;
+        return;
+      }
+
+      // ── MEJORA 4: Anti-sobreescritura — nunca guardar si las UF bajaron mucho ──
+      var lastUFKey = "LAST_UF_" + info.mesKey;
+      var lastUF = parseFloat(localStorage.getItem(lastUFKey) || "0");
+      if (lastUF > 0 && ufTotal < lastUF * 0.5) {
+        console.warn("[SAVE] BLOQUEADO - UF bajó de", lastUF.toFixed(2), "a", ufTotal.toFixed(2), "- posible corrupción. No se guarda en Firebase.");
+        skipSnapshot.current = false;
+        return;
+      }
+      if (ufTotal > 0) localStorage.setItem(lastUFKey, ufTotal.toString());
+
       skipSnapshot.current = true;
       var safeMetaToSave = (isNaN(metaEquipo)||metaEquipo<=0) ? 550 : metaEquipo;
       var dataToSave = {equipo: equipo, metaEquipo: safeMetaToSave};
@@ -2511,6 +2584,23 @@ function SupervisorFotoCard() {
         .then(function(){
           console.log("[SAVE] Firebase OK ✅");
           setTimeout(function(){ skipSnapshot.current = false; }, 2000);
+
+          // ── MEJORA 2: Backup en Firebase (colección separada) ───────────────
+          if (ufTotal > 0) {
+            var fbBackupKey = info.mesKey + "_" + ahora.toISOString().slice(0,10);
+            window.__fbSetDoc(window.__fbDoc(window.__fbDb,"backups",fbBackupKey), {
+              timestamp: ahora.toISOString(),
+              mesKey: info.mesKey,
+              ufTotal: ufTotal,
+              equipo: equipo,
+              metaEquipo: safeMetaToSave,
+              ejecutivos: equipo.length
+            }).then(function(){
+              console.log("[BACKUP-FB] ✅ Backup en Firebase guardado:", fbBackupKey);
+            }).catch(function(e){
+              console.warn("[BACKUP-FB] No se pudo guardar en Firebase:", e);
+            });
+          }
         })
         .catch(function(e){
           console.error("[SAVE] Firebase ERROR:", e);
@@ -4445,16 +4535,37 @@ function SupervisorFotoCard() {
                   , React.createElement('div', { style: {display:"flex",gap:8,alignItems:"center"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3675}}
                     , React.createElement('button', { onClick: exportarCSV, style: {background:"#DCFCE7",color:"#15803D",border:"1px solid #86EFAC",borderRadius:10,padding:"8px 16px",fontSize:13,cursor:"pointer",fontFamily:"inherit",fontWeight:700,display:"flex",alignItems:"center",gap:6}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3676}}, "↓ Exportar CSV")
                     , React.createElement('button', { onClick: function() {
-                        var ultimoKey = localStorage.getItem("BACKUP_ULTIMO");
-                        if (!ultimoKey) { alert("No hay backup local disponible."); return; }
-                        var raw = localStorage.getItem(ultimoKey);
-                        if (!raw) { alert("Backup no encontrado."); return; }
-                        var bk = JSON.parse(raw);
-                        var fecha = new Date(bk.timestamp).toLocaleString("es-CL");
-                        if (!window.confirm("¿Restaurar backup del " + fecha + " con " + bk.ufTotal.toFixed(2) + " UF?\nEsto reemplazará los datos actuales.")) return;
-                        setEquipo(bk.equipo);
-                        if (bk.metaEquipo && !isNaN(bk.metaEquipo) && bk.metaEquipo > 0) setMetaEquipo(bk.metaEquipo);
-                        alert("✅ Backup restaurado. Los datos se guardarán en Firebase automáticamente.");
+                        // Recopilar TODOS los backups disponibles
+                        var mesKey = info.mesKey;
+                        var backups = [];
+                        // 1. Backups rotativos locales (últimos 5)
+                        Object.keys(localStorage).filter(function(k){ return k.startsWith("BACKUP_" + mesKey + "_"); }).sort().reverse().forEach(function(k){
+                          try { var b = JSON.parse(localStorage.getItem(k)); if(b&&b.ufTotal>0) backups.push({key:k,tipo:"Local rotativo",b:b}); } catch(e){}
+                        });
+                        // 2. Backups diarios
+                        Object.keys(localStorage).filter(function(k){ return k.startsWith("BACKUP_DAILY_" + mesKey + "_"); }).sort().reverse().forEach(function(k){
+                          try { var b = JSON.parse(localStorage.getItem(k)); if(b&&b.ufTotal>0) backups.push({key:k,tipo:"Diario",b:b}); } catch(e){}
+                        });
+                        // 3. Backup principal
+                        try { var bp = JSON.parse(localStorage.getItem("BACKUP_" + mesKey)||"null"); if(bp&&bp.ufTotal>0) backups.push({key:"BACKUP_"+mesKey,tipo:"Principal",b:bp}); } catch(e){}
+                        if (backups.length === 0) { alert("No hay backups disponibles en este dispositivo."); return; }
+                        // Mostrar opciones
+                        var msg = "Backups disponibles:\n\n";
+                        backups.forEach(function(item,i){
+                          var fecha = new Date(item.b.timestamp).toLocaleString("es-CL");
+                          msg += (i+1)+". ["+item.tipo+"] "+fecha+" — UF: "+item.b.ufTotal.toFixed(2)+" ("+item.b.equipo.length+" ejecutivos)\n";
+                        });
+                        msg += "\nEscribe el número del backup a restaurar (o Cancelar):";
+                        var eleccion = window.prompt(msg, "1");
+                        if (!eleccion) return;
+                        var idx = parseInt(eleccion) - 1;
+                        if (isNaN(idx) || idx < 0 || idx >= backups.length) { alert("Número inválido."); return; }
+                        var elegido = backups[idx];
+                        var fecha2 = new Date(elegido.b.timestamp).toLocaleString("es-CL");
+                        if (!window.confirm("¿Restaurar backup ["+elegido.tipo+"] del "+fecha2+" con "+elegido.b.ufTotal.toFixed(2)+" UF?\n\nEsto reemplazará los datos actuales.")) return;
+                        setEquipo(elegido.b.equipo);
+                        if (elegido.b.metaEquipo && !isNaN(elegido.b.metaEquipo) && elegido.b.metaEquipo > 0) setMetaEquipo(elegido.b.metaEquipo);
+                        alert("✅ Backup restaurado correctamente.");
                       }, style: {background:"#FEF3C7",color:"#92400E",border:"1px solid #FCD34D",borderRadius:10,padding:"8px 16px",fontSize:13,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}, "🔄 Restaurar Backup")
                     , React.createElement('button', {
                         onClick: function(){
