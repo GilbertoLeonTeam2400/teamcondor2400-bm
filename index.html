@@ -2379,6 +2379,7 @@ function SupervisorFotoCard() {
               return Object.assign({}, v, { historial: mergedHist });
             });
             console.log("[LOAD] Firebase datos recibidos OK");
+            var mergedRaw = merged.slice();
             merged = merged.map(function(x){
               return Object.assign({rep:[]}, x, {
                 uf:  parseFloat(x.uf)  || 0,
@@ -2386,6 +2387,14 @@ function SupervisorFotoCard() {
                 metaUF: parseFloat(x.metaUF) || 25
               });
             }).filter(function(x){ return x && x.nombre && typeof x.nombre === 'string' && x.nombre.trim() !== ''; });
+            // Auto-heal: si habia entradas corruptas, guardar versión limpia en Firebase
+            if (merged.length < mergedRaw.length && window.__fbDb && window.__fbDoc && window.__fbSetDoc) {
+              console.warn("[FIX] Entradas corruptas encontradas (" + (mergedRaw.length - merged.length) + "), limpiando Firebase...");
+              var safeMetaHeal = (isNaN(META_UF)||META_UF<=0) ? 550 : META_UF;
+              window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",key), {equipo: merged, metaEquipo: safeMetaHeal})
+                .then(function(){ console.log("[FIX] Firebase limpiado OK"); })
+                .catch(function(e){ console.warn("[FIX] Error limpiando:", e); });
+            }
             setEquipo(merged);
             // Cargar fotos desde colección separada para no saturar el doc principal
             if (window.__fbDb && window.__fbDoc && window.__fbGetDoc) {
@@ -3306,36 +3315,26 @@ function SupervisorFotoCard() {
 
                   // ── PODIO top-3 horizontal ──
                   , React.createElement('div', { className:"top10-podio", style: {display:"flex",justifyContent:"center",alignItems:"flex-end",gap:"clamp(10px,3vw,32px)",marginBottom:24,flexWrap:"wrap"} }
-                    , podio.map(function(v, i) {
-                        var cfg = CONFIGS[i];
-                        var initials = getInitials(v.nombre);
-                        var primerNombre = v.nombre.split(' ')[0];
-                        var apellido = v.nombre.split(' ').slice(1).join(' ');
-                        // Orden visual: 2nd - 1st - 3rd (podium style)
-                        var orden = [1,0,2];
-                        var vOrdenado = podio[orden[i]];
-                        var cfgOrdenado = CONFIGS[orden[i]];
+                    , [1,0,2].map(function(ordenIdx, i) {
+                        var vOrdenado = podio[ordenIdx];
+                        if (!vOrdenado || !vOrdenado.nombre) return null; // guard
+                        var cfgOrdenado = CONFIGS[ordenIdx];
                         var initialsO = getInitials(vOrdenado.nombre);
                         var primerNombreO = vOrdenado.nombre.split(' ')[0];
                         var apellidoO = vOrdenado.nombre.split(' ').slice(1).join(' ');
-                        var podiumHeight = orden[i]===0 ? "clamp(80px,10vw,110px)" : orden[i]===1 ? "clamp(60px,7vw,80px)" : "clamp(50px,6vw,68px)";
+                        var podiumHeight = ordenIdx===0 ? "clamp(80px,10vw,110px)" : ordenIdx===1 ? "clamp(60px,7vw,80px)" : "clamp(50px,6vw,68px)";
                         return React.createElement('div', { key: vOrdenado.id, style: {display:"flex",flexDirection:"column",alignItems:"center",flex:"0 0 auto",minWidth:"clamp(90px,20vw,200px)",maxWidth:200} }
-                          // Foto grande con glow
                           , React.createElement('div', { style: {width:cfgOrdenado.fotoSize,height:cfgOrdenado.fotoSize,borderRadius:"50%",overflow:"hidden",border:"3px solid "+cfgOrdenado.color,background:vOrdenado.fotoUrl?"#000":"rgba(201,168,76,.15)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 0 4px "+cfgOrdenado.glow+", 0 0 28px "+cfgOrdenado.glow,marginBottom:10,flexShrink:0} }
                             , vOrdenado.fotoUrl
                               ? React.createElement('img', { src: vOrdenado.fotoUrl, style: {width:"100%",height:"100%",objectFit:"cover"} })
                               : React.createElement('span', { style: {fontSize:cfgOrdenado.fotoSize*0.35,fontWeight:900,color:cfgOrdenado.color} }, initialsO)
                           )
-                          // Emoji medalla grande
                           , React.createElement('div', { style: {fontSize:"clamp(20px,3.5vw,32px)",marginBottom:4,lineHeight:1} }, cfgOrdenado.emoji)
-                          // Nombre grande
                           , React.createElement('div', { style: {fontSize:"clamp(13px,2vw,18px)",fontWeight:900,color:"#fff",textAlign:"center",lineHeight:1.2,marginBottom:2} }, primerNombreO)
                           , apellidoO && React.createElement('div', { style: {fontSize:"clamp(10px,1.3vw,13px)",color:cfgOrdenado.color,fontWeight:700,textAlign:"center",letterSpacing:"0.06em",textTransform:"uppercase"} }, apellidoO.split(' ')[0])
-                          // Label posición
                           , React.createElement('div', { style: {fontSize:"clamp(9px,1.1vw,11px)",color:"rgba(255,255,255,.4)",marginTop:4,letterSpacing:"0.1em",textTransform:"uppercase"} }, cfgOrdenado.label)
-                          // Base del podio
                           , React.createElement('div', { style: {width:"100%",height:podiumHeight,background:cfgOrdenado.bg,border:"1px solid "+cfgOrdenado.border,borderRadius:"10px 10px 0 0",marginTop:10,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"inset 0 1px 0 "+cfgOrdenado.glow} }
-                            , React.createElement('div', { style: {fontSize:"clamp(18px,3vw,28px)",fontWeight:900,color:cfgOrdenado.color,opacity:.35} }, orden[i]===0?"1":orden[i]===1?"2":"3")
+                            , React.createElement('div', { style: {fontSize:"clamp(18px,3vw,28px)",fontWeight:900,color:cfgOrdenado.color,opacity:.35} }, ordenIdx===0?"1":ordenIdx===1?"2":"3")
                           )
                         );
                       })
