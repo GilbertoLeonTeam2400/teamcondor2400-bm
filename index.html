@@ -2344,11 +2344,278 @@ function SupervisorFotoCard() {
   );
 }
 
+// ── Gestionar Premios (supervisor) ──────────────────────────────────────────
+function GestPremiosView({ premiosImgs, setPremiosImgs, info, R, RD }) {
+  var mesKey = info.mesKey;
+  var mesLabel = new Date().toLocaleString("es-CL",{month:"long",year:"numeric"}).replace(/^./,function(c){return c.toUpperCase();});
+  var [pendientes, setPendientes] = React.useState([]);
+  var [guardando, setGuardando]   = React.useState(false);
+  var [guardado,  setGuardado]    = React.useState(false);
+  var [preview,   setPreview]     = React.useState(null); // imagen ampliada
+
+  function agregarImagenes(e) {
+    var files = Array.from(e.target.files); if(!files.length) return;
+    var promises = files.map(function(file){
+      return new Promise(function(res){
+        var reader = new FileReader();
+        reader.onload = function(ev){
+          var img = new Image();
+          img.onload = function(){
+            var MAX=1400,w=img.width,h=img.height;
+            if(w>MAX||h>MAX){var sc=Math.min(MAX/w,MAX/h);w=Math.round(w*sc);h=Math.round(h*sc);}
+            var canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;
+            canvas.getContext("2d").drawImage(img,0,0,w,h);
+            res({id:Date.now()+Math.random(),data:canvas.toDataURL("image/jpeg",0.88),nombre:file.name});
+          };
+          img.src=ev.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+    Promise.all(promises).then(function(nuevas){ setPendientes(pendientes.concat(nuevas)); });
+  }
+
+  function guardarTodo() {
+    setGuardando(true);
+    var todas = premiosImgs.concat(pendientes);
+    setPremiosImgs(todas);
+    setPendientes([]);
+    try{ localStorage.setItem("PREMIOS_"+mesKey, JSON.stringify(todas)); }catch(e){}
+    if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"infodocs","premios_"+mesKey),{imgs:todas,mes:mesKey,ts:Date.now()})
+        .then(function(){ setGuardando(false); setGuardado(true); setTimeout(function(){setGuardado(false);},3000); })
+        .catch(function(){ setGuardando(false); window.alert("Error al guardar en Firebase."); });
+    } else {
+      setGuardando(false); setGuardado(true); setTimeout(function(){setGuardado(false);},3000);
+    }
+  }
+
+  function moverImg(idx, dir) {
+    var arr = premiosImgs.concat(pendientes); // reorder all
+    // Actually reorder only saved imgs
+    var newImgs = premiosImgs.slice();
+    var target = idx + dir;
+    if(target < 0 || target >= newImgs.length) return;
+    var tmp = newImgs[idx]; newImgs[idx] = newImgs[target]; newImgs[target] = tmp;
+    setPremiosImgs(newImgs);
+    try{ localStorage.setItem("PREMIOS_"+mesKey, JSON.stringify(newImgs)); }catch(e){}
+    if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"infodocs","premios_"+mesKey),{imgs:newImgs,mes:mesKey,ts:Date.now()}).catch(function(){});
+  }
+
+  function eliminar(id) {
+    if(!window.confirm("¿Eliminar esta imagen?")) return;
+    var nuevas = premiosImgs.filter(function(x){return x.id!==id;});
+    setPremiosImgs(nuevas);
+    try{ localStorage.setItem("PREMIOS_"+mesKey, JSON.stringify(nuevas)); }catch(e){}
+    if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"infodocs","premios_"+mesKey),{imgs:nuevas,mes:mesKey,ts:Date.now()}).catch(function(){});
+  }
+
+  var todasLasImgs = premiosImgs.concat(pendientes);
+
+  return React.createElement('div', { style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(233,7,41,.09)",border:"1px solid rgba(233,7,41,.1)"} }
+    // Preview modal
+    , preview && React.createElement('div', { onClick:function(){setPreview(null);},
+        style:{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,.85)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"} }
+        , React.createElement('img', { src:preview, style:{maxWidth:"92vw",maxHeight:"90vh",borderRadius:12,boxShadow:"0 8px 48px rgba(0,0,0,.6)"} })
+        , React.createElement('div', { style:{position:"absolute",top:18,right:24,color:"#fff",fontSize:28,fontWeight:900,cursor:"pointer"} }, "✕")
+      )
+    , React.createElement('div', { style:{fontSize:18,fontWeight:900,color:RD,marginBottom:4} }, "🏆 Gestionar Premios del Mes")
+    , React.createElement('div', { style:{fontSize:12,color:"#9CA3AF",marginBottom:20} }, "Premios de "+mesLabel+" — Las imágenes publicadas las ven todos los ejecutivos.")
+    // Subir
+    , React.createElement('div', { style:{border:"2px dashed #FCA5A5",borderRadius:12,padding:"16px 20px",marginBottom:20,display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"} }
+      , React.createElement('label', { style:{display:"flex",alignItems:"center",gap:8,background:R,color:"#fff",borderRadius:10,padding:"10px 18px",cursor:"pointer",fontWeight:700,fontSize:13,flexShrink:0} }
+        , "📷 Agregar imágenes"
+        , React.createElement('input', { type:"file", accept:"image/png,image/jpeg,image/jpg", multiple:true, style:{display:"none"}, onChange:agregarImagenes })
+      )
+      , pendientes.length > 0 && React.createElement('div', { style:{fontSize:13,color:"#D97706",fontWeight:700} }, pendientes.length+" imagen(es) pendiente(s) de guardar")
+    )
+    // Botón guardar
+    , (pendientes.length > 0 || guardado) && React.createElement('div', { style:{marginBottom:20} }
+      , React.createElement('button', { onClick:guardarTodo, disabled:guardando,
+          style:{background:guardado?"#16A34A":R,color:"#fff",border:"none",borderRadius:12,padding:"12px 28px",fontSize:14,fontWeight:900,cursor:"pointer",fontFamily:"inherit"} }
+        , guardando ? "⏳ Guardando..." : guardado ? "✅ ¡Guardado y publicado!" : "💾 Guardar y publicar para todos"
+      )
+    )
+    // Lista de imágenes
+    , todasLasImgs.length === 0
+      ? React.createElement('div', { style:{textAlign:"center",padding:"40px 0",color:"#9CA3AF"} },
+          React.createElement('div',{style:{fontSize:40,marginBottom:8}},"🏆"),
+          "Aún no hay imágenes de premios este mes.")
+      : React.createElement('div', { style:{display:"flex",flexDirection:"column",gap:14} },
+          todasLasImgs.map(function(img){
+            var esPendiente = pendientes.some(function(p){return p.id===img.id;});
+            var savedIdx = premiosImgs.indexOf(img);
+            return React.createElement('div', { key:img.id, style:{position:"relative",borderRadius:14,overflow:"hidden",boxShadow:"0 4px 16px rgba(0,0,0,.1)",border:esPendiente?"2px solid #F59E0B":"none"} },
+              esPendiente && React.createElement('div',{style:{position:"absolute",top:8,left:8,background:"#F59E0B",color:"#fff",borderRadius:99,padding:"3px 10px",fontSize:11,fontWeight:700,zIndex:2}},"⏳ Sin guardar"),
+              React.createElement('img', { src:img.data, alt:img.nombre, onClick:function(){setPreview(img.data);}, style:{width:"100%",display:"block",cursor:"zoom-in",maxHeight:500,objectFit:"contain",background:"#000"} }),
+              React.createElement('div',{style:{padding:"8px 12px",background:"#F8FAFC",display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,flexWrap:"wrap"}},
+                React.createElement('div',{style:{display:"flex",gap:4}},
+                  React.createElement('button',{onClick:function(){if(!esPendiente&&savedIdx>0)moverImg(savedIdx,-1);},
+                    disabled:esPendiente||savedIdx<=0,
+                    style:{background:"#E5E7EB",border:"none",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontWeight:700,fontSize:13,opacity:(esPendiente||savedIdx<=0)?0.3:1}
+                  },"↑"),
+                  React.createElement('button',{onClick:function(){if(!esPendiente&&savedIdx<premiosImgs.length-1)moverImg(savedIdx,1);},
+                    disabled:esPendiente||savedIdx>=premiosImgs.length-1,
+                    style:{background:"#E5E7EB",border:"none",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontWeight:700,fontSize:13,opacity:(esPendiente||savedIdx>=premiosImgs.length-1)?0.3:1}
+                  },"↓")
+                ),
+                React.createElement('span',{style:{fontSize:12,color:"#6B7280",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},img.nombre),
+                React.createElement('button',{
+                  onClick:function(){
+                    if(esPendiente) setPendientes(pendientes.filter(function(p){return p.id!==img.id;}));
+                    else eliminar(img.id);
+                  },
+                  style:{background:"#FEE2E2",color:"#B91C1C",border:"none",borderRadius:8,padding:"5px 12px",fontSize:12,cursor:"pointer",fontWeight:700,flexShrink:0}
+                },"🗑️ Eliminar")
+              )
+            );
+          })
+        )
+  );
+}
+
+// ── Gestionar Docs (supervisor) ───────────────────────────────────────────────
+function GestDocsView({ docsGestion, setDocsGestion, R, RD }) {
+  var [pendiente,  setPendiente]  = React.useState(null); // {titulo,nombre,ext,data,size}
+  var [guardando,  setGuardando]  = React.useState(false);
+  var [guardado,   setGuardado]   = React.useState(false);
+  var [editandoId, setEditandoId] = React.useState(null);
+  var [editTitulo, setEditTitulo] = React.useState("");
+
+  function subirArchivo(e) {
+    var file = e.target.files[0]; if(!file) return;
+    var titulo = window.prompt("Título del documento:", file.name.replace(/\.[^.]+$/,""));
+    if(!titulo||!titulo.trim()) return;
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      setPendiente({titulo:titulo.trim(),nombre:file.name,ext:file.name.split('.').pop().toLowerCase(),data:ev.target.result,size:(file.size/1024).toFixed(1),ts:Date.now()});
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function guardarDoc() {
+    if(!pendiente) return;
+    setGuardando(true);
+    var nuevos = docsGestion.concat([Object.assign({id:Date.now()},pendiente)]);
+    setDocsGestion(nuevos);
+    setPendiente(null);
+    try{ localStorage.setItem("DOCS_GESTION", JSON.stringify(nuevos)); }catch(e){}
+    if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"infodocs","docs_gestion"),{docs:nuevos,ts:Date.now()})
+        .then(function(){ setGuardando(false); setGuardado(true); setTimeout(function(){setGuardado(false);},3000); })
+        .catch(function(){ setGuardando(false); window.alert("Error al guardar."); });
+    } else { setGuardando(false); setGuardado(true); setTimeout(function(){setGuardado(false);},3000); }
+  }
+
+  function moverDoc(idx, dir) {
+    var arr = docsGestion.slice();
+    var target = idx + dir;
+    if(target < 0 || target >= arr.length) return;
+    var tmp = arr[idx]; arr[idx] = arr[target]; arr[target] = tmp;
+    setDocsGestion(arr);
+    try{ localStorage.setItem("DOCS_GESTION", JSON.stringify(arr)); }catch(e){}
+    if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"infodocs","docs_gestion"),{docs:arr,ts:Date.now()}).catch(function(){});
+  }
+
+  function eliminarDoc(id) {
+    if(!window.confirm("¿Eliminar este documento?")) return;
+    var nuevos = docsGestion.filter(function(d){return d.id!==id;});
+    setDocsGestion(nuevos);
+    try{ localStorage.setItem("DOCS_GESTION", JSON.stringify(nuevos)); }catch(e){}
+    if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"infodocs","docs_gestion"),{docs:nuevos,ts:Date.now()}).catch(function(){});
+  }
+
+  function guardarTitulo(id) {
+    if(!editTitulo.trim()) return;
+    var nuevos = docsGestion.map(function(d){return d.id===id?Object.assign({},d,{titulo:editTitulo.trim()}):d;});
+    setDocsGestion(nuevos);
+    setEditandoId(null);
+    try{ localStorage.setItem("DOCS_GESTION", JSON.stringify(nuevos)); }catch(e){}
+    if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"infodocs","docs_gestion"),{docs:nuevos,ts:Date.now()}).catch(function(){});
+  }
+
+  var iconos={pdf:"📕",doc:"📘",docx:"📘",xls:"📗",xlsx:"📗",png:"🖼️",jpg:"🖼️",jpeg:"🖼️"};
+  var colores={pdf:"#DC2626",doc:"#2563EB",docx:"#2563EB",xls:"#16A34A",xlsx:"#16A34A",png:"#7C3AED",jpg:"🖼️",jpeg:"#7C3AED"};
+
+  return React.createElement('div', { style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(233,7,41,.09)",border:"1px solid rgba(233,7,41,.1)"} }
+    , React.createElement('div', { style:{fontSize:18,fontWeight:900,color:RD,marginBottom:4} }, "📂 Gestionar Docs para Gestión de Ventas")
+    , React.createElement('div', { style:{fontSize:12,color:"#9CA3AF",marginBottom:20} }, "Los documentos publicados pueden ser descargados por todos los ejecutivos.")
+    // Subir
+    , React.createElement('div', { style:{border:"2px dashed #BFDBFE",borderRadius:12,padding:"16px 20px",marginBottom:16,display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"} }
+      , React.createElement('label', { style:{display:"inline-flex",alignItems:"center",gap:8,background:"#1D4ED8",color:"#fff",borderRadius:10,padding:"10px 18px",cursor:"pointer",fontWeight:700,fontSize:13,flexShrink:0} }
+        , "📎 Seleccionar archivo"
+        , React.createElement('input', { type:"file", accept:".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg", style:{display:"none"}, onChange:subirArchivo })
+      )
+      , React.createElement('div', { style:{fontSize:11,color:"#6B7280"} }, "PDF, Word, Excel, imágenes — Máx. ~900KB")
+    )
+    // Pendiente de guardar
+    , pendiente && React.createElement('div', { style:{background:"#FFF7ED",border:"1px solid #FED7AA",borderRadius:12,padding:"14px 18px",marginBottom:16,display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"} }
+      , React.createElement('div', { style:{fontSize:28} }, iconos[pendiente.ext]||"📄")
+      , React.createElement('div', { style:{flex:1} }
+        , React.createElement('div', { style:{fontWeight:800,color:"#92400E"} }, pendiente.titulo)
+        , React.createElement('div', { style:{fontSize:11,color:"#9CA3AF"} }, pendiente.nombre+" · "+pendiente.size+" KB")
+      )
+      , React.createElement('button', { onClick:guardarDoc, disabled:guardando,
+          style:{background:guardado?"#16A34A":"#1D4ED8",color:"#fff",border:"none",borderRadius:10,padding:"10px 20px",fontSize:13,fontWeight:900,cursor:"pointer",fontFamily:"inherit"} }
+        , guardando?"⏳ Guardando...":guardado?"✅ Guardado!":"💾 Publicar para todos"
+      )
+      , React.createElement('button', { onClick:function(){setPendiente(null);},
+          style:{background:"#FEE2E2",color:"#B91C1C",border:"none",borderRadius:10,padding:"10px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit",fontWeight:700} }, "✕")
+    )
+    // Lista de docs
+    , docsGestion.length === 0
+      ? React.createElement('div', { style:{textAlign:"center",padding:"40px 0",color:"#9CA3AF"} }, React.createElement('div',{style:{fontSize:40,marginBottom:8}},"📂"), "Aún no hay documentos publicados.")
+      : React.createElement('div', { style:{display:"flex",flexDirection:"column",gap:10} }
+        , docsGestion.map(function(doc){
+            var esEditando = editandoId === doc.id;
+            return React.createElement('div', { key:doc.id, style:{background:"#F8FAFC",borderRadius:12,padding:"12px 16px",border:"1px solid #E5E7EB",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"} }
+              , React.createElement('div', { style:{fontSize:28,flexShrink:0} }, iconos[doc.ext]||"📄")
+              , React.createElement('div', { style:{flex:1,minWidth:120} }
+                , esEditando
+                  ? React.createElement('div', { style:{display:"flex",gap:8,alignItems:"center"} }
+                      , React.createElement('input', { value:editTitulo, onChange:function(e){setEditTitulo(e.target.value);}, autoFocus:true,
+                          onKeyDown:function(e){if(e.key==="Enter")guardarTitulo(doc.id);if(e.key==="Escape"){setEditandoId(null);}},
+                          style:{flex:1,padding:"6px 10px",borderRadius:8,border:"1.5px solid #1D4ED8",fontSize:13,fontWeight:700,fontFamily:"inherit"} })
+                      , React.createElement('button',{onClick:function(){guardarTitulo(doc.id);},style:{background:"#16A34A",color:"#fff",border:"none",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontWeight:700,fontSize:12}},"✓")
+                      , React.createElement('button',{onClick:function(){setEditandoId(null);},style:{background:"#E5E7EB",color:"#374151",border:"none",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontWeight:700,fontSize:12}},"✕")
+                    )
+                  : React.createElement('div', null
+                      , React.createElement('div', { style:{fontWeight:800,color:"#1F2937",fontSize:14} }, doc.titulo)
+                      , React.createElement('div', { style:{fontSize:11,color:"#9CA3AF",marginTop:2} }, doc.nombre+" · "+doc.size+" KB · "+new Date(doc.ts).toLocaleDateString("es-CL"))
+                    )
+              )
+              , React.createElement('div', { style:{display:"flex",gap:4,flexShrink:0} }
+                , React.createElement('button',{onClick:function(){moverDoc(docsGestion.indexOf(doc),-1);},
+                    disabled:docsGestion.indexOf(doc)===0,
+                    style:{background:"#E5E7EB",border:"none",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontWeight:700,fontSize:13,opacity:docsGestion.indexOf(doc)===0?0.3:1}
+                  },"↑")
+                , React.createElement('button',{onClick:function(){moverDoc(docsGestion.indexOf(doc),1);},
+                    disabled:docsGestion.indexOf(doc)===docsGestion.length-1,
+                    style:{background:"#E5E7EB",border:"none",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontWeight:700,fontSize:13,opacity:docsGestion.indexOf(doc)===docsGestion.length-1?0.3:1}
+                  },"↓")
+              )
+              , React.createElement('button', { onClick:function(){setEditandoId(doc.id);setEditTitulo(doc.titulo);},
+                  style:{background:"#FEF3C7",color:"#92400E",border:"1px solid #FCD34D",borderRadius:10,padding:"7px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit",fontWeight:700,flexShrink:0}
+                }, "✏️ Editar título")
+              , React.createElement('button', { onClick:function(){eliminarDoc(doc.id);},
+                  style:{background:"#FEE2E2",color:"#B91C1C",border:"none",borderRadius:10,padding:"7px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit",fontWeight:700,flexShrink:0}
+                }, "🗑️")
+            );
+          })
+      )
+  );
+}
+
 // ── Info y Docs Importantes — componente React propio (hooks permitidos aquí) ──
 function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImgs, setPremiosImgs, docsGestion, setDocsGestion, R, RD }) {
   var mesLabel = new Date().toLocaleString("es-CL",{month:"long",year:"numeric"}).replace(/^./,function(c){return c.toUpperCase();});
   var mesKey   = new Date().getFullYear()+"-"+String(new Date().getMonth()+1).padStart(2,"0");
-  var esSup    = acceso;
+  var [preview, setPreview] = React.useState(null);
 
   // Cargar desde Firebase al montar
   React.useEffect(function(){
@@ -2365,20 +2632,16 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
     }
   },[]);
 
-  function savePremios(imgs) {
-    setPremiosImgs(imgs);
-    try{ localStorage.setItem("PREMIOS_"+mesKey, JSON.stringify(imgs)); }catch(e){}
-    if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"infodocs","premios_"+mesKey),{imgs:imgs,mes:mesKey,ts:Date.now()}).catch(function(){});
-  }
-  function saveDocs(docs) {
-    setDocsGestion(docs);
-    try{ localStorage.setItem("DOCS_GESTION", JSON.stringify(docs)); }catch(e){}
-    if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"infodocs","docs_gestion"),{docs:docs,ts:Date.now()}).catch(function(){});
-  }
+  var iconos={pdf:"📕",doc:"📘",docx:"📘",xls:"📗",xlsx:"📗",png:"🖼️",jpg:"🖼️",jpeg:"🖼️"};
+  var colores={pdf:"#DC2626",doc:"#2563EB",docx:"#2563EB",xls:"#16A34A",xlsx:"#16A34A",png:"#7C3AED",jpg:"#7C3AED",jpeg:"#7C3AED"};
 
   return React.createElement('div', { style: {maxWidth:900,margin:"0 auto"} }
+    // Modal zoom imagen
+    , preview && React.createElement('div', { onClick:function(){setPreview(null);},
+        style:{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,.9)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"} }
+        , React.createElement('img', { src:preview, style:{maxWidth:"95vw",maxHeight:"92vh",borderRadius:12,boxShadow:"0 8px 48px rgba(0,0,0,.6)"} })
+        , React.createElement('div', { style:{position:"absolute",top:16,right:20,color:"#fff",fontSize:32,fontWeight:900} }, "✕")
+      )
     // Sub-tabs
     , React.createElement('div', { style: {display:"flex",gap:8,marginBottom:20,flexWrap:"wrap"} }
       , [["premios","🏆 Premios del Mes"],["docs","📂 Docs para Gestión de Ventas"]].map(function(st){
@@ -2392,51 +2655,18 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
       , React.createElement('div', { style: {background:"linear-gradient(135deg,#7F1D1D,#991B1B)",borderRadius:18,padding:"24px 28px",marginBottom:24,color:"#fff",textAlign:"center"} }
         , React.createElement('div', { style: {fontSize:28,marginBottom:8} }, "🏆")
         , React.createElement('div', { style: {fontSize:"clamp(18px,4vw,26px)",fontWeight:900} }, "Aprovecha los Premios de "+mesLabel)
-        , React.createElement('div', { style: {fontSize:13,color:"rgba(255,255,255,.7)",marginTop:6} }, "Información sobre los premios e incentivos disponibles este mes")
-      )
-      , esSup && React.createElement('div', { style: {background:"#fff",borderRadius:14,padding:"16px 20px",marginBottom:20,border:"2px dashed #FCA5A5",display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"} }
-        , React.createElement('label', { style: {display:"flex",alignItems:"center",gap:8,background:R,color:"#fff",borderRadius:10,padding:"10px 18px",cursor:"pointer",fontWeight:700,fontSize:13,flexShrink:0} }
-          , "📷 Subir imagen de premio"
-          , React.createElement('input', { type:"file", accept:"image/png,image/jpeg,image/jpg", multiple:true, style:{display:"none"},
-              onChange: function(e){
-                var files = Array.from(e.target.files);
-                var promises = files.map(function(file){
-                  return new Promise(function(res){
-                    var reader = new FileReader();
-                    reader.onload = function(ev){
-                      var img = new Image();
-                      img.onload = function(){
-                        var MAX=1200,w=img.width,h=img.height;
-                        if(w>MAX||h>MAX){var sc=Math.min(MAX/w,MAX/h);w=Math.round(w*sc);h=Math.round(h*sc);}
-                        var canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;
-                        canvas.getContext("2d").drawImage(img,0,0,w,h);
-                        res({id:Date.now()+Math.random(),data:canvas.toDataURL("image/jpeg",0.82),nombre:file.name});
-                      };
-                      img.src=ev.target.result;
-                    };
-                    reader.readAsDataURL(file);
-                  });
-                });
-                Promise.all(promises).then(function(nuevas){ savePremios(premiosImgs.concat(nuevas)); });
-              }
-            })
-        )
-        , React.createElement('div', { style: {fontSize:12,color:"#9CA3AF"} }, "PNG, JPG — Se muestran a todos los ejecutivos")
+        , React.createElement('div', { style: {fontSize:13,color:"rgba(255,255,255,.7)",marginTop:6} }, "Haz clic en cualquier imagen para verla en grande")
       )
       , premiosImgs.length === 0
         ? React.createElement('div', { style: {textAlign:"center",padding:"60px 0",color:"#9CA3AF"} }
           , React.createElement('div', { style: {fontSize:48,marginBottom:12} }, "🏆")
           , React.createElement('div', { style: {fontSize:16,fontWeight:700} }, "Aún no hay premios publicados este mes")
-          , React.createElement('div', { style: {fontSize:13,marginTop:4} }, esSup?"Sube las imágenes de los premios":"El supervisor publicará los premios próximamente")
+          , React.createElement('div', { style: {fontSize:13,marginTop:4} }, "El supervisor publicará los premios disponibles próximamente")
         )
-        : React.createElement('div', { className:"premios-grid", style: {display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16} }
+        : React.createElement('div', { style: {display:"flex",flexDirection:"column",gap:16} }
           , premiosImgs.map(function(img){
-              return React.createElement('div', { key: img.id, style: {position:"relative",borderRadius:14,overflow:"hidden",boxShadow:"0 4px 16px rgba(0,0,0,.1)",background:"#f8f8f8"} }
-                , React.createElement('img', { src: img.data, alt: img.nombre, style: {width:"100%",display:"block",objectFit:"cover",minHeight:160} })
-                , esSup && React.createElement('button', {
-                    onClick:function(){ if(window.confirm("¿Eliminar esta imagen?")) savePremios(premiosImgs.filter(function(x){return x.id!==img.id;})); },
-                    style:{position:"absolute",top:8,right:8,background:"rgba(220,38,38,.85)",color:"#fff",border:"none",borderRadius:99,width:28,height:28,cursor:"pointer",fontWeight:900,fontSize:14}
-                  }, "✕")
+              return React.createElement('div', { key: img.id, style: {borderRadius:14,overflow:"hidden",boxShadow:"0 4px 20px rgba(0,0,0,.12)",cursor:"zoom-in"}, onClick:function(){setPreview(img.data);} }
+                , React.createElement('img', { src: img.data, alt: img.nombre, style: {width:"100%",display:"block",maxHeight:600,objectFit:"contain",background:"#000"} })
               );
             })
         )
@@ -2445,58 +2675,25 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
     , infoDocsVista==="docs" && React.createElement('div', null
       , React.createElement('div', { style: {background:"linear-gradient(135deg,#1E3A5F,#1D4ED8)",borderRadius:18,padding:"20px 28px",marginBottom:24,color:"#fff"} }
         , React.createElement('div', { style: {fontSize:22,fontWeight:900,marginBottom:4} }, "📂 Documentos para Gestión de Ventas")
-        , React.createElement('div', { style: {fontSize:13,color:"rgba(255,255,255,.75)"} }, "Descarga los documentos y recursos que necesitas para tu trabajo")
-      )
-      , esSup && React.createElement('div', { style: {background:"#fff",borderRadius:14,padding:"16px 20px",marginBottom:20,border:"2px dashed #BFDBFE"} }
-        , React.createElement('div', { style: {fontSize:14,fontWeight:700,color:"#1D4ED8",marginBottom:12} }, "➕ Subir nuevo documento")
-        , React.createElement('label', { style: {display:"inline-flex",alignItems:"center",gap:8,background:"#1D4ED8",color:"#fff",borderRadius:10,padding:"10px 18px",cursor:"pointer",fontWeight:700,fontSize:13} }
-          , "📎 Seleccionar archivo"
-          , React.createElement('input', { type:"file", accept:".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg", style:{display:"none"},
-              onChange: function(e){
-                var file=e.target.files[0]; if(!file) return;
-                var titulo=window.prompt("Título del documento:",file.name.replace(/\.[^.]+$/,""));
-                if(!titulo||!titulo.trim()) return;
-                var reader=new FileReader();
-                reader.onload=function(ev){
-                  var ext=file.name.split('.').pop().toLowerCase();
-                  saveDocs(docsGestion.concat([{id:Date.now(),titulo:titulo.trim(),nombre:file.name,ext:ext,data:ev.target.result,size:(file.size/1024).toFixed(1),ts:Date.now()}]));
-                };
-                reader.readAsDataURL(file);
-              }
-            })
-        )
-        , React.createElement('div', { style: {fontSize:11,color:"#6B7280",marginTop:8} }, "PDF, Word, Excel, imágenes — Máximo ~900KB por archivo")
+        , React.createElement('div', { style: {fontSize:13,color:"rgba(255,255,255,.75)"} }, "Descarga los documentos y recursos que necesitas")
       )
       , docsGestion.length === 0
         ? React.createElement('div', { style: {textAlign:"center",padding:"60px 0",color:"#9CA3AF"} }
           , React.createElement('div', { style: {fontSize:48,marginBottom:12} }, "📂")
           , React.createElement('div', { style: {fontSize:16,fontWeight:700} }, "Aún no hay documentos publicados")
-          , React.createElement('div', { style: {fontSize:13,marginTop:4} }, esSup?"Sube los documentos que necesita tu equipo":"El supervisor publicará los documentos próximamente")
+          , React.createElement('div', { style: {fontSize:13,marginTop:4} }, "El supervisor publicará los documentos próximamente")
         )
         : React.createElement('div', { style: {display:"flex",flexDirection:"column",gap:10} }
           , docsGestion.map(function(doc){
-              var iconos={pdf:"📕",doc:"📘",docx:"📘",xls:"📗",xlsx:"📗",png:"🖼️",jpg:"🖼️",jpeg:"🖼️"};
-              var colores={pdf:"#DC2626",doc:"#2563EB",docx:"#2563EB",xls:"#16A34A",xlsx:"#16A34A",png:"#7C3AED",jpg:"#7C3AED",jpeg:"#7C3AED"};
               return React.createElement('div', { key:doc.id, style:{background:"#fff",borderRadius:12,padding:"14px 18px",border:"1px solid #E5E7EB",display:"flex",alignItems:"center",gap:14,boxShadow:"0 2px 8px rgba(0,0,0,.04)",flexWrap:"wrap"} }
                 , React.createElement('div', { style:{fontSize:32,flexShrink:0} }, iconos[doc.ext]||"📄")
-                , React.createElement('div', { style:{flex:1,minWidth:120} }
+                , React.createElement('div', { style:{flex:1,minWidth:100} }
                   , React.createElement('div', { style:{fontSize:15,fontWeight:800,color:"#1F2937",marginBottom:2} }, doc.titulo)
-                  , React.createElement('div', { style:{fontSize:11,color:"#9CA3AF"} }, doc.nombre+" · "+doc.size+" KB · "+new Date(doc.ts).toLocaleDateString("es-CL"))
+                  , React.createElement('div', { style:{fontSize:11,color:"#9CA3AF"} }, doc.nombre+" · "+doc.size+" KB")
                 )
                 , React.createElement('a', { href:doc.data, download:doc.nombre,
-                    style:{background:colores[doc.ext]||"#6B7280",color:"#fff",borderRadius:10,padding:"8px 14px",fontSize:12,fontWeight:700,textDecoration:"none",flexShrink:0}
+                    style:{background:colores[doc.ext]||"#6B7280",color:"#fff",borderRadius:10,padding:"10px 16px",fontSize:13,fontWeight:700,textDecoration:"none",flexShrink:0}
                   }, "⬇️ Descargar")
-                , esSup && React.createElement('button', {
-                    onClick:function(){
-                      var t=window.prompt("Nuevo título:",doc.titulo);
-                      if(t&&t.trim()) saveDocs(docsGestion.map(function(d){return d.id===doc.id?Object.assign({},d,{titulo:t.trim()}):d;}));
-                    },
-                    style:{background:"#FEF3C7",color:"#92400E",border:"1px solid #FCD34D",borderRadius:10,padding:"8px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit",fontWeight:700,flexShrink:0}
-                  }, "✏️")
-                , esSup && React.createElement('button', {
-                    onClick:function(){ if(window.confirm("¿Eliminar \""+doc.titulo+"\"?")) saveDocs(docsGestion.filter(function(d){return d.id!==doc.id;})); },
-                    style:{background:"#FEE2E2",color:"#B91C1C",border:"none",borderRadius:10,padding:"8px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit",fontWeight:700,flexShrink:0}
-                  }, "🗑️")
               );
             })
         )
@@ -4824,7 +5021,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
               React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3668}}
                 , React.createElement('div', { style: {display:"flex",gap:10,marginBottom:22,alignItems:"center",justifyContent:"space-between",flexWrap:"wrap"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3669}}
                   , React.createElement('div', { className:"sup-tabs", style: {display:"flex",gap:10,flexWrap:"wrap"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3670}}
-                    , [["dashboard","📊 Dashboard"],["carga","📥 Cargar UF/DPS Mes en Curso"],["gestion","👥 Gestionar Equipo"],["editar","✏️ Editar Estadísticas de Productividad Individuales"],["calEjec","📅 Calendario Ejecutivos"],["meta","🎯 Meta del Equipo"],["excel","📂 Carga de Datos Excel"],["agentes0","🚨 Agentes en 0"],["uflineales","📈 UF's Lineales"]].map(function(item){
+                    , [["dashboard","📊 Dashboard"],["carga","📥 Cargar UF/DPS Mes en Curso"],["gestion","👥 Gestionar Equipo"],["editar","✏️ Editar Estadísticas de Productividad Individuales"],["calEjec","📅 Calendario Ejecutivos"],["meta","🎯 Meta del Equipo"],["excel","📂 Carga de Datos Excel"],["agentes0","🚨 Agentes en 0"],["uflineales","📈 UF's Lineales"],["gestPremios","🏆 Gestionar Premios"],["gestDocs","📂 Gestionar Docs"]].map(function(item){
                       return React.createElement('button', { key: item[0], onClick: function(){if(item[0]==="carga")abrirCarga();else setSupVista(item[0]);}, style: {padding:"10px 18px",border:"none",borderRadius:10,cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:13,background:supVista===item[0]?R:"#E5E7EB",color:supVista===item[0]?"#fff":"#374151"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3672}}, item[1]);
                     })
                   )
@@ -5226,6 +5423,14 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                       })()
                   )
                 )
+                , supVista==="gestPremios" && React.createElement(GestPremiosView, {
+                    premiosImgs: premiosImgs, setPremiosImgs: setPremiosImgs,
+                    info: info, R: R, RD: RD
+                  })
+                , supVista==="gestDocs" && React.createElement(GestDocsView, {
+                    docsGestion: docsGestion, setDocsGestion: setDocsGestion,
+                    R: R, RD: RD
+                  })
                 , supVista==="uflineales"&&React.createElement(UFLinealesView, { equipo: equipo, info: info })
                 , supVista==="dashboard"&&(
                   React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 320px",gap:22,alignItems:"start"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3774}}
