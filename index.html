@@ -6938,7 +6938,22 @@ function ExcelDataView({ equipo, setEquipo, info }) {
             React.createElement("tr", {style:{background:"#ffffff",fontWeight:900,borderTop:"2px solid rgba(233,7,41,.2)"}},
               React.createElement("td", {style:{padding:"9px 10px",color:RD,fontSize:11,position:"sticky",left:0,background:"#ffffff"}}, "TOTAL"),
               MESES_ORDEN.map(function(mk){
-                // Sum from equipo (Firebase) first, fallback to HISTORIAL_EXCEL for missing entries
+                var nowKey = (function(){var n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");})();
+                // Mes actual: sumar v.uf directamente (datos en vivo)
+                if (mk === nowKey) {
+                  var tUFNow  = equipo.reduce(function(s,v){ return s+(v.uf||0); }, 0);
+                  var tDPSNow = equipo.reduce(function(s,v){ return s+(v.dps||0); }, 0);
+                  var tDPVNow = equipo.reduce(function(s,v){
+                    var rep = (v.rep||[]);
+                    return s + rep.reduce(function(a,r){ return a+(r.dpsVenta||0); }, 0);
+                  }, 0);
+                  return [
+                    React.createElement("td", {key:mk+"uf",  style:{padding:"9px 2px",textAlign:"center",color:RD,fontWeight:900,fontSize:12}}, fmtUF(tUFNow)),
+                    React.createElement("td", {key:mk+"dps", style:{padding:"9px 2px",textAlign:"center",color:"#16A34A",fontWeight:900}}, tDPSNow),
+                    React.createElement("td", {key:mk+"dpv", style:{padding:"9px 2px",textAlign:"center",color:"#059669",fontWeight:900}}, tDPVNow),
+                  ];
+                }
+                // Meses anteriores: usar historial/excel como antes
                 var tUF  = equipo.reduce(function(s,v){
                   var excelBase = (HISTORIAL_EXCEL[v.id]||HISTORIAL_EXCEL[String(v.id)]||{})[mk]||{};
                   var manualEdit = (v.historial||{})[mk]||{};
