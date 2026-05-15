@@ -1711,18 +1711,26 @@ function hoyInfo() {
   const now     = new Date();
   const start   = new Date(now.getFullYear(), now.getMonth(), 1);
   const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  // Días hábiles transcurridos (incluyendo hoy)
   let wd = 0;
   for (let d = new Date(start); d <= now; d.setDate(d.getDate() + 1)) {
     if (d.getDay() !== 0 && d.getDay() !== 6) wd++;
   }
-  let wdLeft = 0;
-  const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
-  for (let d = new Date(tomorrow); d <= lastDay; d.setDate(d.getDate() + 1)) {
-    if (d.getDay() !== 0 && d.getDay() !== 6) wdLeft++;
+  // Días hábiles totales del mes (dinámico, no hardcodeado)
+  let wdTotal = 0;
+  for (let d = new Date(start); d <= lastDay; d.setDate(d.getDate() + 1)) {
+    if (d.getDay() !== 0 && d.getDay() !== 6) wdTotal++;
   }
+  let wdLeft = wdTotal - wd;
   const calLeft = lastDay.getDate() - now.getDate();
+  // Semanas completas transcurridas (para semáforo de metas semanales)
+  const semanasCompletadas = Math.floor(wd / 5); // 0,1,2,3,4
+  const semanaActual = Math.ceil(wd / 5);         // 1,2,3,4
   return {
     elapsed: wd, left: wdLeft, calLeft,
+    wdTotal,            // días hábiles reales del mes (reemplaza WD_MES fijo)
+    semanasCompletadas, // cuántas semanas completas han pasado
+    semanaActual,       // en qué semana estamos
     mes: now.toLocaleString("es-CL", { month: "long", year: "numeric" }),
     dia: now.toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" }),
     mesKey: now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0"),
@@ -2736,8 +2744,8 @@ function SupervisorFotoCard() {
   const totTitulares = totHombres + totMujeres;
   const pctH = totTitulares > 0 ? Math.round((totHombres/totTitulares)*100) : 0;
   const pctM = totTitulares > 0 ? Math.round((totMujeres/totTitulares)*100) : 0;
-  const proyV   = function(v){return ((parseFloat(v.metaUF)||0)/WD_MES)*info.elapsed;};
-  const proyEq  = metaUFSafe>0 ? (metaUFSafe/WD_MES)*info.elapsed : 0;
+  const proyV   = function(v){return ((parseFloat(v.metaUF)||0)/info.wdTotal)*info.elapsed;};
+  const proyEq  = metaUFSafe>0 ? (metaUFSafe/info.wdTotal)*info.elapsed : 0;
   const pctEq   = proyEq>0?Math.round((totUF/proyEq)*100):0;
   const TODAY   = hoyStr();
   const ufHoy   = equipoValido.reduce(function(s,v){return s+(v.rep||[]).filter(function(r){return r.fecha===TODAY;}).reduce(function(a,r){return a+(parseFloat(r.uf)||0);},0);},0);
@@ -3254,7 +3262,7 @@ function SupervisorFotoCard() {
               , React.createElement('div', { style: {padding:"20px 22px 22px",position:"relative",zIndex:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3016}}
                 /* Línea superior */
                 , React.createElement('div', { style: {fontSize:9,fontWeight:700,color:"#C9A84C",letterSpacing:"0.35em",textTransform:"uppercase",marginBottom:10}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3018}}
-                  , "MARCADOR · "+(info.mes.toUpperCase())+" · DÍA "+info.elapsed+"/"+WD_MES
+                  , "MARCADOR · "+(info.mes.toUpperCase())+" · DÍA "+info.elapsed+"/"+info.wdTotal
                 )
                 /* Título dinámico */
                 , React.createElement('div', { style: {fontSize:"clamp(20px,5.5vw,30px)",fontWeight:900,color:"#fff",lineHeight:1.15,marginBottom:6}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3022}}
@@ -3315,7 +3323,7 @@ function SupervisorFotoCard() {
                   )
                   , React.createElement('div', { style: {background:"rgba(255,255,255,.06)",borderRadius:12,padding:"12px 10px",textAlign:"center",border:"1px solid rgba(201,168,76,.2)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3079}}
                     , React.createElement('div', { style: {fontSize:"clamp(18px,4vw,26px)",fontWeight:900,color:"#C9A84C",lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3080}}, info.left>0?fmtUF2(falta/info.left):"0")
-                    , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:"0.12em",marginTop:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3081}}, "UF/día · "+info.left+" días")
+                    , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:"0.12em",marginTop:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3081}}, "UF's x día a cerrar para la meta · "+info.left+" días háb.")
                   )
                   , React.createElement('div', { style: {background:"rgba(255,255,255,.06)",borderRadius:12,padding:"12px 10px",textAlign:"center",border:"1px solid rgba(201,168,76,.2)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3083}}
                     , React.createElement('div', { style: {fontSize:"clamp(18px,4vw,26px)",fontWeight:900,color:"#C9A84C",lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3084}}, xCrack)
@@ -3385,22 +3393,6 @@ function SupervisorFotoCard() {
                     );
                   })()
 
-                /* 4. Gran Rendimiento */
-                , (function(){
-                    var granRend = equipo.filter(function(v){return v.uf>=(info.elapsed<=14?12:25);});
-                    return React.createElement('div', { style: {background:"rgba(253,224,71,.06)",borderRadius:12,padding:"10px 12px",border:"1px solid rgba(253,224,71,.2)"}},
-                      React.createElement('div', { style: {fontSize:9,color:"rgba(253,224,71,.9)",textTransform:"uppercase",letterSpacing:"0.15em",marginBottom:7,fontWeight:700,display:"flex",alignItems:"center",gap:6}}, "🏆 CRACKS CON GRAN RENDIMIENTO A LA FECHA", React.createElement('span',{style:{background:"rgba(253,224,71,.3)",color:"#FDE047",borderRadius:99,padding:"1px 8px",fontSize:10,fontWeight:900}},granRend.length)),
-                      granRend.length===0
-                        ? React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.4)",fontStyle:"italic"}}, "¡El primer gran rendimiento está por llegar!")
-                        : React.createElement('div', { style: {display:"flex",flexWrap:"wrap",gap:5,justifyContent:"center"}},
-                            granRend.map(function(v){
-                              var p = v.nombre.trim().split(/\s+/); var nombreCorto = p.length >= 2 ? p[0] + " " + p[1] : p[0];
-                              return React.createElement('span', {key:v.id, style: {background:"rgba(253,224,71,.2)",color:"#FDE047",borderRadius:99,padding:"3px 10px",fontSize:11,fontWeight:800}}, nombreCorto);
-                            })
-                          )
-                    );
-                  })()
-
                 /* 5. CRACKS que sumaron HOY */
                 , (function(){
                     var hoyStr2 = TODAY;
@@ -3431,7 +3423,7 @@ function SupervisorFotoCard() {
                     , React.createElement('div', { style: {fontSize:38,fontWeight:900,lineHeight:1,color:"#C9A84C"} }, fmtUF2(ufHoy))
                     , React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.45)",marginTop:4} }, "Cada UF suma al EQUIPO!")
                     , React.createElement('div', { style: {marginTop:8,background:"rgba(255,255,255,.1)",borderRadius:99,height:5,overflow:"hidden"} }
-                      , React.createElement('div', { style: {width:Math.min(metaUFSafe>0?(ufHoy/(metaUFSafe/WD_MES))*100:0,100)+"%",height:"100%",background:"linear-gradient(90deg,#8B1020,#C9A84C)",borderRadius:99} })
+                      , React.createElement('div', { style: {width:Math.min(metaUFSafe>0?(ufHoy/(metaUFSafe/info.wdTotal))*100:0,100)+"%",height:"100%",background:"linear-gradient(90deg,#8B1020,#C9A84C)",borderRadius:99} })
                     )
                   )
                   /* DPS HOY */
@@ -6291,13 +6283,15 @@ function MetasIndividualesView({ equipo, setEquipo, setMetaEquipo }) {
                   background: "#F8FAFC", borderBottom: "2px solid #E5E7EB" };
   var sem_colors = ["#3B82F6","#8B5CF6","#F59E0B","#16A34A"];
 
-  // Semana actual (0=sem1, 1=sem2, 2=sem3, 3=sem4) basada en día del mes
-  var diaHoyMetas = new Date().getDate();
-  var semHoyMetas = diaHoyMetas<=7?0:diaHoyMetas<=14?1:diaHoyMetas<=21?2:3;
-  // Meta acumulada esperada hasta la semana actual (sumamos sem[0..semHoyMetas])
+  // Semana actual basada en DÍAS HÁBILES completados (no días calendario)
+  // semanasCompletadas: cuántas semanas de 5 días hábiles han terminado completamente
+  // Si estamos en día hábil 11 (viernes semana 3), semanasCompletadas=2
+  // Semáforo evalúa contra la suma de las semanas YA COMPLETADAS (no la actual)
+  var semHoyMetas = Math.min(info.semanasCompletadas, 3); // 0,1,2,3 — semanas completas
+  // Meta acumulada esperada: solo semanas que YA terminaron completas
   function metaAcumEsperada(semanas) {
     var acc = 0;
-    for (var i=0; i<=semHoyMetas; i++) acc += (semanas[i]||0);
+    for (var i=0; i<semHoyMetas; i++) acc += (semanas[i]||0); // < no <=
     return acc;
   }
 
