@@ -2344,6 +2344,203 @@ function SupervisorFotoCard() {
   );
 }
 
+// ── Clasificación AGV por Resultados ─────────────────────────────────────────
+function ClasificacionAGVView({ equipo, info, R, RD }) {
+  var [filtroAnt, setFiltroAnt] = React.useState("todos"); // todos | novato | desarrollo | veterano
+
+  // Calcular promedio UF de los últimos 3 meses desde historial
+  function promedioUltimos3(v) {
+    var ahora = new Date();
+    var meses = [];
+    for (var i = 1; i <= 3; i++) {
+      var d = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1);
+      var mk = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
+      meses.push(mk);
+    }
+    var total = 0; var count = 0;
+    meses.forEach(function(mk){
+      var h = (v.historial||{})[mk];
+      if (h && (h.uf||0) > 0) { total += (h.uf||0); count++; }
+    });
+    return count > 0 ? parseFloat((total/count).toFixed(2)) : 0;
+  }
+
+  // Calcular meses de antigüedad
+  function mesesAnt(v) {
+    if (!v.fechaIngreso) return null;
+    var p = v.fechaIngreso.split('-');
+    if (p.length < 2) return null;
+    var ingreso = new Date(parseInt(p[0]), parseInt(p[1])-1, parseInt(p[2]||1));
+    var hoy = new Date();
+    return (hoy.getFullYear()-ingreso.getFullYear())*12 + (hoy.getMonth()-ingreso.getMonth());
+  }
+
+  function grupoAnt(m) {
+    if (m === null) return "sin_fecha";
+    if (m <= 12)  return "novato";
+    if (m <= 35)  return "desarrollo";
+    return "veterano";
+  }
+
+  function labelAnt(m) {
+    if (m === null) return "Sin fecha ingreso";
+    if (m <= 12)  return "🟣 Novato (0-12m)";
+    if (m <= 35)  return "🔵 En desarrollo (13-35m)";
+    return "🏅 Veterano (36m+)";
+  }
+
+  // Calcular datos de todos
+  var ejecutivos = equipo.map(function(v) {
+    var prom = promedioUltimos3(v);
+    var ufMesActual = v.uf || 0;
+    var m = mesesAnt(v);
+    var nivel = prom >= 25 ? "alto" : prom >= 12 ? "medio" : "bajo";
+    var tendencia = ufMesActual > prom ? "↗️" : ufMesActual < prom*0.8 ? "↘️" : "➡️";
+    return Object.assign({}, v, { prom:prom, ufMesActual:ufMesActual, nivel:nivel, tendencia:tendencia, mesesAnt:m, grupoAnt:grupoAnt(m) });
+  });
+
+  // Aplicar filtro de antigüedad
+  var filtrados = filtroAnt === "todos" ? ejecutivos : ejecutivos.filter(function(v){ return v.grupoAnt === filtroAnt; });
+
+  var altos  = filtrados.filter(function(v){ return v.nivel==="alto"; }).sort(function(a,b){return b.prom-a.prom;});
+  var medios = filtrados.filter(function(v){ return v.nivel==="medio"; }).sort(function(a,b){return b.prom-a.prom;});
+  var bajos  = filtrados.filter(function(v){ return v.nivel==="bajo"; }).sort(function(a,b){return b.prom-a.prom;});
+
+  var GRUPOS = [
+    { key:"alto",  label:"🟢 Alto Rendimiento", sub:"Promedio ≥ 25 UF", color:"#16A34A", bg:"#F0FDF4", border:"#86EFAC", lista:altos  },
+    { key:"medio", label:"🟡 Medio Rendimiento", sub:"Promedio 12-24,99 UF", color:"#D97706", bg:"#FFFBEB", border:"#FCD34D", lista:medios },
+    { key:"bajo",  label:"🔴 Bajo Rendimiento",  sub:"Promedio < 12 UF", color:"#DC2626", bg:"#FFF1F2", border:"#FCA5A5", lista:bajos  },
+  ];
+
+  function fmtUF(n) { return n.toFixed(2).replace('.',','); }
+
+  return React.createElement('div', { style:{background:"#fff",borderRadius:18,padding:26,boxShadow:"0 3px 16px rgba(233,7,41,.07)"} }
+    // Header
+    , React.createElement('div', { style:{marginBottom:20} }
+      , React.createElement('div', { style:{fontSize:19,fontWeight:900,color:RD,marginBottom:4} }, "📊 Clasificación AGV por Resultados")
+      , React.createElement('div', { style:{fontSize:13,color:"#6B7280",marginBottom:16} }, "Basado en el promedio de UF de los últimos 3 meses. El mes actual se muestra como referencia.")
+      // Resumen rápido
+      , React.createElement('div', { style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:20} }
+        , GRUPOS.map(function(g){
+            return React.createElement('div', { key:g.key, style:{background:g.bg,border:"1px solid "+g.border,borderRadius:12,padding:"14px 18px",textAlign:"center"} }
+              , React.createElement('div', { style:{fontSize:28,fontWeight:900,color:g.color} }, g.lista.length)
+              , React.createElement('div', { style:{fontSize:12,fontWeight:700,color:g.color,marginTop:2} }, g.label)
+            );
+          })
+      )
+      // Filtro antigüedad
+      , React.createElement('div', { style:{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"} }
+        , React.createElement('span', { style:{fontSize:12,fontWeight:700,color:"#374151"} }, "Filtrar por antigüedad:")
+        , [["todos","Todos"],["novato","🟣 Novato (0-12m)"],["desarrollo","🔵 En desarrollo (13-35m)"],["veterano","🏅 Veterano (36m+)"]].map(function(f){
+            return React.createElement('button', { key:f[0], onClick:function(){setFiltroAnt(f[0]);},
+                style:{padding:"6px 14px",border:"none",borderRadius:10,cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:12,
+                  background:filtroAnt===f[0]?RD:"#E5E7EB",color:filtroAnt===f[0]?"#fff":"#374151"} }, f[1]);
+          })
+      )
+    )
+    // 3 grupos
+    , React.createElement('div', { style:{display:"flex",flexDirection:"column",gap:20} }
+      , GRUPOS.map(function(g){
+          return React.createElement('div', { key:g.key, style:{border:"2px solid "+g.border,borderRadius:14,overflow:"hidden"} }
+            // Grupo header
+            , React.createElement('div', { style:{background:g.bg,padding:"12px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:"1px solid "+g.border} }
+              , React.createElement('div', null
+                , React.createElement('div', { style:{fontSize:16,fontWeight:900,color:g.color} }, g.label)
+                , React.createElement('div', { style:{fontSize:11,color:"#9CA3AF",marginTop:2} }, g.sub+" · "+g.lista.length+" ejecutivo(s)")
+              )
+              , React.createElement('div', { style:{fontSize:22,fontWeight:900,color:g.color} }, g.lista.length)
+            )
+            // Lista ejecutivos
+            , g.lista.length === 0
+              ? React.createElement('div', { style:{padding:"20px",textAlign:"center",color:"#9CA3AF",fontSize:13} }, "Ningún ejecutivo en este grupo")
+              : React.createElement('div', null
+                , g.lista.map(function(v, idx){
+                    var initials = v.nombre ? v.nombre.split(' ').slice(0,2).map(function(p){return p[0];}).join('') : '?';
+                    var antLabel = labelAnt(v.mesesAnt);
+                    return React.createElement('div', { key:v.id,
+                        style:{display:"flex",alignItems:"center",gap:14,padding:"12px 18px",
+                          background:idx%2===0?"#fff":g.bg+"88",
+                          borderBottom:idx<g.lista.length-1?"1px solid "+g.border+"66":"none",
+                          flexWrap:"wrap"} }
+                      // Posición
+                      , React.createElement('div', { style:{fontSize:13,fontWeight:900,color:g.color,minWidth:24,textAlign:"center"} }, idx+1)
+                      // Foto
+                      , React.createElement('div', { style:{width:40,height:40,borderRadius:"50%",overflow:"hidden",flexShrink:0,border:"2px solid "+g.border,background:v.fotoUrl?"#000":"rgba(0,0,0,.05)",display:"flex",alignItems:"center",justifyContent:"center"} }
+                        , v.fotoUrl
+                          ? React.createElement('img', { src:v.fotoUrl, style:{width:"100%",height:"100%",objectFit:"cover"} })
+                          : React.createElement('span', { style:{fontSize:13,fontWeight:900,color:g.color} }, initials)
+                      )
+                      // Nombre y antigüedad
+                      , React.createElement('div', { style:{flex:1,minWidth:120} }
+                        , React.createElement('div', { style:{fontWeight:800,color:"#1F2937",fontSize:14} }, v.nombre)
+                        , React.createElement('div', { style:{fontSize:11,color:"#9CA3AF",marginTop:1} }, antLabel)
+                      )
+                      // Evolución 3 meses — CENTRO
+                      , (function(){
+                          var ahora = new Date();
+                          var meses3 = [];
+                          for (var i = 3; i >= 1; i--) {
+                            var d = new Date(ahora.getFullYear(), ahora.getMonth()-i, 1);
+                            var mk = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+                            var nomMes = d.toLocaleString("es-CL",{month:"short"}).replace(".","").replace(/^./,function(c){return c.toUpperCase();});
+                            var h = (v.historial||{})[mk];
+                            var uf = h && h.uf ? parseFloat(h.uf) : null;
+                            meses3.push({mk:mk, nom:nomMes, uf:uf});
+                          }
+                          return React.createElement('div', { style:{display:"flex",alignItems:"center",gap:6,flexShrink:0} }
+                            , meses3.map(function(m, mi){
+                                var prev = mi > 0 ? meses3[mi-1].uf : null;
+                                var tendColor = m.uf === null ? "#E5E7EB" :
+                                  prev === null ? "#E5E7EB" :
+                                  m.uf > prev ? "#DCFCE7" :
+                                  m.uf < prev ? "#FEE2E2" : "#F3F4F6";
+                                var tendTxt = m.uf === null ? "#9CA3AF" :
+                                  prev === null ? "#374151" :
+                                  m.uf > prev ? "#16A34A" :
+                                  m.uf < prev ? "#DC2626" : "#6B7280";
+                                var tendIcon = m.uf === null || prev === null ? "" :
+                                  m.uf > prev ? "↑" : m.uf < prev ? "↓" : "=";
+                                return React.createElement(React.Fragment, {key:m.mk}
+                                  // Chip del mes
+                                  , React.createElement('div', { style:{background:tendColor,borderRadius:10,padding:"6px 10px",textAlign:"center",minWidth:58,border:"1px solid "+(tendTxt==="9CA3AF"?"#E5E7EB":tendColor)} }
+                                    , React.createElement('div', { style:{fontSize:10,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:"0.05em"} }, m.nom)
+                                    , React.createElement('div', { style:{fontSize:13,fontWeight:900,color:tendTxt,marginTop:2} },
+                                        m.uf !== null ? fmtUF(m.uf) : "—"
+                                      )
+                                    , tendIcon && React.createElement('div', { style:{fontSize:10,fontWeight:900,color:tendTxt} }, tendIcon)
+                                  )
+                                  // Flecha entre meses
+                                  , mi < 2 && React.createElement('div', { style:{fontSize:14,color:"#D1D5DB",fontWeight:700} }, "→")
+                                );
+                              })
+                          );
+                        })()
+                      // Stats
+                      , React.createElement('div', { style:{display:"flex",gap:16,flexWrap:"wrap"} }
+                        , React.createElement('div', { style:{textAlign:"center"} }
+                          , React.createElement('div', { style:{fontSize:16,fontWeight:900,color:g.color} }, fmtUF(v.prom)+" UF")
+                          , React.createElement('div', { style:{fontSize:10,color:"#9CA3AF"} }, "Prom. 3 meses")
+                        )
+                        , React.createElement('div', { style:{textAlign:"center"} }
+                          , React.createElement('div', { style:{fontSize:15,fontWeight:700,color:"#374151"} }, v.tendencia+" "+fmtUF(v.ufMesActual))
+                          , React.createElement('div', { style:{fontSize:10,color:"#9CA3AF"} }, "Mes actual")
+                        )
+                        , v.mesesAnt !== null && React.createElement('div', { style:{textAlign:"center"} }
+                          , React.createElement('div', { style:{fontSize:14,fontWeight:700,color:"#374151"} },
+                              v.mesesAnt <= 12 ? v.mesesAnt+"m" : Math.floor(v.mesesAnt/12)+"a "+(v.mesesAnt%12)+"m"
+                            )
+                          , React.createElement('div', { style:{fontSize:10,color:"#9CA3AF"} }, "Antigüedad")
+                        )
+                      )
+                    );
+                  })
+                )
+          );
+        })
+    )
+  );
+}
+
 // ── Gestionar Premios (supervisor) ──────────────────────────────────────────
 function GestPremiosView({ premiosImgs, setPremiosImgs, info, R, RD }) {
   var mesKey = info.mesKey;
@@ -2471,7 +2668,7 @@ function GestPremiosView({ premiosImgs, setPremiosImgs, info, R, RD }) {
             var savedIdx = premiosImgs.indexOf(img);
             return React.createElement('div', { key:img.id, style:{position:"relative",borderRadius:14,overflow:"hidden",boxShadow:"0 4px 16px rgba(0,0,0,.1)",border:esPendiente?"2px solid #F59E0B":"none"} },
               esPendiente && React.createElement('div',{style:{position:"absolute",top:8,left:8,background:"#F59E0B",color:"#fff",borderRadius:99,padding:"3px 10px",fontSize:11,fontWeight:700,zIndex:2}},"⏳ Sin guardar"),
-              React.createElement('img', { src:img.data, alt:img.nombre, onClick:function(){setPreview(img.data);}, style:{width:"100%",display:"block",cursor:"zoom-in",maxHeight:500,objectFit:"contain",background:"#000"} }),
+              React.createElement('img', { src:img.data, alt:img.nombre, onClick:function(){setPreview(img.data);}, style:{width:"100%",display:"block",cursor:"zoom-in",maxHeight:500,objectFit:"contain",background:"#fff"} }),
               React.createElement('div',{style:{padding:"8px 12px",background:"#F8FAFC",display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,flexWrap:"wrap"}},
                 React.createElement('div',{style:{display:"flex",gap:4}},
                   React.createElement('button',{onClick:function(){if(!esPendiente&&savedIdx>0)moverImg(savedIdx,-1);},
@@ -2705,7 +2902,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
         : React.createElement('div', { style: {display:"flex",flexDirection:"column",gap:16} }
           , premiosImgs.map(function(img){
               return React.createElement('div', { key: img.id, style: {borderRadius:14,overflow:"hidden",boxShadow:"0 4px 20px rgba(0,0,0,.12)",cursor:"zoom-in"}, onClick:function(){setPreview(img.data);} }
-                , React.createElement('img', { src: img.data, alt: img.nombre, style: {width:"100%",display:"block",maxHeight:600,objectFit:"contain",background:"#000"} })
+                , React.createElement('img', { src: img.data, alt: img.nombre, style: {width:"100%",display:"block",maxHeight:600,objectFit:"contain",background:"#fff"} })
               );
             })
         )
@@ -5060,7 +5257,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
               React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3668}}
                 , React.createElement('div', { style: {display:"flex",gap:10,marginBottom:22,alignItems:"center",justifyContent:"space-between",flexWrap:"wrap"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3669}}
                   , React.createElement('div', { className:"sup-tabs", style: {display:"flex",gap:10,flexWrap:"wrap"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3670}}
-                    , [["dashboard","📊 Dashboard"],["carga","📥 Cargar UF/DPS Mes en Curso"],["gestion","👥 Gestionar Equipo"],["editar","✏️ Editar Estadísticas de Productividad Individuales"],["calEjec","📅 Calendario Ejecutivos"],["meta","🎯 Meta del Equipo"],["excel","📂 Carga de Datos Excel"],["agentes0","🚨 Agentes en 0"],["uflineales","📈 UF's Lineales"],["gestPremios","🏆 Gestionar Premios"],["gestDocs","📂 Gestionar Docs"]].map(function(item){
+                    , [["dashboard","📊 Dashboard"],["carga","📥 Cargar UF/DPS Mes en Curso"],["gestion","👥 Gestionar Equipo"],["editar","✏️ Editar Estadísticas de Productividad Individuales"],["calEjec","📅 Calendario Ejecutivos"],["meta","🎯 Meta del Equipo"],["excel","📂 Carga de Datos Excel"],["agentes0","🚨 Agentes en 0"],["uflineales","📈 UF's Lineales"],["gestPremios","🏆 Gestionar Premios"],["gestDocs","📂 Gestionar Docs"],["clasificacion","📊 Clasificación AGV por Resultados"]].map(function(item){
                       return React.createElement('button', { key: item[0], onClick: function(){if(item[0]==="carga")abrirCarga();else setSupVista(item[0]);}, style: {padding:"10px 18px",border:"none",borderRadius:10,cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:13,background:supVista===item[0]?R:"#E5E7EB",color:supVista===item[0]?"#fff":"#374151"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3672}}, item[1]);
                     })
                   )
@@ -5164,7 +5361,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                     )
                     , React.createElement('div', { style: {overflowX:"auto"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3692}}
                       , React.createElement('table', { style: {width:"100%",borderCollapse:"collapse",fontSize:13}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3693}}
-                        , React.createElement('thead', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3694}}, React.createElement('tr', { style: {background:"#F8FAFC",borderBottom:"2px solid #E5E7EB"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3694}}, ["#","Foto","Nombre","RUT","Email corporativo","PIN personal","Meta UF","Cumpleaños",""].map(function(h){return React.createElement('th', { key: h, style: {padding:"10px 12px",textAlign:"left",fontSize:11,color:"#6B7280",fontWeight:700,textTransform:"uppercase"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3694}}, h);})))
+                        , React.createElement('thead', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3694}}, React.createElement('tr', { style: {background:"#F8FAFC",borderBottom:"2px solid #E5E7EB"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3694}}, ["#","Foto","Nombre","RUT","Email corporativo","PIN personal","Meta UF","Cumpleaños","📅 Fecha Ingreso",""].map(function(h){return React.createElement('th', { key: h, style: {padding:"10px 12px",textAlign:"left",fontSize:11,color:"#6B7280",fontWeight:700,textTransform:"uppercase"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3694}}, h);})))
                         , React.createElement('tbody', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3695}}
                           , equipo.map(function(v,i){return (
                             React.createElement('tr', { key: v.id, style: {borderBottom:"1px solid #F0F4FA",background:i%2===0?"#fff":"#FAFBFF"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3697}}
@@ -5287,6 +5484,50 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                                       [["01","Ene"],["02","Feb"],["03","Mar"],["04","Abr"],["05","May"],["06","Jun"],["07","Jul"],["08","Ago"],["09","Sep"],["10","Oct"],["11","Nov"],["12","Dic"]].map(function(m){
                                         return React.createElement('option',{key:m[0],value:m[0]},m[1]);
                                       })
+                                    )
+                                  );
+                                })()
+                              )
+                              , React.createElement('td', { style: {padding:"10px 12px"} },
+                                (function(){
+                                  // Calcular meses de antigüedad
+                                  function mesesDesde(fechaStr) {
+                                    if(!fechaStr) return null;
+                                    var parts = fechaStr.split('-');
+                                    if(parts.length < 2) return null;
+                                    var year = parseInt(parts[0]);
+                                    var month = parseInt(parts[1]) - 1;
+                                    if(isNaN(year)||isNaN(month)) return null;
+                                    var ingreso = new Date(year, month, parseInt(parts[2]||1));
+                                    var hoy = new Date();
+                                    return (hoy.getFullYear()-ingreso.getFullYear())*12 + (hoy.getMonth()-ingreso.getMonth());
+                                  }
+                                  var meses = mesesDesde(v.fechaIngreso);
+                                  var antiguedadLabel = meses === null ? null :
+                                    meses < 12 ? meses+"m" :
+                                    Math.floor(meses/12)+"a "+(meses%12)+"m";
+                                  var colorAnt = meses === null ? "#9CA3AF" :
+                                    meses <= 12 ? "#7C3AED" :   // morado: 0-12 meses
+                                    meses <= 35 ? "#0891B2" :   // azul petróleo: 13-35 meses
+                                    "#C9A84C";                   // dorado: 36+ meses
+                                  var labelAnt = meses === null ? "" :
+                                    meses <= 12 ? "🟣 Novato" :
+                                    meses <= 35 ? "🔵 En desarrollo" :
+                                    "🏅 Veterano";
+                                  return React.createElement('div', { style: {display:"flex",flexDirection:"column",gap:4} }
+                                    , React.createElement('input', {
+                                        type: "date",
+                                        defaultValue: v.fechaIngreso||"",
+                                        title: "Fecha de ingreso a la empresa",
+                                        onBlur: function(e){
+                                          var val = e.target.value;
+                                          var newEq = equipo.map(function(eq){ return eq.id===v.id ? Object.assign({},eq,{fechaIngreso:val}) : eq; });
+                                          setEquipo(newEq);
+                                        },
+                                        style: {padding:"4px 6px",fontSize:11,borderRadius:7,border:"1.5px solid #D1D5DB",outline:"none",fontFamily:"inherit",color:"#374151",width:130}
+                                      })
+                                    , antiguedadLabel && React.createElement('div', { style: {fontSize:11,fontWeight:800,color:colorAnt,textAlign:"center"} }
+                                      , "🕐 "+antiguedadLabel+" · "+labelAnt
                                     )
                                   );
                                 })()
@@ -5469,6 +5710,9 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                 , supVista==="gestDocs" && React.createElement(GestDocsView, {
                     docsGestion: docsGestion, setDocsGestion: setDocsGestion,
                     R: R, RD: RD
+                  })
+                , supVista==="clasificacion" && React.createElement(ClasificacionAGVView, {
+                    equipo: equipo, info: info, R: R, RD: RD
                   })
                 , supVista==="uflineales"&&React.createElement(UFLinealesView, { equipo: equipo, info: info })
                 , supVista==="dashboard"&&(
