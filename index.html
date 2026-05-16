@@ -2554,7 +2554,7 @@ function ClasificacionAGVView({ equipo, info, R, RD }) {
 }
 
 // ── Gestionar Premios (supervisor) ──────────────────────────────────────────
-function GestPremiosView({ premiosImgs, setPremiosImgs, info, R, RD }) {
+function GestPremiosView({ premiosImgs, setPremiosImgs, info, R, RD, tablaPremios, setTablaPremios, premioConecta, setPremioConecta, TABLA_DEFAULT }) {
   var mesKey = info.mesKey;
   var mesLabel = new Date().toLocaleString("es-CL",{month:"long",year:"numeric"}).replace(/^./,function(c){return c.toUpperCase();});
   var [pendientes, setPendientes] = React.useState([]);
@@ -2619,6 +2619,19 @@ function GestPremiosView({ premiosImgs, setPremiosImgs, info, R, RD }) {
     } else {
       setGuardando(false); setGuardado(true); setTimeout(function(){setGuardado(false);},3000);
     }
+  }
+
+  function saveTablaPremios(nuevaTabla) {
+    setTablaPremios(nuevaTabla);
+    try{ localStorage.setItem("TABLA_PREMIOS", JSON.stringify(nuevaTabla)); }catch(e){}
+    if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","tabla_premios"),{tabla:nuevaTabla,ts:Date.now()}).catch(function(){});
+  }
+
+  function updateMonto(grupo, idx, valor) {
+    var nueva = JSON.parse(JSON.stringify(tablaPremios));
+    nueva[grupo][idx].monto = parseInt(valor)||0;
+    saveTablaPremios(nueva);
   }
 
   function moverImg(idx, dir) {
@@ -2704,6 +2717,63 @@ function GestPremiosView({ premiosImgs, setPremiosImgs, info, R, RD }) {
             );
           })
         )
+    // ── EDITOR DE TABLAS DE PREMIOS ──
+    , (function(){
+        var grupos = [["novato","🟣 Novato (0-12 meses)"],["desarrollo","🔵 En desarrollo (13-35 meses)"],["veterano","🏅 Veterano (36+ meses)"]];
+        var filasTabs = grupos.map(function(grp){
+          var gk=grp[0], gl=grp[1];
+          var filas=(tablaPremios||{})[gk]||[];
+          var rows = filas.map(function(fila,fi){
+            return React.createElement("tr",{key:fi,style:{borderTop:"1px solid #F3F4F6",background:fi%2===0?"#fff":"#FAFBFF"}},
+              React.createElement("td",{style:{padding:"6px 10px",color:"#374151"}},fila.desde),
+              React.createElement("td",{style:{padding:"6px 10px",color:"#374151"}},fila.hasta>=9999?"∞":fila.hasta),
+              React.createElement("td",{style:{padding:"6px 10px"}},
+                React.createElement("input",{type:"number",step:"1000",min:"0",value:fila.monto,
+                  onChange:function(e){updateMonto(gk,fi,e.target.value);},
+                  style:{width:110,padding:"4px 8px",borderRadius:7,border:"1.5px solid #D1D5DB",fontSize:13,fontWeight:700,fontFamily:"inherit",color:fila.monto===0?"#9CA3AF":"#16A34A"}
+                })
+              )
+            );
+          });
+          return React.createElement("div",{key:gk,style:{background:"#fff",borderRadius:12,padding:"14px 18px",marginBottom:12,border:"1px solid #E5E7EB"}},
+            React.createElement("div",{style:{fontWeight:800,color:"#374151",marginBottom:10,fontSize:14}},gl),
+            React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:12}},
+              React.createElement("thead",null,
+                React.createElement("tr",{style:{background:"#F8FAFC"}},
+                  React.createElement("th",{style:{padding:"6px 10px",textAlign:"left",fontWeight:700,color:"#6B7280",fontSize:11}},"Desde UF"),
+                  React.createElement("th",{style:{padding:"6px 10px",textAlign:"left",fontWeight:700,color:"#6B7280",fontSize:11}},"Hasta UF"),
+                  React.createElement("th",{style:{padding:"6px 10px",textAlign:"left",fontWeight:700,color:"#6B7280",fontSize:11}},"Monto ($)")
+                )
+              ),
+              React.createElement("tbody",null,rows)
+            )
+          );
+        });
+        return React.createElement("div",{style:{marginTop:28,background:"#F8FAFC",borderRadius:16,padding:"20px 22px",border:"1px solid #E5E7EB"}},
+          React.createElement("div",{style:{fontSize:16,fontWeight:900,color:RD,marginBottom:4}},"🎯 Configurar Montos de Premios"),
+          React.createElement("div",{style:{fontSize:12,color:"#9CA3AF",marginBottom:16}},"Edita los montos. Los cambios se guardan automáticamente."),
+          React.createElement("div",{style:{background:"#fff",borderRadius:12,padding:"14px 18px",marginBottom:16,border:"1px solid #E5E7EB"}},
+            React.createElement("div",{style:{fontWeight:800,color:"#374151",marginBottom:10,fontSize:14}},"💚 Premio Plan Conecta ($ por contrato hombre Conecta)"),
+            React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10}},
+              React.createElement("span",{style:{fontSize:13,color:"#6B7280"}},"Monto por contrato: $"),
+              React.createElement("input",{type:"number",step:"1000",min:"0",value:premioConecta||100000,
+                onChange:function(e){setPremioConecta(parseInt(e.target.value)||0);},
+                onBlur:function(e){
+                  var val=parseInt(e.target.value)||0;
+                  if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
+                    window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","config_premios"),{premioConecta:val,ts:Date.now()}).catch(function(){});
+                },
+                style:{width:120,padding:"6px 10px",borderRadius:8,border:"1.5px solid #D1D5DB",fontSize:14,fontWeight:700,fontFamily:"inherit"}
+              })
+            )
+          ),
+          filasTabs,
+          React.createElement("button",{
+            onClick:function(){if(window.confirm("¿Restaurar valores originales?"))saveTablaPremios(TABLA_DEFAULT);},
+            style:{background:"#F3F4F6",color:"#6B7280",border:"none",borderRadius:10,padding:"8px 16px",fontSize:12,cursor:"pointer",fontWeight:700,fontFamily:"inherit",marginTop:8}
+          },"↩️ Restaurar valores originales")
+        );
+      })()
   );
 }
 
@@ -3263,6 +3333,49 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
   const [cierresHoy,    setCierresHoy]    = useState([]);
   const [recoNombre,    setRecoNombre]    = useState("");
   const [premioConecta, setPremioConecta] = useState(100000); // Monto por plan Conecta (editable en supervisor)
+
+  // Tablas de premios por antigüedad (editables desde Supervisor → Gestionar Premios)
+  const TABLA_DEFAULT = {
+    novato: [ // 0-12 meses
+      {desde:0,    hasta:4.99,  monto:0},
+      {desde:5,    hasta:5.99,  monto:78400},
+      {desde:6,    hasta:7.99,  monto:117600},
+      {desde:8,    hasta:9.99,  monto:156800},
+      {desde:10,   hasta:11.99, monto:196000},
+      {desde:12,   hasta:14.99, monto:235200},
+      {desde:15,   hasta:17.99, monto:294000},
+      {desde:18,   hasta:21.99, monto:352800},
+      {desde:22,   hasta:24.99, monto:369600},
+      {desde:25,   hasta:9999,  monto:420000},
+    ],
+    desarrollo: [ // 13-35 meses
+      {desde:0,    hasta:11.99, monto:0},
+      {desde:12,   hasta:14.99, monto:201600},
+      {desde:15,   hasta:17.99, monto:252000},
+      {desde:18,   hasta:21.99, monto:302400},
+      {desde:22,   hasta:24.99, monto:369600},
+      {desde:25,   hasta:29.99, monto:420000},
+      {desde:30,   hasta:34.99, monto:504000},
+      {desde:35,   hasta:39.99, monto:539000},
+      {desde:40,   hasta:9999,  monto:560000},
+    ],
+    veterano: [ // 36+ meses
+      {desde:0,    hasta:24.99, monto:0},
+      {desde:25,   hasta:29.99, monto:550000},
+      {desde:30,   hasta:34.99, monto:600000},
+      {desde:35,   hasta:39.99, monto:700000},
+      {desde:40,   hasta:49.99, monto:800000},
+      {desde:50,   hasta:59.99, monto:850000},
+      {desde:60,   hasta:69.99, monto:900000},
+      {desde:70,   hasta:9999,  monto:1000000},
+    ],
+  };
+  const [tablaPremios, setTablaPremios] = useState(function(){
+    try {
+      var saved = localStorage.getItem("TABLA_PREMIOS");
+      return saved ? JSON.parse(saved) : TABLA_DEFAULT;
+    } catch(e) { return TABLA_DEFAULT; }
+  });
   const [nombrePremio, setNombrePremio] = useState("Premio Plan Conecta"); // Nombre editable del premio
   const [pinFormulario, setPinFormulario] = useState("");
   const [pinFormOk,     setPinFormOk]     = useState(false);
@@ -5174,7 +5287,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
         /* ===== CUÁNTO GANO ===== */
         , tab==="calculadora" && (
           React.createElement('div', { style: {maxWidth:560,margin:"0 auto",padding:"0 4px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3587}}
-            , React.createElement(CalculadoraGanancias, { equipo: equipo, setEquipo: setEquipo, info: info, premioConecta: premioConecta, nombrePremio: nombrePremio })
+            , React.createElement(CalculadoraGanancias, { equipo: equipo, setEquipo: setEquipo, info: info, premioConecta: premioConecta, nombrePremio: nombrePremio, tablaPremios: tablaPremios, premiosImgs: premiosImgs })
           )
         )
         /* ===== INFO Y DOCS IMPORTANTES ===== */
@@ -5717,7 +5830,10 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                 )
                 , supVista==="gestPremios" && React.createElement(GestPremiosView, {
                     premiosImgs: premiosImgs, setPremiosImgs: setPremiosImgs,
-                    info: info, R: R, RD: RD
+                    info: info, R: R, RD: RD,
+                    tablaPremios: tablaPremios, setTablaPremios: setTablaPremios,
+                    premioConecta: premioConecta, setPremioConecta: setPremioConecta,
+                    TABLA_DEFAULT: TABLA_DEFAULT
                   })
                 , supVista==="gestDocs" && React.createElement(GestDocsView, {
                     docsGestion: docsGestion, setDocsGestion: setDocsGestion,
@@ -7755,7 +7871,7 @@ function ExcelDataView({ equipo, setEquipo, info }) {
 
 
 // ── Calculadora de ganancias ──────────────────────────────────────
-function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePremio }) {
+function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePremio, tablaPremios, premiosImgs }) {
   const RD = "#C41230", R = "#E9192A";
   const [selId,    setSelId]    = React.useState("");
   const [pinCal,   setPinCal]   = React.useState("");
@@ -8106,6 +8222,89 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
                           React.createElement('div', { style: {fontSize:42,fontWeight:900,color:"#93C5FD",lineHeight:1} }, tasaContacto+"%"),
                           React.createElement('div', { style: {fontSize:10,color:"rgba(255,255,255,.4)",marginTop:6} }, totalContactos+" contactos este mes")
                         )
+                      )
+                    )
+              );
+            })()
+
+          /* ── CARD 6: Premio por Antigüedad + Total Remuneración ── */
+          , (function(){
+              var mesesAnt = null;
+              if (v.fechaIngreso) {
+                var p = v.fechaIngreso.split("-");
+                if (p.length >= 2) {
+                  var ing = new Date(parseInt(p[0]), parseInt(p[1])-1, parseInt(p[2]||1));
+                  var hoy2 = new Date();
+                  mesesAnt = (hoy2.getFullYear()-ing.getFullYear())*12 + (hoy2.getMonth()-ing.getMonth());
+                }
+              }
+              var grupo = mesesAnt === null ? null : mesesAnt <= 12 ? "novato" : mesesAnt <= 35 ? "desarrollo" : "veterano";
+              var grupoLabel = mesesAnt === null ? "Sin fecha de ingreso registrada" : mesesAnt <= 12 ? "🟣 Novato (0-12 meses)" : mesesAnt <= 35 ? "🔵 En desarrollo (13-35 meses)" : "🏅 Veterano (36+ meses)";
+              var imgIdx = mesesAnt === null ? null : mesesAnt <= 12 ? 1 : mesesAnt <= 35 ? 2 : 3;
+              var tabla = grupo && tablaPremios && tablaPremios[grupo] ? tablaPremios[grupo] : null;
+              function calcPremio(uf, tab) {
+                if (!tab) return 0;
+                for (var i = tab.length-1; i >= 0; i--) { if (uf >= tab[i].desde) return tab[i].monto; }
+                return 0;
+              }
+              var ufActual = v.uf || 0;
+              var premioAnt = tabla ? calcPremio(ufActual, tabla) : 0;
+              var cantConecta = premios[0] ? (premios[0].cantidad||0) : 0;
+              var montoConecta = (premioConecta||100000) * cantConecta;
+              var comActual = calcComision(ufActual);
+              var totalRem = comActual + premioAnt + montoConecta;
+              var siguienteTramo = null;
+              if (tabla) { for (var j=0;j<tabla.length;j++) { if (tabla[j].desde > ufActual && tabla[j].monto > premioAnt) { siguienteTramo=tabla[j]; break; } } }
+              var ufFaltan = siguienteTramo ? parseFloat((siguienteTramo.desde - ufActual).toFixed(2)) : 0;
+              var ganarMas = siguienteTramo ? siguienteTramo.monto - premioAnt : 0;
+              var imgPremio = premiosImgs && imgIdx !== null && premiosImgs[imgIdx] ? premiosImgs[imgIdx] : null;
+              return React.createElement("div", { style:{background:"linear-gradient(135deg,#3D1A00,#5C2800)",borderRadius:20,padding:"24px 22px",marginBottom:20,boxShadow:"0 8px 32px rgba(201,168,76,.25)"} }
+                , React.createElement("div", { style:{fontSize:12,color:"rgba(201,168,76,.7)",textTransform:"uppercase",letterSpacing:"0.2em",marginBottom:4} }, "🏆 Tu Premio este Mes")
+                , React.createElement("div", { style:{fontSize:15,fontWeight:900,color:"#C9A84C",marginBottom:16} }, grupoLabel)
+                , imgPremio && React.createElement("div", { style:{borderRadius:14,overflow:"hidden",marginBottom:18,boxShadow:"0 4px 16px rgba(0,0,0,.3)"} }
+                  , React.createElement("img", { src:imgPremio.data||imgPremio, alt:"Premio", style:{width:"100%",display:"block",objectFit:"contain",background:"#fff",maxHeight:360} })
+                )
+                , React.createElement("div", { style:{background:"rgba(201,168,76,.12)",borderRadius:14,padding:"18px",marginBottom:16,border:"1px solid rgba(201,168,76,.3)"} }
+                  , React.createElement("div", { style:{fontSize:11,color:"rgba(201,168,76,.7)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:12,textAlign:"center"} }, "💰 Total Remuneración del Mes")
+                  , React.createElement("div", { style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14} }
+                    , React.createElement("div", { style:{textAlign:"center",background:"rgba(255,255,255,.07)",borderRadius:10,padding:"10px 6px"} }
+                      , React.createElement("div", { style:{fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",marginBottom:4} }, "Comisión")
+                      , React.createElement("div", { style:{fontSize:13,fontWeight:900,color:"#fff"} }, fmt(comActual))
+                    )
+                    , React.createElement("div", { style:{textAlign:"center",background:"rgba(255,255,255,.07)",borderRadius:10,padding:"10px 6px"} }
+                      , React.createElement("div", { style:{fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",marginBottom:4} }, "Premio antigüedad")
+                      , React.createElement("div", { style:{fontSize:13,fontWeight:900,color:"#C9A84C"} }, premioAnt > 0 ? fmt(premioAnt) : "Sin tramo aún")
+                    )
+                    , React.createElement("div", { style:{textAlign:"center",background:"rgba(255,255,255,.07)",borderRadius:10,padding:"10px 6px"} }
+                      , React.createElement("div", { style:{fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",marginBottom:4} }, "Plan Conecta")
+                      , React.createElement("div", { style:{fontSize:13,fontWeight:900,color:"#6EE7B7"} }, montoConecta > 0 ? fmt(montoConecta) : "—")
+                    )
+                  )
+                  , React.createElement("div", { style:{borderTop:"1px solid rgba(201,168,76,.25)",paddingTop:14,textAlign:"center"} }
+                    , React.createElement("div", { style:{fontSize:10,color:"rgba(201,168,76,.7)",textTransform:"uppercase",letterSpacing:"0.12em",marginBottom:6} }, "🏆 TOTAL REMUNERACIÓN")
+                    , React.createElement("div", { style:{fontSize:"clamp(26px,7vw,40px)",fontWeight:900,color:"#FCD34D",lineHeight:1} }, fmt(totalRem))
+                  )
+                )
+                , siguienteTramo
+                  ? React.createElement("div", { style:{background:"rgba(74,222,128,.1)",borderRadius:12,padding:"14px 16px",border:"1px solid rgba(74,222,128,.3)"} }
+                    , React.createElement("div", { style:{fontSize:14,fontWeight:900,color:"#4ADE80",marginBottom:6} }, "🚀 ¡Estás muy cerca del siguiente tramo!")
+                    , React.createElement("div", { style:{fontSize:13,color:"rgba(255,255,255,.8)",lineHeight:1.7} }
+                      , "Solo te faltan ", React.createElement("span",{style:{fontWeight:900,color:"#FCD34D"}}, fmtUF2(ufFaltan)+" UF"),
+                      " para alcanzar el tramo de ", React.createElement("span",{style:{fontWeight:900,color:"#FCD34D"}}, siguienteTramo.desde+" UF"),
+                      " y ganar ", React.createElement("span",{style:{fontWeight:900,color:"#4ADE80"}}, fmt(ganarMas)+" adicionales"),
+                      ". ¡Ese esfuerzo extra vale mucho! 💪"
+                    )
+                  )
+                  : premioAnt > 0
+                    ? React.createElement("div", { style:{background:"rgba(252,211,77,.1)",borderRadius:12,padding:"14px 16px",border:"1px solid rgba(252,211,77,.3)",textAlign:"center"} }
+                      , React.createElement("div",{style:{fontSize:16,fontWeight:900,color:"#FCD34D"}},"🏆 ¡Estás en el tramo máximo!")
+                      , React.createElement("div",{style:{fontSize:13,color:"rgba(255,255,255,.7)",marginTop:4}},"Ya alcanzaste el premio máximo de tu categoría. ¡Sigue así, CRACK! 🌟")
+                    )
+                    : tabla && React.createElement("div", { style:{background:"rgba(252,165,165,.1)",borderRadius:12,padding:"14px 16px",border:"1px solid rgba(252,165,165,.3)"} }
+                      , React.createElement("div",{style:{fontSize:14,fontWeight:900,color:"#FCA5A5",marginBottom:6}},"💡 ¡Activa tu premio!")
+                      , React.createElement("div",{style:{fontSize:13,color:"rgba(255,255,255,.8)",lineHeight:1.7}}
+                        , "Cierra ", React.createElement("span",{style:{fontWeight:900,color:"#FCD34D"}},tabla[1]?tabla[1].desde+"+ UF":"más UF"),
+                        " este mes para activar tu primer premio por antigüedad. ¡Tú puedes! 🔥"
                       )
                     )
               );
