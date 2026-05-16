@@ -7890,9 +7890,30 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
     if (v && pinCal===v.pin) {
       setPinOk(true); setPinErr(false);
       setUfSim(v.metaUF); setUfMeta(v.metaPropia||v.metaUF);
-      // Restaurar cantidad Conecta comprometida guardada
       var cantConectaGuardada = v.metaConecta||0;
       setPremios([{id:1, nombre: nombrePremio||"Premio Plan Conecta", valorUnitario:premioConecta||100000, cantidad:cantConectaGuardada}]);
+      // Cargar imágenes de premios desde Firebase si no están cargadas
+      if ((!premiosImgs || premiosImgs.length === 0) && window.__fbDb && window.__fbDoc && window.__fbGetDoc) {
+        var mesKey = new Date().getFullYear()+"-"+String(new Date().getMonth()+1).padStart(2,"0");
+        window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_"+mesKey))
+          .then(function(snap){
+            if (snap.exists && snap.data() && snap.data().indice) {
+              var indice = snap.data().indice;
+              var imgPromises = indice.map(function(ref,i){
+                return window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_"+mesKey+"_img"+i))
+                  .then(function(s){ return s.exists&&s.data()&&s.data().img ? s.data().img : null; })
+                  .catch(function(){ return null; });
+              });
+              Promise.all(imgPromises).then(function(imgs){
+                var validas = imgs.filter(function(x){return x!==null;});
+                if (validas.length > 0) {
+                  setPremiosImgs(validas);
+                  try{ localStorage.setItem("PREMIOS_"+mesKey, JSON.stringify(validas)); }catch(e){}
+                }
+              });
+            }
+          }).catch(function(){});
+      }
     }
     else { setPinErr(true); setPinCal(""); }
   }
@@ -7945,8 +7966,8 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
       /* ── HEADER ── */
       , React.createElement('div', { style:{background:"linear-gradient(135deg,"+RD+","+R+")",borderRadius:16,padding:"22px 24px",color:"#fff",marginBottom:20} }
         , React.createElement('div', { style:{fontSize:11,color:"rgba(255,255,255,.7)",textTransform:"uppercase",letterSpacing:"0.2em",marginBottom:4} }, "Mi Meta de este Mes")
-        , React.createElement('div', { style:{fontSize:22,fontWeight:900} }, "💰 ¿Cuánto ganaré en ", info.mes.split(" ")[0], "?")
-        , React.createElement('div', { style:{fontSize:13,color:"rgba(255,255,255,.7)",marginTop:4} }, "Elige tu meta, simula tus ganancias y comprométete.")
+        , React.createElement('div', { style:{fontSize:22,fontWeight:900} }, "💰 ¿Cuánto ganarás en ", info.mes.split(" ")[0], pinOk && v ? ", "+(v.nombre.split(" ")[0])+"?" : "?")
+        , React.createElement('div', { style:{fontSize:13,color:"rgba(255,255,255,.7)",marginTop:4} }, pinOk && v ? "¡Hola "+v.nombre.split(" ")[0]+"! Simula tus ganancias y comprométete con tu meta." : "Elige tu meta, simula tus ganancias y comprométete.")
       )
 
       /* ── LOGIN ── */
@@ -8024,10 +8045,11 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
           return React.createElement('div', null
 
             /* ══ CARD 1: Lo que puedes ganar ══ */
-            , React.createElement('div', { style:{background:"linear-gradient(135deg,#1a0533,#2d0a4e)",borderRadius:20,padding:"26px 24px",marginBottom:20,boxShadow:"0 8px 32px rgba(90,20,120,.3)"} }
+            , React.createElement('div', { style:{background:"linear-gradient(135deg,#1a0008,#3d0010,#6B0018)",borderRadius:20,padding:"26px 24px",marginBottom:20,boxShadow:"0 8px 32px rgba(196,18,48,.3)"} }
 
-              , React.createElement('div', { style:{fontSize:12,color:"rgba(200,150,255,.8)",textTransform:"uppercase",letterSpacing:"0.2em",marginBottom:6} }, "🎯 Si llegas a tu meta")
-              , React.createElement('div', { style:{fontSize:17,fontWeight:900,color:"#E9D5FF",marginBottom:20} }, "¿Cuánto puedes ganar este mes?")
+              , React.createElement('div', { style:{fontSize:12,color:"rgba(255,200,200,.8)",textTransform:"uppercase",letterSpacing:"0.2em",marginBottom:6} }, "🎯 "+v.nombre.split(" ")[0]+", si llegas a tu meta")
+              , React.createElement('div', { style:{fontSize:17,fontWeight:900,color:"#FFF0F0",marginBottom:20} }, "¿Cuánto puedes ganar este mes?")
+              , React.createElement('div', { style:{fontSize:17,fontWeight:900,color:"#FFF0F0",marginBottom:20} }, "¿Cuánto puedes ganar este mes?")
 
               /* Meta y Conecta */
               , React.createElement('div', { style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20} }
@@ -8036,10 +8058,10 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
                   , React.createElement('div', { style:{display:"flex",alignItems:"center",gap:8} }
                     , React.createElement('input', { type:"number", min:"0", max:"200", step:"0.5", value:ufMeta,
                         onChange:function(e){var v2=parseFloat(e.target.value)||0;setUfMeta(v2);setUfSim(v2);},
-                        style:{width:"80px",padding:"8px",borderRadius:8,border:"1.5px solid rgba(200,150,255,.4)",background:"rgba(255,255,255,.1)",color:"#fff",fontSize:18,fontWeight:900,textAlign:"center",fontFamily:"inherit"} })
+                        style:{width:"80px",padding:"8px",borderRadius:8,border:"1.5px solid rgba(255,150,150,.4)",background:"rgba(255,255,255,.1)",color:"#fff",fontSize:18,fontWeight:900,textAlign:"center",fontFamily:"inherit"} })
                     , React.createElement('span', { style:{color:"rgba(255,255,255,.5)",fontSize:13} }, "UF")
                   )
-                  , React.createElement('button', { onClick:guardarMeta, style:{marginTop:8,background:"rgba(200,150,255,.2)",color:"#E9D5FF",border:"1px solid rgba(200,150,255,.3)",borderRadius:8,padding:"5px 12px",fontSize:11,cursor:"pointer",fontWeight:700,fontFamily:"inherit"} },
+                  , React.createElement('button', { onClick:guardarMeta, style:{marginTop:8,background:"rgba(255,150,150,.2)",color:"#FFF0F0",border:"1px solid rgba(255,150,150,.3)",borderRadius:8,padding:"5px 12px",fontSize:11,cursor:"pointer",fontWeight:700,fontFamily:"inherit"} },
                     metaGuardada ? "✅ Guardada" : "💾 Guardar meta")
                 )
                 , React.createElement('div', { style:{background:"rgba(110,231,183,.1)",borderRadius:14,padding:"16px",border:"1px solid rgba(110,231,183,.2)"} }
@@ -8061,10 +8083,10 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
 
               /* Desglose y Total */
               , React.createElement('div', { style:{background:"rgba(255,255,255,.06)",borderRadius:14,padding:"18px",marginBottom:16} }
-                , React.createElement('div', { style:{fontSize:11,color:"rgba(200,150,255,.7)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:14} }, "💰 Desglose de ganancias")
+                , React.createElement('div', { style:{fontSize:11,color:"rgba(255,200,200,.7)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:14} }, "💰 Desglose de ganancias")
                 , React.createElement('div', { style:{display:"flex",flexDirection:"column",gap:8,marginBottom:16} }
                   , React.createElement('div', { style:{display:"flex",justifyContent:"space-between",alignItems:"center"} }
-                    , React.createElement('span', { style:{fontSize:13,color:"rgba(255,255,255,.6)"} }, "Comisión ("+fmtUF2(ufSim2)+" UF)")
+                    , React.createElement('span', { style:{fontSize:13,color:"rgba(255,255,255,.6)"} }, "Remuneración sin Premio ("+fmtUF2(ufSim2)+" UF)")
                     , React.createElement('span', { style:{fontSize:14,fontWeight:800,color:"#fff"} }, fmt(comSim))
                   )
                   , React.createElement('div', { style:{display:"flex",justifyContent:"space-between",alignItems:"center"} }
@@ -8076,9 +8098,9 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
                     , React.createElement('span', { style:{fontSize:14,fontWeight:800,color:"#6EE7B7"} }, cantConecta>0 ? fmt(cantConecta*montoConUnitario) : "—")
                   )
                 )
-                , React.createElement('div', { style:{borderTop:"1px solid rgba(200,150,255,.2)",paddingTop:14,textAlign:"center"} }
-                  , React.createElement('div', { style:{fontSize:11,color:"rgba(200,150,255,.6)",textTransform:"uppercase",letterSpacing:"0.12em",marginBottom:6} }, "🏆 TOTAL REMUNERACIÓN ESTIMADA")
-                  , React.createElement('div', { style:{fontSize:"clamp(28px,7vw,42px)",fontWeight:900,color:"#E9D5FF",lineHeight:1} }, fmt(totalSim))
+                , React.createElement('div', { style:{borderTop:"1px solid rgba(255,150,150,.2)",paddingTop:14,textAlign:"center"} }
+                  , React.createElement('div', { style:{fontSize:11,color:"rgba(255,200,200,.6)",textTransform:"uppercase",letterSpacing:"0.12em",marginBottom:6} }, "🏆 TOTAL REMUNERACIÓN ESTIMADA")
+                  , React.createElement('div', { style:{fontSize:"clamp(28px,7vw,42px)",fontWeight:900,color:"#FFF0F0",lineHeight:1} }, fmt(totalSim))
                 )
               )
 
@@ -8094,24 +8116,41 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
             )
 
             /* ══ CARD 2: Lo que llevas a la fecha ══ */
-            , React.createElement('div', { style:{background:"linear-gradient(135deg,#064E3B,#065F46)",borderRadius:20,padding:"26px 24px",marginBottom:20,boxShadow:"0 8px 32px rgba(6,78,59,.3)"} }
+            , (function(){
+                var metaV = v.metaPropia || v.metaUF || ufMeta || 1;
+                var pct = metaV > 0 ? ufReal / metaV : 0;
+                // Color dinámico: rojo < 50%, amarillo 50-99%, verde >= 100%
+                var card2bg = pct >= 1
+                  ? "linear-gradient(135deg,#064E3B,#065F46)"      // verde
+                  : pct >= 0.5
+                  ? "linear-gradient(135deg,#451a00,#78350f)"       // amarillo/naranja
+                  : "linear-gradient(135deg,#450a0a,#7f1d1d)";      // rojo
+                var card2shadow = pct >= 1
+                  ? "0 8px 32px rgba(6,78,59,.3)"
+                  : pct >= 0.5
+                  ? "0 8px 32px rgba(120,53,15,.3)"
+                  : "0 8px 32px rgba(127,29,29,.3)";
+                var card2accent = pct >= 1 ? "#6EE7B7" : pct >= 0.5 ? "#FCD34D" : "#FCA5A5";
+                var card2accentDim = pct >= 1 ? "rgba(110,231,183,.7)" : pct >= 0.5 ? "rgba(252,211,77,.7)" : "rgba(252,165,165,.7)";
+                var card2border = pct >= 1 ? "rgba(110,231,183,.2)" : pct >= 0.5 ? "rgba(252,211,77,.2)" : "rgba(252,165,165,.2)";
+                return React.createElement('div', { style:{background:card2bg,borderRadius:20,padding:"26px 24px",marginBottom:20,boxShadow:card2shadow} }
 
-              , React.createElement('div', { style:{fontSize:12,color:"rgba(110,231,183,.7)",textTransform:"uppercase",letterSpacing:"0.2em",marginBottom:6} }, "📊 A la fecha — día "+info.elapsed+"/"+info.wdTotal)
-              , React.createElement('div', { style:{fontSize:17,fontWeight:900,color:"#6EE7B7",marginBottom:20} }, "Lo que ya tienes ganado")
+              , React.createElement('div', { style:{fontSize:12,color:card2accentDim,textTransform:"uppercase",letterSpacing:"0.2em",marginBottom:6} }, "📊 "+v.nombre.split(" ")[0]+" — día "+info.elapsed+"/"+info.wdTotal)
+              , React.createElement('div', { style:{fontSize:17,fontWeight:900,color:card2accent,marginBottom:20} }, "¡Lo que ya llevas ganado, "+v.nombre.split(" ")[0]+"!")
 
               /* UF real grande */
               , React.createElement('div', { style:{textAlign:"center",marginBottom:20} }
                 , React.createElement('div', { style:{fontSize:11,color:"rgba(255,255,255,.5)",textTransform:"uppercase",marginBottom:4} }, "UF cerradas este mes")
-                , React.createElement('div', { style:{fontSize:"clamp(48px,12vw,72px)",fontWeight:900,color:"#6EE7B7",lineHeight:1} }, fmtUF2(ufReal))
-                , React.createElement('div', { style:{fontSize:13,color:"rgba(255,255,255,.5)",marginTop:4} }, "de "+(v.metaPropia||v.metaUF||ufMeta)+" UF comprometidas")
+                , React.createElement('div', { style:{fontSize:"clamp(48px,12vw,72px)",fontWeight:900,color:card2accent,lineHeight:1} }, fmtUF2(ufReal))
+                , React.createElement('div', { style:{fontSize:13,color:"rgba(255,255,255,.5)",marginTop:4} }, "de "+(v.metaPropia||v.metaUF||ufMeta)+" UF comprometidas · "+Math.round(pct*100)+"% logrado")
               )
 
               /* Desglose real */
               , React.createElement('div', { style:{background:"rgba(255,255,255,.06)",borderRadius:14,padding:"18px",marginBottom:16} }
-                , React.createElement('div', { style:{fontSize:11,color:"rgba(110,231,183,.6)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:14} }, "💰 Remuneración actual")
+                , React.createElement('div', { style:{fontSize:11,color:card2accentDim,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:14} }, "💰 Remuneración actual")
                 , React.createElement('div', { style:{display:"flex",flexDirection:"column",gap:8,marginBottom:16} }
                   , React.createElement('div', { style:{display:"flex",justifyContent:"space-between",alignItems:"center"} }
-                    , React.createElement('span', { style:{fontSize:13,color:"rgba(255,255,255,.6)"} }, "Comisión")
+                    , React.createElement('span', { style:{fontSize:13,color:"rgba(255,255,255,.6)"} }, "Remuneración sin Premio")
                     , React.createElement('span', { style:{fontSize:14,fontWeight:800,color:"#fff"} }, fmt(comReal))
                   )
                   , React.createElement('div', { style:{display:"flex",justifyContent:"space-between",alignItems:"center"} }
@@ -8123,14 +8162,19 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
                     , React.createElement('span', { style:{fontSize:14,fontWeight:800,color:"#6EE7B7"} }, conectaReal>0 ? fmt(conectaReal*montoConUnitario) : "—")
                   )
                 )
-                , React.createElement('div', { style:{borderTop:"1px solid rgba(110,231,183,.2)",paddingTop:14,textAlign:"center"} }
-                  , React.createElement('div', { style:{fontSize:11,color:"rgba(110,231,183,.6)",textTransform:"uppercase",letterSpacing:"0.12em",marginBottom:6} }, "🏆 TOTAL REMUNERACIÓN HOY")
-                  , React.createElement('div', { style:{fontSize:"clamp(28px,7vw,42px)",fontWeight:900,color:"#6EE7B7",lineHeight:1} }, fmt(totalReal))
+                , React.createElement('div', { style:{borderTop:"1px solid "+card2border,paddingTop:14,textAlign:"center"} }
+                  , React.createElement('div', { style:{fontSize:11,color:card2accentDim,textTransform:"uppercase",letterSpacing:"0.12em",marginBottom:6} }, "🏆 TOTAL REMUNERACIÓN HOY")
+                  , React.createElement('div', { style:{fontSize:"clamp(28px,7vw,42px)",fontWeight:900,color:card2accent,lineHeight:1} }, fmt(totalReal))
                 )
               )
 
+              /* Imagen del premio en Card 2 también */
+              , imgPremio && React.createElement('div', { style:{borderRadius:12,overflow:"hidden",marginBottom:16,boxShadow:"0 4px 16px rgba(0,0,0,.4)"} }
+                , React.createElement('img', { src:imgPremio.data||imgPremio, alt:"Premio", style:{width:"100%",display:"block",objectFit:"contain",background:"#fff",maxHeight:260} })
+              )
+
               /* Texto de incentivo / tendencia */
-              , React.createElement('div', { style:{background:"rgba(255,255,255,.07)",borderRadius:12,padding:"14px 16px",border:"1px solid rgba(110,231,183,.15)"} }
+              , React.createElement('div', { style:{background:"rgba(255,255,255,.07)",borderRadius:12,padding:"14px 16px",border:"1px solid "+card2border} }
                 , React.createElement('div', { style:{fontSize:14,fontWeight:900,color:tendColor,marginBottom:4} }, tendTxt)
                 , React.createElement('div', { style:{fontSize:12,color:"rgba(255,255,255,.6)"} },
                   info.left > 0
@@ -8143,7 +8187,8 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
               , React.createElement('button', { onClick:function(){setPinOk(false);setSelId("");setPinCal("");},
                   style:{width:"100%",padding:"12px",background:"rgba(255,255,255,.08)",color:"rgba(255,255,255,.6)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,fontSize:13,cursor:"pointer",fontWeight:600,marginTop:16,fontFamily:"inherit"} },
                   "Cerrar sesión")
-            )
+            );
+          })()
           );
         })()
     )
