@@ -2355,14 +2355,26 @@ function ClasificacionAGVView({ equipo, info, R, RD }) {
     for (var i = 1; i <= 3; i++) {
       var d = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1);
       var mk = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
-      meses.push(mk);
+      meses.push({mk:mk, d:d});
+    }
+    // Si tiene fecha de ingreso, excluir meses anteriores a su ingreso
+    var divisor = 3;
+    if (v.fechaIngreso) {
+      var partsIng = v.fechaIngreso.split('-');
+      if (partsIng.length >= 2) {
+        var fechaIng = new Date(parseInt(partsIng[0]), parseInt(partsIng[1])-1, 1);
+        // Contar solo meses donde el ejecutivo ya trabajaba
+        var mesesValidos = meses.filter(function(m){ return m.d >= fechaIng; });
+        divisor = mesesValidos.length > 0 ? mesesValidos.length : 3;
+        meses = mesesValidos; // solo calcular sobre meses válidos
+      }
     }
     var total = 0;
-    meses.forEach(function(mk){
-      var h = (v.historial||{})[mk];
+    meses.forEach(function(m){
+      var h = (v.historial||{})[m.mk];
       if (h && h.uf) total += (h.uf||0);
     });
-    return parseFloat((total/3).toFixed(2));
+    return divisor > 0 ? parseFloat((total/divisor).toFixed(2)) : 0;
   }
 
   // Calcular meses de antigüedad
