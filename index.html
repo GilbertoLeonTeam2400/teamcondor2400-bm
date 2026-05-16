@@ -2361,11 +2361,21 @@ function GestPremiosView({ premiosImgs, setPremiosImgs, info, R, RD }) {
         reader.onload = function(ev){
           var img = new Image();
           img.onload = function(){
-            var MAX=1400,w=img.width,h=img.height;
+            // Comprimir agresivamente para respetar límite de 1MB de Firestore
+            // Target: imagen ~90KB decoded, legible en pantalla
+            var MAX=800,w=img.width,h=img.height;
             if(w>MAX||h>MAX){var sc=Math.min(MAX/w,MAX/h);w=Math.round(w*sc);h=Math.round(h*sc);}
             var canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;
             canvas.getContext("2d").drawImage(img,0,0,w,h);
-            res({id:Date.now()+Math.random(),data:canvas.toDataURL("image/jpeg",0.88),nombre:file.name});
+            var dataUrl=canvas.toDataURL("image/jpeg",0.72);
+            // Si aún es muy grande, comprimir más
+            if(dataUrl.length > 200000) {
+              var canvas2=document.createElement("canvas");
+              canvas2.width=Math.round(w*0.7);canvas2.height=Math.round(h*0.7);
+              canvas2.getContext("2d").drawImage(img,0,0,canvas2.width,canvas2.height);
+              dataUrl=canvas2.toDataURL("image/jpeg",0.65);
+            }
+            res({id:Date.now()+Math.random(),data:dataUrl,nombre:file.name});
           };
           img.src=ev.target.result;
         };
@@ -2382,9 +2392,21 @@ function GestPremiosView({ premiosImgs, setPremiosImgs, info, R, RD }) {
     setPendientes([]);
     try{ localStorage.setItem("PREMIOS_"+mesKey, JSON.stringify(todas)); }catch(e){}
     if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"infodocs","premios_"+mesKey),{imgs:todas,mes:mesKey,ts:Date.now()})
+      // Guardar cada imagen en doc separado para no superar 1MB por doc
+      var saves = todas.map(function(img, i){
+        return window.__fbSetDoc(
+          window.__fbDoc(window.__fbDb,"equipos","premios_"+mesKey+"_img"+i),
+          {img:img, orden:i, mes:mesKey, ts:Date.now()}
+        );
+      });
+      // Guardar índice (sin data de imagen, solo referencia)
+      saves.push(window.__fbSetDoc(
+        window.__fbDoc(window.__fbDb,"equipos","premios_"+mesKey),
+        {indice:todas.map(function(img,i){return {id:img.id,nombre:img.nombre,orden:i};}), total:todas.length, mes:mesKey, ts:Date.now()}
+      ));
+      Promise.all(saves)
         .then(function(){ setGuardando(false); setGuardado(true); setTimeout(function(){setGuardado(false);},3000); })
-        .catch(function(){ setGuardando(false); window.alert("Error al guardar en Firebase."); });
+        .catch(function(e){ setGuardando(false); window.alert("Error al guardar: "+(e&&e.message?e.message:e)); });
     } else {
       setGuardando(false); setGuardado(true); setTimeout(function(){setGuardado(false);},3000);
     }
@@ -2400,7 +2422,7 @@ function GestPremiosView({ premiosImgs, setPremiosImgs, info, R, RD }) {
     setPremiosImgs(newImgs);
     try{ localStorage.setItem("PREMIOS_"+mesKey, JSON.stringify(newImgs)); }catch(e){}
     if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"infodocs","premios_"+mesKey),{imgs:newImgs,mes:mesKey,ts:Date.now()}).catch(function(){});
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_"+mesKey),{imgs:newImgs,mes:mesKey,ts:Date.now()}).catch(function(){});
   }
 
   function eliminar(id) {
@@ -2409,7 +2431,7 @@ function GestPremiosView({ premiosImgs, setPremiosImgs, info, R, RD }) {
     setPremiosImgs(nuevas);
     try{ localStorage.setItem("PREMIOS_"+mesKey, JSON.stringify(nuevas)); }catch(e){}
     if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"infodocs","premios_"+mesKey),{imgs:nuevas,mes:mesKey,ts:Date.now()}).catch(function(){});
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_"+mesKey),{imgs:nuevas,mes:mesKey,ts:Date.now()}).catch(function(){});
   }
 
   var todasLasImgs = premiosImgs.concat(pendientes);
@@ -2503,7 +2525,7 @@ function GestDocsView({ docsGestion, setDocsGestion, R, RD }) {
     setPendiente(null);
     try{ localStorage.setItem("DOCS_GESTION", JSON.stringify(nuevos)); }catch(e){}
     if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"infodocs","docs_gestion"),{docs:nuevos,ts:Date.now()})
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","docs_gestion"),{docs:nuevos,ts:Date.now()})
         .then(function(){ setGuardando(false); setGuardado(true); setTimeout(function(){setGuardado(false);},3000); })
         .catch(function(){ setGuardando(false); window.alert("Error al guardar."); });
     } else { setGuardando(false); setGuardado(true); setTimeout(function(){setGuardado(false);},3000); }
@@ -2517,7 +2539,7 @@ function GestDocsView({ docsGestion, setDocsGestion, R, RD }) {
     setDocsGestion(arr);
     try{ localStorage.setItem("DOCS_GESTION", JSON.stringify(arr)); }catch(e){}
     if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"infodocs","docs_gestion"),{docs:arr,ts:Date.now()}).catch(function(){});
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","docs_gestion"),{docs:arr,ts:Date.now()}).catch(function(){});
   }
 
   function eliminarDoc(id) {
@@ -2526,7 +2548,7 @@ function GestDocsView({ docsGestion, setDocsGestion, R, RD }) {
     setDocsGestion(nuevos);
     try{ localStorage.setItem("DOCS_GESTION", JSON.stringify(nuevos)); }catch(e){}
     if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"infodocs","docs_gestion"),{docs:nuevos,ts:Date.now()}).catch(function(){});
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","docs_gestion"),{docs:nuevos,ts:Date.now()}).catch(function(){});
   }
 
   function guardarTitulo(id) {
@@ -2536,7 +2558,7 @@ function GestDocsView({ docsGestion, setDocsGestion, R, RD }) {
     setEditandoId(null);
     try{ localStorage.setItem("DOCS_GESTION", JSON.stringify(nuevos)); }catch(e){}
     if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"infodocs","docs_gestion"),{docs:nuevos,ts:Date.now()}).catch(function(){});
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","docs_gestion"),{docs:nuevos,ts:Date.now()}).catch(function(){});
   }
 
   var iconos={pdf:"📕",doc:"📘",docx:"📘",xls:"📗",xlsx:"📗",png:"🖼️",jpg:"🖼️",jpeg:"🖼️"};
@@ -2621,12 +2643,29 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
   React.useEffect(function(){
     if(!window.__fbDb||!window.__fbDoc||!window.__fbGetDoc) return;
     if(premiosImgs.length===0){
-      window.__fbGetDoc(window.__fbDoc(window.__fbDb,"infodocs","premios_"+mesKey))
-        .then(function(snap){ if(snap.exists&&snap.data()&&snap.data().imgs){ setPremiosImgs(snap.data().imgs); try{localStorage.setItem("PREMIOS_"+mesKey,JSON.stringify(snap.data().imgs));}catch(e){} } })
-        .catch(function(){});
+      // Cargar índice primero, luego cada imagen individual
+      window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_"+mesKey))
+        .then(function(snap){
+          if(snap.exists&&snap.data()&&snap.data().indice){
+            var indice = snap.data().indice;
+            var imgPromises = indice.map(function(ref,i){
+              return window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_"+mesKey+"_img"+i))
+                .then(function(s){ return s.exists&&s.data()&&s.data().img ? s.data().img : null; })
+                .catch(function(){ return null; });
+            });
+            Promise.all(imgPromises).then(function(imgs){
+              var validas = imgs.filter(function(x){return x!==null;});
+              if(validas.length>0){ setPremiosImgs(validas); try{localStorage.setItem("PREMIOS_"+mesKey,JSON.stringify(validas));}catch(e){} }
+            });
+          } else if(snap.exists&&snap.data()&&snap.data().imgs){
+            // Fallback: formato antiguo con todas las imgs en un doc
+            setPremiosImgs(snap.data().imgs);
+            try{localStorage.setItem("PREMIOS_"+mesKey,JSON.stringify(snap.data().imgs));}catch(e){}
+          }
+        }).catch(function(){});
     }
     if(docsGestion.length===0){
-      window.__fbGetDoc(window.__fbDoc(window.__fbDb,"infodocs","docs_gestion"))
+      window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","docs_gestion"))
         .then(function(snap){ if(snap.exists&&snap.data()&&snap.data().docs){ setDocsGestion(snap.data().docs); try{localStorage.setItem("DOCS_GESTION",JSON.stringify(snap.data().docs));}catch(e){} } })
         .catch(function(){});
     }
