@@ -6274,9 +6274,6 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                       })()
                   )
                 )
-                , supVista==="dpsreport" && React.createElement(DpsReportView, {
-                    equipo: equipo, setEquipo: setEquipo, info: info, R: R, RD: RD
-                  })
                 , supVista==="gestPremios" && React.createElement(GestPremiosView, {
                     premiosImgs: premiosImgs, setPremiosImgs: setPremiosImgs,
                     info: info, R: R, RD: RD,
