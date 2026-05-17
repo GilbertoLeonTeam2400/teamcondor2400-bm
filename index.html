@@ -2801,52 +2801,51 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
 }
 
 // ── Análisis DPS (supervisor) ─────────────────────────────────────────────────
-function DpsAnalisisView({ equipo, info, R, RD }) {
+function DpsAnalisisView({ equipo, setEquipo, info, R, RD }) {
   var [mesSeleccionado, setMesSeleccionado] = React.useState(info.mesKey);
-  var [sortCol, setSortCol] = React.useState("dpsTotal");
+  var [sortCol, setSortCol] = React.useState("dpsConVenta");
   var [sortAsc, setSortAsc] = React.useState(false);
+  var [editCell, setEditCell] = React.useState(null); // {vid, campo}
+  var [editVal, setEditVal] = React.useState("");
+  var [guardando, setGuardando] = React.useState(false);
 
-  // Generar últimos 6 meses
+  // Generar últimos 6 meses con totales
   var mesesDisp = [];
   for (var i=0; i<=5; i++) {
-    var d = new Date(new Date().getFullYear(), new Date().getMonth()-i, 1);
-    var mk = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
-    var nom = d.toLocaleString("es-CL",{month:"long",year:"numeric"}).replace(/^./,function(c){return c.toUpperCase();});
-    // Calcular totales del equipo para ese mes
-    var totC=0,totS=0,totP=0,totR=0,totB=0,totCt=0;
+    var d2 = new Date(new Date().getFullYear(), new Date().getMonth()-i, 1);
+    var mk2 = d2.getFullYear()+"-"+String(d2.getMonth()+1).padStart(2,"0");
+    var nom2 = d2.toLocaleString("es-CL",{month:"long",year:"numeric"}).replace(/^./,function(c){return c.toUpperCase();});
+    var totC2=0,totS2=0,totP2=0,totR2=0,totB2=0,totCt2=0;
     equipo.forEach(function(v){
-      var h=(v.historial||{})[mk]||{};
-      totC+=parseInt(h.dpsVenta)||0;
-      totS+=parseInt(h.dpsSinVenta)||0;
-      totP+=parseInt(h.dpsPendiente)||0;
-      totR+=parseInt(h.dpsRechazado)||0;
-      totB+=parseInt(h.nBenef)||0;
-      totCt+=parseInt(h.cttosDig)||0;
+      var h=(v.historial||{})[mk2]||{};
+      totC2+=parseInt(h.dpsVenta)||0; totS2+=parseInt(h.dpsSinVenta)||0;
+      totP2+=parseInt(h.dpsPendiente)||0; totR2+=parseInt(h.dpsRechazado)||0;
+      totB2+=parseInt(h.nBenef)||0; totCt2+=parseInt(h.cttosDig)||0;
     });
-    var totT=totC+totS+totP+totR;
-    mesesDisp.push({mk:mk,nom:nom,totC:totC,totS:totS,totP:totP,totR:totR,totT:totT,totB:totB,totCt:totCt,tasa:totT>0?Math.round((totC/totT)*100):0});
+    var totT2=totC2+totS2+totP2+totR2;
+    mesesDisp.push({mk:mk2,nom:nom2,totC:totC2,totS:totS2,totP:totP2,totR:totR2,totT:totT2,totB:totB2,totCt:totCt2,tasa:totT2>0?Math.round((totC2/totT2)*100):0});
   }
 
   var mesKey = mesSeleccionado;
+  var esMesActual = mesKey === info.mesKey;
+
+  // Build datos incluyendo todos los ejecutivos del equipo (editables aunque estén en 0)
   var datos = equipo.map(function(v){
     var h=(v.historial||{})[mesKey]||{};
     return {
-      nombre:v.nombre,
-      dpsConVenta:parseInt(h.dpsVenta)||0,
-      dpsSinVenta:parseInt(h.dpsSinVenta)||0,
-      dpsPendiente:parseInt(h.dpsPendiente)||0,
-      dpsRechazado:parseInt(h.dpsRechazado)||0,
-      dpsTotal:(parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0),
-      nBenef:parseInt(h.nBenef)||0,
-      cttosDig:parseInt(h.cttosDig)||0,
+      id: v.id, nombre: v.nombre,
+      uf:          parseFloat(h.uf)||0,
+      dpsConVenta:  parseInt(h.dpsVenta)||0,
+      dpsSinVenta:  parseInt(h.dpsSinVenta)||0,
+      dpsPendiente: parseInt(h.dpsPendiente)||0,
+      dpsRechazado: parseInt(h.dpsRechazado)||0,
+      dpsTotal: (parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0),
+      nBenef:   parseInt(h.nBenef)||0,
+      cttosDig: parseInt(h.cttosDig)||0,
     };
-  }).filter(function(d){return d.dpsTotal>0||d.nBenef>0||d.cttosDig>0;});
-
-  // Ordenamiento
-  datos.sort(function(a,b){
-    var va=a[sortCol]||0, vb=b[sortCol]||0;
-    return sortAsc ? va-vb : vb-va;
   });
+
+  datos.sort(function(a,b){ var va=a[sortCol]||0,vb=b[sortCol]||0; return sortAsc?va-vb:vb-va; });
 
   var totConVenta=datos.reduce(function(s,d){return s+d.dpsConVenta;},0);
   var totSinVenta=datos.reduce(function(s,d){return s+d.dpsSinVenta;},0);
@@ -2856,117 +2855,148 @@ function DpsAnalisisView({ equipo, info, R, RD }) {
   var tasaCierre=totTotal>0?Math.round((totConVenta/totTotal)*100):0;
   var totBenef=datos.reduce(function(s,d){return s+d.nBenef;},0);
   var totCttos=datos.reduce(function(s,d){return s+d.cttosDig;},0);
+  var totUF=datos.reduce(function(s,d){return s+d.uf;},0);
 
-  function thSort(col, label) {
-    return React.createElement('th',{
-      key:col,
-      onClick:function(){if(sortCol===col)setSortAsc(!sortAsc);else{setSortCol(col);setSortAsc(false);}},
-      style:{padding:"10px 12px",textAlign:col==="nombre"?"left":"center",fontSize:11,color:"#6B7280",fontWeight:700,cursor:"pointer",userSelect:"none",whiteSpace:"nowrap"}
-    }, label+(sortCol===col?(sortAsc?" ↑":" ↓"):" ↕"));
+  // Guardar edición en Firebase
+  function saveEdit(vid, campo, valor) {
+    setGuardando(true);
+    var campoHist = campo==="uf"?"uf":campo==="dpsConVenta"?"dpsVenta":campo==="dpsSinVenta"?"dpsSinVenta":campo==="dpsPendiente"?"dpsPendiente":campo==="dpsRechazado"?"dpsRechazado":campo==="nBenef"?"nBenef":"cttosDig";
+    var val = campo==="uf" ? parseFloat(valor)||0 : parseInt(valor)||0;
+    var nuevoEquipo = equipo.map(function(v){
+      if(v.id !== vid) return v;
+      var hist = Object.assign({}, v.historial||{});
+      var mes = Object.assign({uf:0,dps:0,dpsVenta:0,dpsSinVenta:0,dpsPendiente:0,dpsRechazado:0,nBenef:0,cttosDig:0}, hist[mesKey]||{});
+      mes[campoHist] = val;
+      // Recalcular dps total
+      mes.dps = (parseInt(mes.dpsVenta)||0)+(parseInt(mes.dpsSinVenta)||0)+(parseInt(mes.dpsPendiente)||0)+(parseInt(mes.dpsRechazado)||0);
+      hist[mesKey] = mes;
+      return Object.assign({}, v, {historial: hist});
+    });
+    setEquipo(nuevoEquipo);
+    setEditCell(null);
+    // Firebase
+    if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
+      var fbDoc = esMesActual ? {equipo:nuevoEquipo} : (function(){
+        var d3={}; nuevoEquipo.forEach(function(v){ d3[String(v.id)]=(v.historial||{})[mesKey]||{}; }); return {historial:d3};
+      })();
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey),esMesActual?{equipo:nuevoEquipo}:{historial:(function(){var d3={};nuevoEquipo.forEach(function(v){d3[String(v.id)]=(v.historial||{})[mesKey]||{};});return d3;})()})
+        .then(function(){setGuardando(false);})
+        .catch(function(){setGuardando(false);});
+    } else { setGuardando(false); }
   }
 
-  return React.createElement('div', {style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(233,7,41,.09)"}}
-    , React.createElement('div',{style:{fontSize:18,fontWeight:900,color:RD,marginBottom:4}}, "🔵 Análisis de Métricas por Mes")
-    , React.createElement('div',{style:{fontSize:12,color:"#6B7280",marginBottom:16}}, "Selecciona un mes para ver el detalle. Haz click en cualquier columna para ordenar.")
+  function EditableCell({vid, campo, valor, color}) {
+    var isEditing = editCell && editCell.vid===vid && editCell.campo===campo;
+    if(isEditing) {
+      return React.createElement("td",{style:{padding:"4px 6px",textAlign:"center"}}
+        ,React.createElement("input",{type:"number",autoFocus:true,value:editVal,
+            onChange:function(e){setEditVal(e.target.value);},
+            onBlur:function(){saveEdit(vid,campo,editVal);},
+            onKeyDown:function(e){if(e.key==="Enter")saveEdit(vid,campo,editVal);if(e.key==="Escape")setEditCell(null);},
+            onFocus:function(e){e.target.select();},
+            style:{width:60,padding:"4px 6px",borderRadius:6,border:"2px solid "+R,textAlign:"center",fontSize:12,fontWeight:700,fontFamily:"inherit"}
+          })
+      );
+    }
+    return React.createElement("td",{
+        onClick:function(){setEditCell({vid:vid,campo:campo});setEditVal(String(valor));},
+        style:{padding:"10px 12px",textAlign:"center",fontWeight:900,color:color||"#374151",cursor:"pointer",borderBottom:"1px dashed #E5E7EB"}
+      },valor||"—",React.createElement("span",{style:{fontSize:8,color:"#D1D5DB",marginLeft:2}},"✏️")
+    );
+  }
 
-    // Cards de meses (historial)
-    , React.createElement('div',{style:{display:"flex",gap:10,overflowX:"auto",paddingBottom:8,marginBottom:20,WebkitOverflowScrolling:"touch"}}
-      , mesesDisp.map(function(m){
-          var activo = m.mk === mesSeleccionado;
-          var tieneData = m.totT > 0 || m.totB > 0;
-          return React.createElement('div',{key:m.mk,onClick:function(){setMesSeleccionado(m.mk);},
-              style:{flexShrink:0,background:activo?"linear-gradient(135deg,"+RD+",#C91B2F)":tieneData?"#F8FAFC":"#F3F4F6",
-                borderRadius:14,padding:"14px 18px",cursor:"pointer",border:activo?"2px solid "+RD:"2px solid "+(tieneData?"#E5E7EB":"#F3F4F6"),
-                minWidth:140,transition:"all .2s",boxShadow:activo?"0 4px 16px rgba(233,7,41,.3)":"none"}}
-            , React.createElement('div',{style:{fontSize:12,fontWeight:800,color:activo?"#fff":tieneData?"#374151":"#9CA3AF",marginBottom:6}},m.nom.split(" de ")[0])
-            , tieneData
-              ? React.createElement('div',null
-                  , React.createElement('div',{style:{fontSize:11,color:activo?"rgba(255,255,255,.8)":"#6B7280"}}, m.totT+" DPS · "+m.tasa+"% cierre")
-                  , React.createElement('div',{style:{fontSize:10,color:activo?"rgba(255,255,255,.6)":"#9CA3AF",marginTop:2}}, m.totB+" benef · "+m.totCt+" cttos")
+  function thSort(col, label) {
+    return React.createElement("th",{key:col,onClick:function(){if(sortCol===col)setSortAsc(!sortAsc);else{setSortCol(col);setSortAsc(false);}},
+        style:{padding:"10px 12px",textAlign:col==="nombre"?"left":"center",fontSize:11,color:"#6B7280",fontWeight:700,cursor:"pointer",userSelect:"none",whiteSpace:"nowrap"}
+      },label+(sortCol===col?(sortAsc?" ↑":" ↓"):" ↕"));
+  }
+
+  return React.createElement("div",{style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(233,7,41,.09)"}}
+    ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:RD,marginBottom:4}},"🔵 Análisis de Métricas por Mes")
+    ,React.createElement("div",{style:{fontSize:12,color:"#6B7280",marginBottom:4}},"Selecciona un mes · Click en cualquier celda para editar · Enter o click fuera para guardar")
+    ,guardando&&React.createElement("div",{style:{fontSize:11,color:"#D97706",marginBottom:8,fontWeight:700}},"⏳ Guardando...")
+
+    // Cards de meses
+    ,React.createElement("div",{style:{display:"flex",gap:10,overflowX:"auto",paddingBottom:8,marginBottom:20,WebkitOverflowScrolling:"touch"}}
+      ,mesesDisp.map(function(m){
+          var activo=m.mk===mesSeleccionado;
+          var tieneData=m.totT>0||m.totB>0||m.totCt>0;
+          return React.createElement("div",{key:m.mk,onClick:function(){setMesSeleccionado(m.mk);},
+              style:{flexShrink:0,background:activo?"linear-gradient(135deg,"+RD+",#C91B2F)":tieneData?"#F8FAFC":"#F3F4F6",borderRadius:14,padding:"14px 18px",cursor:"pointer",border:activo?"2px solid "+RD:"2px solid "+(tieneData?"#E5E7EB":"#F3F4F6"),minWidth:140,transition:"all .2s",boxShadow:activo?"0 4px 16px rgba(233,7,41,.3)":"none"}}
+            ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:activo?"#fff":tieneData?"#374151":"#9CA3AF",marginBottom:6}},m.nom.split(" de ")[0])
+            ,tieneData
+              ?React.createElement("div",null
+                  ,React.createElement("div",{style:{fontSize:11,color:activo?"rgba(255,255,255,.8)":"#6B7280"}},m.totT+" DPS · "+m.tasa+"% cierre")
+                  ,React.createElement("div",{style:{fontSize:10,color:activo?"rgba(255,255,255,.6)":"#9CA3AF",marginTop:2}},m.totB+" benef · "+m.totCt+" cttos")
                 )
-              : React.createElement('div',{style:{fontSize:10,color:"#9CA3AF",fontStyle:"italic"}},"Sin datos")
+              :React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",fontStyle:"italic"}},"Sin datos")
           );
         })
     )
 
-    // KPI resumen del mes seleccionado
-    , React.createElement('div',{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16}}
-      , [{l:"Con Venta",v:totConVenta,c:"#16A34A",bg:"#F0FDF4"},{l:"Sin Venta",v:totSinVenta,c:"#2563EB",bg:"#EFF6FF"},{l:"Pendientes",v:totPendiente,c:"#D97706",bg:"#FFFBEB"},{l:"Rechazadas",v:totRechazado,c:"#DC2626",bg:"#FFF1F2"}]
-        .map(function(k){
-          return React.createElement('div',{key:k.l,style:{background:k.bg,borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #E5E7EB"}}
-            , React.createElement('div',{style:{fontSize:22,fontWeight:900,color:k.c}},k.v)
-            , React.createElement('div',{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},k.l)
-          );
-        })
+    // KPIs resumen
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16}}
+      ,[{l:"Con Venta",v:totConVenta,c:"#16A34A",bg:"#F0FDF4"},{l:"Sin Venta",v:totSinVenta,c:"#2563EB",bg:"#EFF6FF"},{l:"Pendientes",v:totPendiente,c:"#D97706",bg:"#FFFBEB"},{l:"Rechazadas",v:totRechazado,c:"#DC2626",bg:"#FFF1F2"}]
+        .map(function(k){return React.createElement("div",{key:k.l,style:{background:k.bg,borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #E5E7EB"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:k.c}},k.v) ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},k.l));})
     )
-    , React.createElement('div',{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:20}}
-      , React.createElement('div',{style:{background:"#F0FDFA",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #A7F3D0"}}
-        , React.createElement('div',{style:{fontSize:22,fontWeight:900,color:"#0891B2"}},totBenef)
-        , React.createElement('div',{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"N° Beneficiarios")
-      )
-      , React.createElement('div',{style:{background:"#F0FDF4",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #86EFAC"}}
-        , React.createElement('div',{style:{fontSize:22,fontWeight:900,color:"#059669"}},totCttos)
-        , React.createElement('div',{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"Contratos Digitados")
-      )
-      , React.createElement('div',{style:{background:"#F8FAFC",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #E5E7EB"}}
-        , React.createElement('div',{style:{fontSize:22,fontWeight:900,color:tasaCierre>=50?"#16A34A":tasaCierre>=30?"#D97706":"#DC2626"}},tasaCierre+"%")
-        , React.createElement('div',{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"Tasa Cierre DPS")
-      )
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}
+      ,React.createElement("div",{style:{background:"#FFF8E7",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #FCD34D"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:"#C9A84C"}},totUF.toFixed(2)+" UF") ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"Total UF"))
+      ,React.createElement("div",{style:{background:"#F0FDFA",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #A7F3D0"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:"#0891B2"}},totBenef) ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"N° Beneficiarios"))
+      ,React.createElement("div",{style:{background:"#F0FDF4",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #86EFAC"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:"#059669"}},totCttos) ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"Contratos Digitados"))
+      ,React.createElement("div",{style:{background:"#F8FAFC",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #E5E7EB"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:tasaCierre>=50?"#16A34A":tasaCierre>=30?"#D97706":"#DC2626"}},tasaCierre+"%") ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"Tasa Cierre DPS"))
     )
 
-    // Tabla ordenable
-    , datos.length===0
-      ? React.createElement('div',{style:{textAlign:"center",padding:"40px",color:"#9CA3AF"}},"Sin datos para este mes. Carga el reporte desde 📊 Carga Reporte Diario de Métricas.")
-      : React.createElement('div',{style:{overflowX:"auto"}}
-        , React.createElement('table',{style:{width:"100%",borderCollapse:"collapse",fontSize:12}}
-          , React.createElement('thead',null
-            , React.createElement('tr',{style:{background:"#F8FAFC",borderBottom:"2px solid #E5E7EB"}}
-              , thSort("nombre","Ejecutivo")
-              , thSort("dpsConVenta","✅ Con Venta")
-              , thSort("dpsSinVenta","🔵 Sin Venta")
-              , thSort("dpsPendiente","🟡 Pendientes")
-              , thSort("dpsRechazado","🔴 Rechazadas")
-              , thSort("dpsTotal","Total")
-              , React.createElement('th',{style:{padding:"10px 12px",textAlign:"center",fontSize:11,color:"#6B7280",fontWeight:700}},"Tasa")
-              , thSort("nBenef","👥 Benef")
-              , thSort("cttosDig","📋 Cttos Dig")
-            )
+    // Tabla editable
+    ,React.createElement("div",{style:{overflowX:"auto"}}
+      ,React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:12}}
+        ,React.createElement("thead",null
+          ,React.createElement("tr",{style:{background:"#F8FAFC",borderBottom:"2px solid #E5E7EB"}}
+            ,thSort("nombre","Ejecutivo")
+            ,thSort("uf","💰 UF")
+            ,thSort("dpsConVenta","✅ Con Venta")
+            ,thSort("dpsSinVenta","🔵 Sin Venta")
+            ,thSort("dpsPendiente","🟡 Pendientes")
+            ,thSort("dpsRechazado","🔴 Rechazadas")
+            ,React.createElement("th",{style:{padding:"10px 12px",textAlign:"center",fontSize:11,color:"#6B7280",fontWeight:700}},"Tasa")
+            ,thSort("nBenef","👥 Benef")
+            ,thSort("cttosDig","📋 Cttos")
           )
-          , React.createElement('tbody',null
-            , datos.map(function(d,i){
-                var tasa=d.dpsTotal>0?Math.round((d.dpsConVenta/d.dpsTotal)*100):0;
-                return React.createElement('tr',{key:i,style:{borderTop:"1px solid #F3F4F6",background:i%2===0?"#fff":"#FAFBFF"}}
-                  , React.createElement('td',{style:{padding:"10px 12px",fontWeight:700,color:RD,fontSize:12}},d.nombre)
-                  , React.createElement('td',{style:{padding:"10px 12px",textAlign:"center",fontWeight:900,color:"#16A34A"}},d.dpsConVenta)
-                  , React.createElement('td',{style:{padding:"10px 12px",textAlign:"center",fontWeight:900,color:"#2563EB"}},d.dpsSinVenta)
-                  , React.createElement('td',{style:{padding:"10px 12px",textAlign:"center",fontWeight:900,color:"#D97706"}},d.dpsPendiente)
-                  , React.createElement('td',{style:{padding:"10px 12px",textAlign:"center",fontWeight:900,color:"#DC2626"}},d.dpsRechazado)
-                  , React.createElement('td',{style:{padding:"10px 12px",textAlign:"center",fontWeight:700,color:"#374151"}},d.dpsTotal)
-                  , React.createElement('td',{style:{padding:"10px 12px",textAlign:"center"}}
-                    , React.createElement('span',{style:{background:tasa>=50?"#DCFCE7":tasa>=30?"#FEF9C3":"#FEE2E2",color:tasa>=50?"#16A34A":tasa>=30?"#92400E":"#DC2626",borderRadius:99,padding:"3px 10px",fontSize:11,fontWeight:800}},tasa+"%")
-                  )
-                  , React.createElement('td',{style:{padding:"10px 12px",textAlign:"center",fontWeight:700,color:"#0891B2"}},d.nBenef||"—")
-                  , React.createElement('td',{style:{padding:"10px 12px",textAlign:"center",fontWeight:700,color:"#059669"}},d.cttosDig||"—")
-                );
-              })
-            , React.createElement('tr',{style:{borderTop:"3px solid #E5E7EB",background:"#F8FAFC",fontWeight:900}}
-              , React.createElement('td',{style:{padding:"10px 12px",color:RD,fontSize:12}},"TOTAL EQUIPO")
-              , React.createElement('td',{style:{padding:"10px 12px",textAlign:"center",color:"#16A34A"}},totConVenta)
-              , React.createElement('td',{style:{padding:"10px 12px",textAlign:"center",color:"#2563EB"}},totSinVenta)
-              , React.createElement('td',{style:{padding:"10px 12px",textAlign:"center",color:"#D97706"}},totPendiente)
-              , React.createElement('td',{style:{padding:"10px 12px",textAlign:"center",color:"#DC2626"}},totRechazado)
-              , React.createElement('td',{style:{padding:"10px 12px",textAlign:"center",color:"#374151"}},totTotal)
-              , React.createElement('td',{style:{padding:"10px 12px",textAlign:"center"}}
-                , React.createElement('span',{style:{background:tasaCierre>=50?"#DCFCE7":tasaCierre>=30?"#FEF9C3":"#FEE2E2",color:tasaCierre>=50?"#16A34A":tasaCierre>=30?"#92400E":"#DC2626",borderRadius:99,padding:"3px 10px",fontSize:12,fontWeight:900}},tasaCierre+"%")
-              )
-              , React.createElement('td',{style:{padding:"10px 12px",textAlign:"center",fontWeight:900,color:"#0891B2"}},totBenef)
-              , React.createElement('td',{style:{padding:"10px 12px",textAlign:"center",fontWeight:900,color:"#059669"}},totCttos)
-            )
+        )
+        ,React.createElement("tbody",null
+          ,datos.map(function(d,i){
+              var tasa=d.dpsTotal>0?Math.round((d.dpsConVenta/d.dpsTotal)*100):0;
+              return React.createElement("tr",{key:d.id,style:{borderTop:"1px solid #F3F4F6",background:i%2===0?"#fff":"#FAFBFF"}}
+                ,React.createElement("td",{style:{padding:"10px 12px",fontWeight:700,color:RD,fontSize:12}},d.nombre)
+                ,React.createElement(EditableCell,{vid:d.id,campo:"uf",valor:d.uf,color:"#C9A84C"})
+                ,React.createElement(EditableCell,{vid:d.id,campo:"dpsConVenta",valor:d.dpsConVenta,color:"#16A34A"})
+                ,React.createElement(EditableCell,{vid:d.id,campo:"dpsSinVenta",valor:d.dpsSinVenta,color:"#2563EB"})
+                ,React.createElement(EditableCell,{vid:d.id,campo:"dpsPendiente",valor:d.dpsPendiente,color:"#D97706"})
+                ,React.createElement(EditableCell,{vid:d.id,campo:"dpsRechazado",valor:d.dpsRechazado,color:"#DC2626"})
+                ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center"}}
+                  ,React.createElement("span",{style:{background:tasa>=50?"#DCFCE7":tasa>=30?"#FEF9C3":"#FEE2E2",color:tasa>=50?"#16A34A":tasa>=30?"#92400E":"#DC2626",borderRadius:99,padding:"3px 10px",fontSize:11,fontWeight:800}},d.dpsTotal>0?tasa+"%":"—")
+                )
+                ,React.createElement(EditableCell,{vid:d.id,campo:"nBenef",valor:d.nBenef,color:"#0891B2"})
+                ,React.createElement(EditableCell,{vid:d.id,campo:"cttosDig",valor:d.cttosDig,color:"#059669"})
+              );
+            })
+          ,React.createElement("tr",{style:{borderTop:"3px solid #E5E7EB",background:"#F8FAFC",fontWeight:900}}
+            ,React.createElement("td",{style:{padding:"10px 12px",color:RD,fontSize:12}},"TOTAL")
+            ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#C9A84C"}},totUF.toFixed(2))
+            ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#16A34A"}},totConVenta)
+            ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#2563EB"}},totSinVenta)
+            ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#D97706"}},totPendiente)
+            ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#DC2626"}},totRechazado)
+            ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center"}} ,React.createElement("span",{style:{background:tasaCierre>=50?"#DCFCE7":tasaCierre>=30?"#FEF9C3":"#FEE2E2",color:tasaCierre>=50?"#16A34A":tasaCierre>=30?"#92400E":"#DC2626",borderRadius:99,padding:"3px 10px",fontSize:12,fontWeight:900}},tasaCierre+"%"))
+            ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#0891B2"}},totBenef)
+            ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#059669"}},totCttos)
           )
         )
       )
+    )
+    ,React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",marginTop:8,textAlign:"right"}},"💡 Haz click en cualquier celda de datos para editar el valor directamente")
   );
 }
+
 // ── Plan de Trabajo AGV ───────────────────────────────────────────────────────
 function PlanAGVView({ equipo, info, R, RD }) {
   var [planes, setPlanes] = React.useState(function(){
@@ -3004,40 +3034,72 @@ function PlanAGVView({ equipo, info, R, RD }) {
 
   function diagnostico(v, prom, ma) {
     var ufActual=v.uf||0, dpsActual=v.dps||0;
-    var tendencia=ufActual>prom*1.1?"Subiendo":ufActual<prom*0.7?"Bajando":"Estable";
+    var mesKey=info.mesKey;
+    var h=(v.historial||{})[mesKey]||{};
+    var dpsConVenta=parseInt(h.dpsVenta)||0;
+    var dpsSinVenta=parseInt(h.dpsSinVenta)||0;
+    var dpsPendiente=parseInt(h.dpsPendiente)||0;
+    var dpsRechazado=parseInt(h.dpsRechazado)||0;
+    var dpsTotal=dpsConVenta+dpsSinVenta+dpsPendiente+dpsRechazado;
+    var tasaCierre=dpsTotal>0?Math.round((dpsConVenta/dpsTotal)*100):null;
+    var cttosDig=parseInt(h.cttosDig)||0;
+    // Tendencia vs promedio
+    var tendencia=ufActual>prom*1.1?"↗️ Subiendo":ufActual<prom*0.7?"↘️ Bajando":"➡️ Estable";
+    // Semáforo semanal - días hábiles transcurridos
+    var hoyDia=new Date().getDate();
+    var semEnCurso=hoyDia<=7?1:hoyDia<=14?2:hoyDia<=21?3:4;
+    var metaV=v.metaUF||0;
+    // Pipeline activo (DPS sin venta + pendientes)
+    var pipeline=dpsSinVenta+dpsPendiente;
     var nivel=prom>=25?"alto":prom>=12?"medio":"bajo";
     var diags=[], acciones=[];
+
     if(nivel==="bajo"){
       if(ma!==null&&ma<=12){
-        diags.push("Ejecutivo novato en etapa de aprendizaje ("+ma+"m).");
+        diags.push("Novato ("+ma+"m) — en etapa de aprendizaje y consolidación.");
         acciones.push("Acompañamiento en terreno 2 veces por semana");
         acciones.push("Revisión de guión de ventas y manejo de objeciones");
         acciones.push("Meta diaria mínima: 1 DPS por día hábil");
         acciones.push("Check-in diario de actividad con el supervisor");
+        if(dpsActual<3){ diags.push("Muy pocas DPS tomadas — foco urgente en prospección."); acciones.push("Identificar y trabajar mínimo 5 prospectos nuevos esta semana"); }
       } else {
-        diags.push("Producción bajo el mínimo esperado (prom "+prom+" UF).");
+        diags.push("Bajo rendimiento sostenido (prom "+prom+" UF) — requiere plan de recuperación.");
         acciones.push("Sesión 1:1 de diagnóstico de obstáculos esta semana");
-        acciones.push("Revisión de pipeline: DPS sin venta y pendientes");
         acciones.push("Plan de recuperación: meta semanal progresiva acordada");
-        acciones.push("Identificar y trabajar zona de prospección específica");
+        if(pipeline>3){ diags.push("Tiene "+pipeline+" DPS en pipeline (sin venta+pendientes) — oportunidad real sin concretar."); acciones.push("Revisar y gestionar activamente las "+pipeline+" DPS del pipeline esta semana"); }
+        else { acciones.push("Identificar y trabajar zona de prospección específica"); }
       }
-      if(dpsActual<5){ diags.push("DPS muy bajas — posible problema de prospección."); acciones.push("Taller de técnica DPS y apertura de conversación"); }
+      if(tasaCierre!==null&&tasaCierre<30&&dpsTotal>=3){ diags.push("Tasa de cierre DPS muy baja ("+tasaCierre+"%) — problema de técnica de cierre."); acciones.push("Entrenamiento específico en cierre y manejo de objeciones"); }
     } else if(nivel==="medio"){
-      diags.push("Buen desempeño base con potencial de crecimiento.");
-      if(ufActual<prom*0.8){ diags.push("Mes actual bajo su promedio — requiere aceleración."); acciones.push("Revisar agenda y reorganizar prioridades de la semana"); acciones.push("Activar clientes DPS sin venta pendientes del mes"); }
+      diags.push("Buen desempeño base (prom "+prom+" UF) con potencial de crecimiento claro.");
+      if(ufActual<prom*0.7){
+        diags.push("Mes actual ("+ufActual+" UF) muy bajo su promedio — requiere aceleración urgente.");
+        acciones.push("Revisar agenda y reorganizar prioridades esta semana");
+        if(pipeline>0) acciones.push("Activar urgente "+pipeline+" DPS del pipeline que aún no cerraron");
+      } else if(ufActual>prom){
+        diags.push("Mes actual ("+ufActual+" UF) superando su promedio — buen ritmo.");
+        acciones.push("Mantener ritmo y apuntar a superar promedio en 3+ UF");
+      }
+      if(pipeline>4){ diags.push("Tiene "+pipeline+" DPS en pipeline — gran oportunidad de cierre."); acciones.push("Plan de seguimiento activo de las "+pipeline+" DPS sin cerrar"); }
       acciones.push("Trabajar consistencia semanal — evitar semanas en 0");
-      acciones.push("Objetivo: superar en 3-5 UF su promedio actual");
-      acciones.push("Revisión semanal de pipeline DPS pendientes y sin venta");
-      if(prom<20) acciones.push("Entrenamiento en técnica de cierre y manejo de objeciones");
+      if(tasaCierre!==null&&tasaCierre<40&&dpsTotal>=4){ diags.push("Tasa de cierre DPS ("+tasaCierre+"%) mejorable."); acciones.push("Revisar técnica de cierre — objetivo: llegar al 50% de cierre DPS"); }
+      if(metaV>0&&ufActual<metaV*(semEnCurso/4)*0.8){ diags.push("Va retrasado respecto a su meta semanal (semana "+semEnCurso+"/4)."); acciones.push("Definir objetivo de UF para el resto de la semana y comprometerse"); }
     } else {
-      diags.push("Alto rendimiento sostenido — ejecutivo clave del equipo.");
-      if(ufActual<prom*0.7){ diags.push("Mes actual bajo su promedio histórico."); acciones.push("Check-in: identificar obstáculo puntual este mes"); }
-      else { acciones.push("Mantener ritmo y apoyar con casos complejos"); acciones.push("Asignar rol de mentor para ejecutivos del grupo medio/bajo"); }
-      acciones.push("Objetivo stretch: superar récord personal del mes");
+      diags.push("Alto rendimiento sostenido (prom "+prom+" UF) — ejecutivo clave del equipo.");
+      if(ufActual>=prom){ diags.push("Mes actual ("+ufActual+" UF) en línea con su promedio — excelente ritmo."); acciones.push("Mantener ritmo y apuntar a superar su récord personal"); }
+      else if(ufActual<prom*0.6){ diags.push("Mes actual ("+ufActual+" UF) significativamente bajo su promedio — verificar si hay obstáculo puntual."); acciones.push("Check-in: identificar si hay obstáculo o situación personal puntual"); }
+      if(pipeline>5){ diags.push("Pipeline robusto ("+pipeline+" DPS activas) — buena base prospectiva."); acciones.push("Gestionar pipeline para maximizar cierres del mes"); }
+      acciones.push("Asignar rol de mentor para ejecutivos del grupo medio/bajo");
       acciones.push("Reconocimiento público en próxima reunión de equipo");
+      if(cttosDig>0&&ufActual>0&&cttosDig/ufActual<0.8){ diags.push("Contratos digitados ("+cttosDig+") bajos vs UF producidas — verificar digitación al día."); acciones.push("Revisar que todos los contratos estén correctamente digitados"); }
     }
-    if(prom>0&&dpsActual/Math.max(prom,1)<0.3&&nivel!=="bajo"){ diags.push("Proporción DPS/UF baja — pocas DPS en relación a producción."); acciones.push("Aumentar toma de DPS como base para cierres futuros"); }
-    return {diags:diags,acciones:acciones,tendencia:tendencia,nivel:nivel};
+
+    // Factor transversal: DPS vs UF
+    if(prom>0&&dpsActual/Math.max(prom,1)<0.5&&nivel!=="bajo"){ diags.push("Pocas DPS en relación a su producción — base de prospección ajustada."); acciones.push("Aumentar toma de DPS: objetivo mínimo "+(Math.round(prom*0.8))+" DPS este mes"); }
+    // Rechazo alto
+    if(dpsRechazado>2&&dpsTotal>4){ var pctRech=Math.round((dpsRechazado/dpsTotal)*100); diags.push("Tasa de rechazo DPS elevada ("+pctRech+"% rechazadas) — revisar calidad del proceso."); acciones.push("Analizar causas de rechazo DPS y ajustar proceso de toma"); }
+
+    return {diags:diags, acciones:acciones, tendencia:tendencia, nivel:nivel};
   }
 
   function savePlanes(nuevo) {
@@ -6515,7 +6577,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                 , supVista==="excel"&&React.createElement(ExcelDataView, { equipo: equipo, setEquipo: setEquipo, info: info, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3772}} )
                 , supVista==="agentes0"&&React.createElement(AgentesEnCeroView, { equipo: equipo, info: info, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3773}} )
                 , supVista==="metricas" && React.createElement(MetricasReportView, { equipo:equipo, setEquipo:setEquipo, info:info, R:R, RD:RD })
-                , supVista==="dpsanalisis" && React.createElement(DpsAnalisisView, { equipo:equipo, info:info, R:R, RD:RD })
+                , supVista==="dpsanalisis" && React.createElement(DpsAnalisisView, { equipo:equipo, setEquipo:setEquipo, info:info, R:R, RD:RD })
                 , supVista==="planagv" && React.createElement(PlanAGVView, { equipo:equipo, info:info, R:R, RD:RD })
                 , supVista==="calEjec"&&(
                   React.createElement('div', { style: {background:"#fff",borderRadius:18,padding:26,boxShadow:"0 3px 16px rgba(233,7,41,.07)"} }
