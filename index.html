@@ -2630,36 +2630,28 @@ function DpsReportView({ equipo, setEquipo, info, R, RD }) {
           var wb = window.XLSX.read(ev.target.result, {type:"binary"});
           // Buscar la pestaña "Resumen Agentes"
           var sheetName = wb.SheetNames.find(function(s){
-            return s.toLowerCase().replace(/\s/g,"").indexOf("resumenagente") >= 0 ||
-                   s.toLowerCase().replace(/\s/g,"").indexOf("agente") >= 0;
+            return s.toLowerCase().replace(/\s/g,"").indexOf("resumenagente") >= 0;
           }) || wb.SheetNames[0];
-          console.log("[DPS] Pestaña usada:", sheetName);
+          console.log("[DPS] Pestaña:", sheetName);
           var ws = wb.Sheets[sheetName];
-          // El Excel tiene filas de título fusionadas antes de los encabezados reales
-          // Leer como array para encontrar la fila real de headers (la que tiene "CC" y "NOMBRE EJECUTIVO")
+          // Headers están en fila 4 (rowNum=4), datos desde fila 5
+          // Leer como array y construir objetos manualmente
           var rawArr = window.XLSX.utils.sheet_to_json(ws, {header:1, defval:""});
+          // Buscar fila con "CC" y "NOMBRE EJECUTIVO"
           var headerRow = -1;
-          for (var ri=0; ri<Math.min(rawArr.length,15); ri++) {
-            var row = rawArr[ri].map(function(c){return String(c).trim().toUpperCase();});
-            if (row.indexOf("CC") >= 0 && (row.indexOf("NOMBRE EJECUTIVO") >= 0 || row.some(function(c){return c.indexOf("NOMBRE")>=0;}))) {
-              headerRow = ri;
-              break;
+          for (var ri=0; ri<Math.min(rawArr.length,10); ri++) {
+            var rowStr = rawArr[ri].map(function(c){return String(c).trim().toUpperCase();});
+            if (rowStr.indexOf("CC") >= 0 && rowStr.some(function(c){return c.indexOf("NOMBRE")>=0;})) {
+              headerRow = ri; break;
             }
           }
-          if (headerRow < 0) {
-            // Fallback: buscar fila que tenga "CC"
-            for (var ri2=0; ri2<Math.min(rawArr.length,15); ri2++) {
-              var row2 = rawArr[ri2].map(function(c){return String(c).trim().toUpperCase();});
-              if (row2.indexOf("CC") >= 0) { headerRow = ri2; break; }
-            }
-          }
-          if (headerRow < 0) { setMsg("❌ No se encontró la fila de encabezados en la pestaña "+sheetName+". Columnas detectadas: "+rawArr[0].join(", ")); setCargando(false); return; }
-          // Construir objetos usando la fila de headers encontrada
+          if (headerRow < 0) { setMsg("❌ No se encontró fila de encabezados. Filas iniciales: "+rawArr.slice(0,3).map(function(r){return r.slice(0,5).join(",");}).join(" | ")); setCargando(false); return; }
+          // Construir headers limpiando espacios
           var headers = rawArr[headerRow].map(function(c){return String(c).trim();});
-          console.log("[DPS] Headers encontrados en fila "+(headerRow+1)+":", headers);
+          console.log("[DPS] Headers fila "+(headerRow+1)+":", headers.filter(function(h){return h;}).slice(0,15));
           for (var di=headerRow+1; di<rawArr.length; di++) {
             var dataRow = rawArr[di];
-            if (!dataRow || dataRow.every(function(c){return !c;})) continue;
+            if (!dataRow || dataRow.every(function(c){return !c && c!==0;})) continue;
             var obj = {};
             headers.forEach(function(h,j){ obj[h] = dataRow[j] !== undefined ? dataRow[j] : ""; });
             filas.push(obj);
@@ -2673,8 +2665,8 @@ function DpsReportView({ equipo, setEquipo, info, R, RD }) {
 
         // Filtrar solo CC=2400
         var miEquipo = filas.filter(function(f){
-          var cc = String(f.CC||f.cc||f["C.C"]||f["CC."]||"").trim();
-          return cc === "2400";
+          var cc = String(f["CC"]||f["CC "]||f.cc||"").trim();
+          return cc === "2400" || cc === 2400 || parseInt(cc) === 2400;
         });
 
         if (miEquipo.length === 0) {
@@ -2688,24 +2680,13 @@ function DpsReportView({ equipo, setEquipo, info, R, RD }) {
             f["NOMBRE EJECUTIVO"]||f["Nombre Ejecutivo"]||f.nombre||f.NOMBRE||""
           ).trim().toUpperCase();
 
-          // Nombres exactos del reporte "Resumen Agentes" de administración
-          var dpsConVenta  = parseInt(String(
-            f["DPS c/ ven"]||f["DPS c/ven"]||f["DPS c/venta"]||f["DPS c/ venta"]||
-            f["DPS_C_VENTA"]||f["DPS CON VENTA"]||"0")) || 0;
-          var dpsSinVenta  = parseInt(String(
-            f["DPS sin ven"]||f["DPS sin venta"]||f["DPS sin ven "]||
-            f["DPS_SIN_VENTA"]||f["DPS SIN VENTA"]||"0")) || 0;
-          var dpsPendiente = parseInt(String(
-            f["DPS Pendien te"]||f["DPS Pendiente"]||f["DPS Pendien"]||f["DPS\nPendien\nte"]||
-            f["DPS_PENDIENTE"]||f["DPS PENDIENTE"]||"0")) || 0;
-          var dpsRechazado = parseInt(String(
-            f["Rechaz adi"]||f["Rechaz"]||f["Rechazado"]||f["Rechaz\nadi"]||
-            f["DPS Rechaz"]||f["DPS_RECHAZADO"]||f["DPS RECHAZADO"]||"0")) || 0;
-          var dpsTotal     = parseInt(String(
-            f["Total DP"]||f["Total DPS"]||f["TOTAL DPS"]||f["Total\nDP"]||
-            f["total_dps"]||"0")) || 0;
-          var uf = parseFloat(String(
-            f["UF Dif"]||f["UF"]||f["uf"]||"0").replace(",",".")) || 0;
+          // Nombres EXACTOS del reporte de administración (Resumen Agentes, fila 4)
+          var dpsConVenta  = parseInt(String(f["DPS c/ venta"]||f["DPS c/venta"]||f["DPS con venta"]||"0")) || 0;
+          var dpsSinVenta  = parseInt(String(f["DPS sin venta"]||f["DPS sin venta "]||"0")) || 0;
+          var dpsPendiente = parseInt(String(f["DPS Pendientes"]||f["DPS Pendientes "]||f["DPS Pendiente"]||"0")) || 0;
+          var dpsRechazado = parseInt(String(f["Rechazadas"]||f["Rechazada"]||f["Rechaz"]||"0")) || 0;
+          var dpsTotal     = parseInt(String(f["Total DPS"]||f["Total DPS "]||"0")) || 0;
+          var uf = parseFloat(String(f["UF  DIG."]||f["UF DIG."]||f["UF Dif"]||f["UF"]||"0").replace(",",".")) || 0;
 
           return { nombre:nombre, dpsConVenta:dpsConVenta, dpsSinVenta:dpsSinVenta, dpsPendiente:dpsPendiente, dpsRechazado:dpsRechazado, dpsTotal:dpsTotal, uf:uf };
         }).filter(function(f){ return f.nombre.length > 0; });
