@@ -2802,55 +2802,104 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
 
 // ── Análisis DPS (supervisor) ─────────────────────────────────────────────────
 function DpsAnalisisView({ equipo, info, R, RD }) {
-  var mesKey = info.mesKey;
+  var [mesSeleccionado, setMesSeleccionado] = React.useState(info.mesKey);
+  var [sortCol, setSortCol] = React.useState("dpsTotal");
+  var [sortAsc, setSortAsc] = React.useState(false);
+
+  // Generar últimos 6 meses
+  var mesesDisp = [];
+  for (var i=0; i<=5; i++) {
+    var d = new Date(new Date().getFullYear(), new Date().getMonth()-i, 1);
+    var mk = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+    var nom = d.toLocaleString("es-CL",{month:"long",year:"numeric"}).replace(/^./,function(c){return c.toUpperCase();});
+    // Calcular totales del equipo para ese mes
+    var totC=0,totS=0,totP=0,totR=0,totB=0,totCt=0;
+    equipo.forEach(function(v){
+      var h=(v.historial||{})[mk]||{};
+      totC+=parseInt(h.dpsVenta)||0;
+      totS+=parseInt(h.dpsSinVenta)||0;
+      totP+=parseInt(h.dpsPendiente)||0;
+      totR+=parseInt(h.dpsRechazado)||0;
+      totB+=parseInt(h.nBenef)||0;
+      totCt+=parseInt(h.cttosDig)||0;
+    });
+    var totT=totC+totS+totP+totR;
+    mesesDisp.push({mk:mk,nom:nom,totC:totC,totS:totS,totP:totP,totR:totR,totT:totT,totB:totB,totCt:totCt,tasa:totT>0?Math.round((totC/totT)*100):0});
+  }
+
+  var mesKey = mesSeleccionado;
   var datos = equipo.map(function(v){
-    var h = (v.historial||{})[mesKey]||{};
+    var h=(v.historial||{})[mesKey]||{};
     return {
-      nombre: v.nombre,
-      dpsConVenta:  parseInt(h.dpsVenta)||0,
-      dpsSinVenta:  parseInt(h.dpsSinVenta)||0,
-      dpsPendiente: parseInt(h.dpsPendiente)||0,
-      dpsRechazado: parseInt(h.dpsRechazado)||0,
-      dpsTotal:     (parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0),
-      nBenef:       parseInt(h.nBenef)||0,
-      cttosDig:     parseInt(h.cttosDig)||0,
+      nombre:v.nombre,
+      dpsConVenta:parseInt(h.dpsVenta)||0,
+      dpsSinVenta:parseInt(h.dpsSinVenta)||0,
+      dpsPendiente:parseInt(h.dpsPendiente)||0,
+      dpsRechazado:parseInt(h.dpsRechazado)||0,
+      dpsTotal:(parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0),
+      nBenef:parseInt(h.nBenef)||0,
+      cttosDig:parseInt(h.cttosDig)||0,
     };
-  }).filter(function(d){ return d.dpsTotal>0||d.nBenef>0||d.cttosDig>0; }).sort(function(a,b){ return b.dpsTotal-a.dpsTotal; });
+  }).filter(function(d){return d.dpsTotal>0||d.nBenef>0||d.cttosDig>0;});
 
-  var totConVenta  = datos.reduce(function(s,d){return s+d.dpsConVenta;},0);
-  var totSinVenta  = datos.reduce(function(s,d){return s+d.dpsSinVenta;},0);
-  var totPendiente = datos.reduce(function(s,d){return s+d.dpsPendiente;},0);
-  var totRechazado = datos.reduce(function(s,d){return s+d.dpsRechazado;},0);
-  var totTotal     = totConVenta+totSinVenta+totPendiente+totRechazado;
-  var tasaCierre   = totTotal>0?Math.round((totConVenta/totTotal)*100):0;
-  var totBenef     = datos.reduce(function(s,d){return s+d.nBenef;},0);
-  var totCttos     = datos.reduce(function(s,d){return s+d.cttosDig;},0);
+  // Ordenamiento
+  datos.sort(function(a,b){
+    var va=a[sortCol]||0, vb=b[sortCol]||0;
+    return sortAsc ? va-vb : vb-va;
+  });
 
-  var totConVenta  = datos.reduce(function(s,d){return s+d.dpsConVenta;},0);
-  var totSinVenta  = datos.reduce(function(s,d){return s+d.dpsSinVenta;},0);
-  var totPendiente = datos.reduce(function(s,d){return s+d.dpsPendiente;},0);
-  var totRechazado = datos.reduce(function(s,d){return s+d.dpsRechazado;},0);
-  var totTotal     = totConVenta+totSinVenta+totPendiente+totRechazado;
-  var tasaCierre   = totTotal>0?Math.round((totConVenta/totTotal)*100):0;
+  var totConVenta=datos.reduce(function(s,d){return s+d.dpsConVenta;},0);
+  var totSinVenta=datos.reduce(function(s,d){return s+d.dpsSinVenta;},0);
+  var totPendiente=datos.reduce(function(s,d){return s+d.dpsPendiente;},0);
+  var totRechazado=datos.reduce(function(s,d){return s+d.dpsRechazado;},0);
+  var totTotal=totConVenta+totSinVenta+totPendiente+totRechazado;
+  var tasaCierre=totTotal>0?Math.round((totConVenta/totTotal)*100):0;
+  var totBenef=datos.reduce(function(s,d){return s+d.nBenef;},0);
+  var totCttos=datos.reduce(function(s,d){return s+d.cttosDig;},0);
+
+  function thSort(col, label) {
+    return React.createElement('th',{
+      key:col,
+      onClick:function(){if(sortCol===col)setSortAsc(!sortAsc);else{setSortCol(col);setSortAsc(false);}},
+      style:{padding:"10px 12px",textAlign:col==="nombre"?"left":"center",fontSize:11,color:"#6B7280",fontWeight:700,cursor:"pointer",userSelect:"none",whiteSpace:"nowrap"}
+    }, label+(sortCol===col?(sortAsc?" ↑":" ↓"):" ↕"));
+  }
 
   return React.createElement('div', {style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(233,7,41,.09)"}}
-    , React.createElement('div', {style:{fontSize:18,fontWeight:900,color:RD,marginBottom:4}}, "🔵 Análisis DPS — "+info.mes)
-    , React.createElement('div', {style:{fontSize:12,color:"#6B7280",marginBottom:20}}, "Solo muestra ejecutivos con datos DPS cargados este mes.")
-    // KPI resumen
-    , React.createElement('div', {style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:24}}
-      , [
-          {l:"Con Venta",  v:totConVenta,  c:"#16A34A", bg:"#F0FDF4"},
-          {l:"Sin Venta",  v:totSinVenta,  c:"#2563EB", bg:"#EFF6FF"},
-          {l:"Pendientes", v:totPendiente, c:"#D97706", bg:"#FFFBEB"},
-          {l:"Rechazadas", v:totRechazado, c:"#DC2626", bg:"#FFF1F2"},
-        ].map(function(k){
+    , React.createElement('div',{style:{fontSize:18,fontWeight:900,color:RD,marginBottom:4}}, "🔵 Análisis de Métricas por Mes")
+    , React.createElement('div',{style:{fontSize:12,color:"#6B7280",marginBottom:16}}, "Selecciona un mes para ver el detalle. Haz click en cualquier columna para ordenar.")
+
+    // Cards de meses (historial)
+    , React.createElement('div',{style:{display:"flex",gap:10,overflowX:"auto",paddingBottom:8,marginBottom:20,WebkitOverflowScrolling:"touch"}}
+      , mesesDisp.map(function(m){
+          var activo = m.mk === mesSeleccionado;
+          var tieneData = m.totT > 0 || m.totB > 0;
+          return React.createElement('div',{key:m.mk,onClick:function(){setMesSeleccionado(m.mk);},
+              style:{flexShrink:0,background:activo?"linear-gradient(135deg,"+RD+",#C91B2F)":tieneData?"#F8FAFC":"#F3F4F6",
+                borderRadius:14,padding:"14px 18px",cursor:"pointer",border:activo?"2px solid "+RD:"2px solid "+(tieneData?"#E5E7EB":"#F3F4F6"),
+                minWidth:140,transition:"all .2s",boxShadow:activo?"0 4px 16px rgba(233,7,41,.3)":"none"}}
+            , React.createElement('div',{style:{fontSize:12,fontWeight:800,color:activo?"#fff":tieneData?"#374151":"#9CA3AF",marginBottom:6}},m.nom.split(" de ")[0])
+            , tieneData
+              ? React.createElement('div',null
+                  , React.createElement('div',{style:{fontSize:11,color:activo?"rgba(255,255,255,.8)":"#6B7280"}}, m.totT+" DPS · "+m.tasa+"% cierre")
+                  , React.createElement('div',{style:{fontSize:10,color:activo?"rgba(255,255,255,.6)":"#9CA3AF",marginTop:2}}, m.totB+" benef · "+m.totCt+" cttos")
+                )
+              : React.createElement('div',{style:{fontSize:10,color:"#9CA3AF",fontStyle:"italic"}},"Sin datos")
+          );
+        })
+    )
+
+    // KPI resumen del mes seleccionado
+    , React.createElement('div',{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16}}
+      , [{l:"Con Venta",v:totConVenta,c:"#16A34A",bg:"#F0FDF4"},{l:"Sin Venta",v:totSinVenta,c:"#2563EB",bg:"#EFF6FF"},{l:"Pendientes",v:totPendiente,c:"#D97706",bg:"#FFFBEB"},{l:"Rechazadas",v:totRechazado,c:"#DC2626",bg:"#FFF1F2"}]
+        .map(function(k){
           return React.createElement('div',{key:k.l,style:{background:k.bg,borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #E5E7EB"}}
             , React.createElement('div',{style:{fontSize:22,fontWeight:900,color:k.c}},k.v)
             , React.createElement('div',{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},k.l)
           );
         })
     )
-    , React.createElement('div', {style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:24}}
+    , React.createElement('div',{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:20}}
       , React.createElement('div',{style:{background:"#F0FDFA",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #A7F3D0"}}
         , React.createElement('div',{style:{fontSize:22,fontWeight:900,color:"#0891B2"}},totBenef)
         , React.createElement('div',{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"N° Beneficiarios")
@@ -2864,21 +2913,28 @@ function DpsAnalisisView({ equipo, info, R, RD }) {
         , React.createElement('div',{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"Tasa Cierre DPS")
       )
     )
-    // Tabla por ejecutivo
-    , datos.length === 0
-      ? React.createElement('div',{style:{textAlign:"center",padding:"40px",color:"#9CA3AF"}},"Sin datos DPS para "+info.mes+". Carga el reporte desde la pestaña 📊 Carga Reporte Diario de Métricas.")
+
+    // Tabla ordenable
+    , datos.length===0
+      ? React.createElement('div',{style:{textAlign:"center",padding:"40px",color:"#9CA3AF"}},"Sin datos para este mes. Carga el reporte desde 📊 Carga Reporte Diario de Métricas.")
       : React.createElement('div',{style:{overflowX:"auto"}}
         , React.createElement('table',{style:{width:"100%",borderCollapse:"collapse",fontSize:12}}
           , React.createElement('thead',null
             , React.createElement('tr',{style:{background:"#F8FAFC",borderBottom:"2px solid #E5E7EB"}}
-              , ["Ejecutivo","✅ Con Venta","🔵 Sin Venta","🟡 Pendientes","🔴 Rechazadas","Total","Tasa","👥 Benef","📋 Cttos Dig"].map(function(h){
-                  return React.createElement('th',{key:h,style:{padding:"10px 12px",textAlign:"left",fontSize:11,color:"#6B7280",fontWeight:700}},h);
-                })
+              , thSort("nombre","Ejecutivo")
+              , thSort("dpsConVenta","✅ Con Venta")
+              , thSort("dpsSinVenta","🔵 Sin Venta")
+              , thSort("dpsPendiente","🟡 Pendientes")
+              , thSort("dpsRechazado","🔴 Rechazadas")
+              , thSort("dpsTotal","Total")
+              , React.createElement('th',{style:{padding:"10px 12px",textAlign:"center",fontSize:11,color:"#6B7280",fontWeight:700}},"Tasa")
+              , thSort("nBenef","👥 Benef")
+              , thSort("cttosDig","📋 Cttos Dig")
             )
           )
           , React.createElement('tbody',null
             , datos.map(function(d,i){
-                var tasa = d.dpsTotal>0?Math.round((d.dpsConVenta/d.dpsTotal)*100):0;
+                var tasa=d.dpsTotal>0?Math.round((d.dpsConVenta/d.dpsTotal)*100):0;
                 return React.createElement('tr',{key:i,style:{borderTop:"1px solid #F3F4F6",background:i%2===0?"#fff":"#FAFBFF"}}
                   , React.createElement('td',{style:{padding:"10px 12px",fontWeight:700,color:RD,fontSize:12}},d.nombre)
                   , React.createElement('td',{style:{padding:"10px 12px",textAlign:"center",fontWeight:900,color:"#16A34A"}},d.dpsConVenta)
@@ -2911,8 +2967,6 @@ function DpsAnalisisView({ equipo, info, R, RD }) {
       )
   );
 }
-
-// ── Gestionar Premios (supervisor) ──────────────────────────────────────────
 function GestPremiosView({ premiosImgs, setPremiosImgs, info, R, RD, tablaPremios, setTablaPremios, premioConecta, setPremioConecta, TABLA_DEFAULT }) {
   var mesKey = info.mesKey;
   var mesLabel = new Date().toLocaleString("es-CL",{month:"long",year:"numeric"}).replace(/^./,function(c){return c.toUpperCase();});
@@ -4617,6 +4671,33 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                     , React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.45)",marginTop:4} }, "El primer paso a nuestros cierres!")
                   )
                 )
+              /* ── DPS PIPELINE KPIs ── */
+              , totDpsTotal > 0 && React.createElement('div', { style:{background:"rgba(255,255,255,.04)",borderRadius:14,padding:"16px 18px",marginBottom:16,border:"1px solid rgba(99,179,237,.2)"} }
+                , React.createElement('div', { style:{fontSize:9,color:"rgba(99,179,237,.8)",textTransform:"uppercase",letterSpacing:"0.18em",marginBottom:12,fontWeight:700} }, "🔵 PIPELINE DPS — ESTADO ACTUAL")
+                , React.createElement('div', { style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8} }
+                  , [
+                      {label:"Con Venta", val:totDpsConVenta, color:"#4ADE80", bg:"rgba(74,222,128,.12)"},
+                      {label:"Sin Venta", val:totDpsSinVenta, color:"#60A5FA", bg:"rgba(96,165,250,.12)"},
+                      {label:"Pendientes", val:totDpsPendiente, color:"#FBBF24", bg:"rgba(251,191,36,.12)"},
+                      {label:"Rechazadas", val:totDpsRechazado, color:"#F87171", bg:"rgba(248,113,113,.12)"},
+                    ].map(function(kpi){
+                      return React.createElement('div', { key:kpi.label, style:{background:kpi.bg,borderRadius:10,padding:"10px 8px",textAlign:"center",border:"1px solid "+kpi.color.replace(")",", .3)")} }
+                        , React.createElement('div', { style:{fontSize:"clamp(18px,4vw,26px)",fontWeight:900,color:kpi.color,lineHeight:1} }, kpi.val)
+                        , React.createElement('div', { style:{fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",marginTop:3} }, kpi.label)
+                      );
+                    })
+                )
+                , React.createElement('div', { style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:10,paddingTop:8,borderTop:"1px solid rgba(99,179,237,.15)"} }
+                  , React.createElement('div', { style:{fontSize:11,color:"rgba(255,255,255,.4)"} }, "Total DPS: "+totDpsTotal)
+                  , React.createElement('div', { style:{fontSize:12,fontWeight:800,color:tasaCierreDPS>=50?"#4ADE80":tasaCierreDPS>=30?"#FBBF24":"#F87171"} },
+                    "Tasa de cierre: "+tasaCierreDPS+"%"
+                  )
+                )
+              )
+
+
+                /* ── CLASIFICACIÓN DE CONTRATOS CERRADOS ── */
+                , React.createElement('div', { style:{fontSize:9,color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:"0.18em",marginBottom:8,fontWeight:700,marginTop:4} }, "📋 CLASIFICACIÓN DE CONTRATOS CERRADOS")
                 /* Distribución H/M/Conecta */
                 , React.createElement('div', { className:"form-grid", style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:18} }
                   , React.createElement('div', { style: {background:"rgba(29,78,216,.25)",borderRadius:12,padding:"12px 10px",textAlign:"center",border:"1px solid rgba(59,130,246,.3)"} }
@@ -4645,30 +4726,6 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                   )
                 )
               )
-              /* ── DPS PIPELINE KPIs ── */
-              , totDpsTotal > 0 && React.createElement('div', { style:{background:"rgba(255,255,255,.04)",borderRadius:14,padding:"16px 18px",marginBottom:16,border:"1px solid rgba(99,179,237,.2)"} }
-                , React.createElement('div', { style:{fontSize:9,color:"rgba(99,179,237,.8)",textTransform:"uppercase",letterSpacing:"0.18em",marginBottom:12,fontWeight:700} }, "🔵 PIPELINE DPS — ESTADO ACTUAL")
-                , React.createElement('div', { style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8} }
-                  , [
-                      {label:"Con Venta", val:totDpsConVenta, color:"#4ADE80", bg:"rgba(74,222,128,.12)"},
-                      {label:"Sin Venta", val:totDpsSinVenta, color:"#60A5FA", bg:"rgba(96,165,250,.12)"},
-                      {label:"Pendientes", val:totDpsPendiente, color:"#FBBF24", bg:"rgba(251,191,36,.12)"},
-                      {label:"Rechazadas", val:totDpsRechazado, color:"#F87171", bg:"rgba(248,113,113,.12)"},
-                    ].map(function(kpi){
-                      return React.createElement('div', { key:kpi.label, style:{background:kpi.bg,borderRadius:10,padding:"10px 8px",textAlign:"center",border:"1px solid "+kpi.color.replace(")",", .3)")} }
-                        , React.createElement('div', { style:{fontSize:"clamp(18px,4vw,26px)",fontWeight:900,color:kpi.color,lineHeight:1} }, kpi.val)
-                        , React.createElement('div', { style:{fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",marginTop:3} }, kpi.label)
-                      );
-                    })
-                )
-                , React.createElement('div', { style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:10,paddingTop:8,borderTop:"1px solid rgba(99,179,237,.15)"} }
-                  , React.createElement('div', { style:{fontSize:11,color:"rgba(255,255,255,.4)"} }, "Total DPS: "+totDpsTotal)
-                  , React.createElement('div', { style:{fontSize:12,fontWeight:800,color:tasaCierreDPS>=50?"#4ADE80":tasaCierreDPS>=30?"#FBBF24":"#F87171"} },
-                    "Tasa de cierre: "+tasaCierreDPS+"%"
-                  )
-                )
-              )
-
               /* TOP 10 DEL MES — Reconocimiento celebratorio */
               , (function(){
                 try {
