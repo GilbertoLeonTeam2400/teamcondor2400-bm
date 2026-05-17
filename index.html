@@ -21,6 +21,11 @@
       .top10-fila4 { grid-template-columns: 1fr !important; }
       /* Premios: 1 columna en celular */
       .premios-grid { grid-template-columns: 1fr !important; }
+      .agv-resumen-grid { grid-template-columns: repeat(3,1fr) !important; }
+      .agv-card-wide { grid-column: span 1 !important; }
+      /* Center last 2 cards in a 3-col grid by making them span 1.5 each — use subgrid trick */
+      .agv-resumen-grid .agv-card-trend { grid-column: 1 / span 2 !important; }
+      .agv-resumen-grid .agv-card-actual { grid-column: 2 / span 2 !important; }
     }
   </style>
 </head>
@@ -2572,7 +2577,7 @@ function ClasificacionAGVView({ equipo, info, R, RD }) {
                         , React.createElement('div',{style:{fontWeight:900,color:g.color,fontSize:14}}, "Resumen del grupo — "+g.lista.length+" ejecutivos")
                       )
                       // 4 KPI cards + promedio 3 meses
-                      , React.createElement('div',{style:{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10}}
+                      , React.createElement('div',{className:"agv-resumen-grid",style:{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10}}
                         // 3 meses históricos
                         , meses3Info.map(function(m2){
                             return React.createElement('div',{key:m2.nom,style:{background:"#fff",borderRadius:12,padding:"14px 12px",textAlign:"center",border:"1px solid "+g.border,boxShadow:"0 2px 8px rgba(0,0,0,.04)"}}
@@ -2584,7 +2589,7 @@ function ClasificacionAGVView({ equipo, info, R, RD }) {
                             );
                           })
                         // Promedio 3 meses (tendencia)
-                        , React.createElement('div',{style:{background:"#fff",borderRadius:12,padding:"14px 12px",textAlign:"center",border:"2px solid "+g.color,boxShadow:"0 2px 8px rgba(0,0,0,.08)"}}
+                        , React.createElement('div',{className:"agv-card-trend",style:{background:"#fff",borderRadius:12,padding:"14px 12px",textAlign:"center",border:"2px solid "+g.color,boxShadow:"0 2px 8px rgba(0,0,0,.08)"}}
                           , React.createElement('div',{style:{fontSize:10,fontWeight:700,color:g.color,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8}},"📈 Prom. 3 meses")
                           , React.createElement('div',{style:{fontSize:18,fontWeight:900,color:g.color,marginBottom:4}},fmtUF(totProm)+" UF")
                           , React.createElement('div',{style:{height:"1px",background:g.border,margin:"6px 0"}})
@@ -2592,7 +2597,7 @@ function ClasificacionAGVView({ equipo, info, R, RD }) {
                           , React.createElement('div',{style:{fontSize:14,fontWeight:800,color:"#374151"}},fmtUF(promProm)+" UF / exec")
                         )
                         // Mes actual
-                        , React.createElement('div',{style:{background:g.color,borderRadius:12,padding:"14px 12px",textAlign:"center",boxShadow:"0 4px 12px rgba(0,0,0,.15)"}}
+                        , React.createElement('div',{className:"agv-card-actual",style:{background:g.color,borderRadius:12,padding:"14px 12px",textAlign:"center",boxShadow:"0 4px 12px rgba(0,0,0,.15)"}}
                           , React.createElement('div',{style:{fontSize:10,fontWeight:700,color:"rgba(255,255,255,.7)",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8}},"Mes Actual")
                           , React.createElement('div',{style:{fontSize:18,fontWeight:900,color:"#fff",marginBottom:4}},fmtUF(totActual)+" UF")
                           , React.createElement('div',{style:{height:"1px",background:"rgba(255,255,255,.3)",margin:"6px 0"}})
