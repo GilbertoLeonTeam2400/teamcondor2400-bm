@@ -2729,7 +2729,7 @@ function GestPremiosView({ premiosImgs, setPremiosImgs, info, R, RD, tablaPremio
               React.createElement("td",{style:{padding:"6px 10px",color:"#374151"}},fila.hasta>=9999?"∞":fila.hasta),
               React.createElement("td",{style:{padding:"6px 10px"}},
                 React.createElement("input",{type:"number",step:"1000",min:"0",value:fila.monto,
-                  onChange:function(e){updateMonto(gk,fi,e.target.value);},
+                  onFocus:function(e){e.target.select();},onChange:function(e){updateMonto(gk,fi,e.target.value);},
                   style:{width:110,padding:"4px 8px",borderRadius:7,border:"1.5px solid #D1D5DB",fontSize:13,fontWeight:700,fontFamily:"inherit",color:fila.monto===0?"#9CA3AF":"#16A34A"}
                 })
               )
@@ -2757,7 +2757,7 @@ function GestPremiosView({ premiosImgs, setPremiosImgs, info, R, RD, tablaPremio
             React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10}},
               React.createElement("span",{style:{fontSize:13,color:"#6B7280"}},"Monto por contrato: $"),
               React.createElement("input",{type:"number",step:"1000",min:"0",value:premioConecta||100000,
-                onChange:function(e){setPremioConecta(parseInt(e.target.value)||0);},
+                onFocus:function(e){e.target.select();},onChange:function(e){setPremioConecta(parseInt(e.target.value)||0);},
                 onBlur:function(e){
                   var val=parseInt(e.target.value)||0;
                   if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
@@ -3142,6 +3142,34 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
         setFbError(false);
         setLoaded(true);
         setSincronizado(true);
+        // ── Cargar imágenes de premios al iniciar la app ──
+        (function cargarImagenesPremios(){
+          var mesKey2 = new Date().getFullYear()+"-"+String(new Date().getMonth()+1).padStart(2,"0");
+          // Intentar localStorage primero
+          try {
+            var cached = JSON.parse(localStorage.getItem("PREMIOS_"+mesKey2)||"[]");
+            if (cached.length > 0) { setPremiosImgs(cached); return; }
+          } catch(e) {}
+          // Si no hay cache, cargar desde Firebase
+          if (!window.__fbGetDoc || !window.__fbDoc || !window.__fbDb) return;
+          window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_"+mesKey2))
+            .then(function(snap){
+              if (!snap.exists || !snap.data() || !snap.data().indice) return;
+              var indice = snap.data().indice;
+              var imgPromises = indice.map(function(ref,i){
+                return window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_"+mesKey2+"_img"+i))
+                  .then(function(s){ return s.exists&&s.data()&&s.data().img ? s.data().img : null; })
+                  .catch(function(){ return null; });
+              });
+              Promise.all(imgPromises).then(function(imgs){
+                var validas = imgs.filter(function(x){return x!==null;});
+                if (validas.length > 0) {
+                  setPremiosImgs(validas);
+                  try{ localStorage.setItem("PREMIOS_"+mesKey2, JSON.stringify(validas)); }catch(e){}
+                }
+              });
+            }).catch(function(){});
+        })();
       }, function(err) {
         fbRespondio = true;
         console.error("[LOAD] Firebase onSnapshot error:", err);
@@ -8168,7 +8196,7 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
                   , React.createElement('div', { style:{fontSize:11,color:"rgba(255,255,255,.5)",textTransform:"uppercase",marginBottom:8} }, "🎯 Mi meta en UF")
                   , React.createElement('div', { style:{display:"flex",alignItems:"center",gap:8} }
                     , React.createElement('input', { type:"number", min:"0", max:"200", step:"0.5", value:ufMeta,
-                        onChange:function(e){var v2=parseFloat(e.target.value)||0;setUfMeta(v2);setUfSim(v2);},
+                        onFocus:function(e){e.target.select();},onChange:function(e){var v2=parseFloat(e.target.value)||0;setUfMeta(v2);setUfSim(v2);},
                         style:{width:"80px",padding:"8px",borderRadius:8,border:"1.5px solid rgba(255,150,150,.4)",background:"rgba(255,255,255,.1)",color:"#fff",fontSize:18,fontWeight:900,textAlign:"center",fontFamily:"inherit"} })
                     , React.createElement('span', { style:{color:"rgba(255,255,255,.5)",fontSize:13} }, "UF")
                   )
@@ -8179,7 +8207,7 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
                   , React.createElement('div', { style:{fontSize:11,color:"rgba(110,231,183,.7)",textTransform:"uppercase",marginBottom:8} }, "💚 Plan Conecta")
                   , React.createElement('div', { style:{display:"flex",alignItems:"center",gap:8} }
                     , React.createElement('input', { type:"number", min:"0", max:"50", step:"1", value:cantConecta,
-                        onChange:function(e){var cant=parseInt(e.target.value)||0;setPremios([{id:1,nombre:nombrePremio||"Plan Conecta",valorUnitario:montoConUnitario,cantidad:cant}]);},
+                        onFocus:function(e){e.target.select();},onChange:function(e){var cant=parseInt(e.target.value)||0;setPremios([{id:1,nombre:nombrePremio||"Plan Conecta",valorUnitario:montoConUnitario,cantidad:cant}]);},
                         style:{width:"60px",padding:"8px",borderRadius:8,border:"1.5px solid rgba(110,231,183,.4)",background:"rgba(255,255,255,.1)",color:"#6EE7B7",fontSize:18,fontWeight:900,textAlign:"center",fontFamily:"inherit"} })
                     , React.createElement('span', { style:{color:"rgba(110,231,183,.6)",fontSize:12} }, "contratos")
                   )
