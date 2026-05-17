@@ -2374,7 +2374,7 @@ function ClasificacionAGVView({ equipo, info, R, RD }) {
       var h = (v.historial||{})[m.mk];
       if (h && h.uf) total += (h.uf||0);
     });
-    return divisor > 0 ? parseFloat((total/divisor).toFixed(2)) : 0;
+    return { prom: divisor > 0 ? parseFloat((total/divisor).toFixed(2)) : 0, meses: divisor };
   }
 
   // Calcular meses de antigüedad
@@ -2403,12 +2403,14 @@ function ClasificacionAGVView({ equipo, info, R, RD }) {
 
   // Calcular datos de todos
   var ejecutivos = equipo.map(function(v) {
-    var prom = promedioUltimos3(v);
+    var result = promedioUltimos3(v);
+    var prom = result.prom;
+    var promMeses = result.meses;
     var ufMesActual = v.uf || 0;
     var m = mesesAnt(v);
     var nivel = prom >= 25 ? "alto" : prom >= 12 ? "medio" : "bajo";
     var tendencia = ufMesActual > prom ? "↗️" : ufMesActual < prom*0.8 ? "↘️" : "➡️";
-    return Object.assign({}, v, { prom:prom, ufMesActual:ufMesActual, nivel:nivel, tendencia:tendencia, mesesAnt:m, grupoAnt:grupoAnt(m) });
+    return Object.assign({}, v, { prom:prom, promMeses:promMeses, ufMesActual:ufMesActual, nivel:nivel, tendencia:tendencia, mesesAnt:m, grupoAnt:grupoAnt(m) });
   });
 
   // Aplicar filtro de antigüedad
@@ -2531,7 +2533,7 @@ function ClasificacionAGVView({ equipo, info, R, RD }) {
                       , React.createElement('div', { style:{display:"flex",gap:16,flexWrap:"wrap"} }
                         , React.createElement('div', { style:{textAlign:"center"} }
                           , React.createElement('div', { style:{fontSize:16,fontWeight:900,color:g.color} }, fmtUF(v.prom)+" UF")
-                          , React.createElement('div', { style:{fontSize:10,color:"#9CA3AF"} }, "Prom. 3 meses")
+                          , React.createElement('div', { style:{fontSize:10,color:"#9CA3AF"} }, "Prom. "+v.promMeses+" "+(v.promMeses===1?"mes":"meses"))
                         )
                         , React.createElement('div', { style:{textAlign:"center"} }
                           , React.createElement('div', { style:{fontSize:15,fontWeight:700,color:"#374151"} }, v.tendencia+" "+fmtUF(v.ufMesActual))
@@ -7327,23 +7329,38 @@ function AgentesEnCeroView({ equipo, info }) {
   var mes5Key        = buildMesKey(5);
   var mes6Key        = buildMesKey(6);
 
+  // Helper: ¿el ejecutivo ya trabajaba en ese mes?
+  function mesExistia(v, mesKey) {
+    if (!v.fechaIngreso) return true; // sin fecha = asumimos que sí
+    var p = v.fechaIngreso.split('-');
+    if (p.length < 2) return true;
+    var fechaIng = new Date(parseInt(p[0]), parseInt(p[1])-1, 1);
+    var partsKey = mesKey.split('-');
+    var fechaMes = new Date(parseInt(partsKey[0]), parseInt(partsKey[1])-1, 1);
+    return fechaMes >= fechaIng;
+  }
+
   // 1. En 0 el mes en curso
   var enCeroMesActual = equipo.filter(function(v) { return v.uf <= 0; });
 
-  // 2. En 0 los últimos 2 meses (mes anterior y el anterior)
+  // 2. En 0 los últimos 2 meses (solo si ya trabajaba esos meses)
   var enCeroUlt2 = equipo.filter(function(v) {
-    return getUfMes(v, mes1Key) <= 0 && getUfMes(v, mes2Key) <= 0;
+    return mesExistia(v, mes1Key) && mesExistia(v, mes2Key) &&
+           getUfMes(v, mes1Key) <= 0 && getUfMes(v, mes2Key) <= 0;
   });
 
-  // 3. En 0 los últimos 3 meses consecutivos
+  // 3. En 0 los últimos 3 meses consecutivos (solo si ya trabajaba esos meses)
   var enCeroUlt3 = equipo.filter(function(v) {
-    return getUfMes(v, mes1Key) <= 0 && getUfMes(v, mes2Key) <= 0 && getUfMes(v, mes3Key) <= 0;
+    return mesExistia(v, mes1Key) && mesExistia(v, mes2Key) && mesExistia(v, mes3Key) &&
+           getUfMes(v, mes1Key) <= 0 && getUfMes(v, mes2Key) <= 0 && getUfMes(v, mes3Key) <= 0;
   });
 
-  // 4. Al menos 4 veces en 0 en los últimos 6 meses (sin contar mes actual)
+  // 4. Al menos 4 veces en 0 en los últimos 6 meses (solo meses que ya trabajaba)
   var meses6 = [mes1Key, mes2Key, mes3Key, mes4Key, mes5Key, mes6Key];
   var enCeroMin4en6 = equipo.filter(function(v) {
-    var count = meses6.filter(function(mk) { return getUfMes(v, mk) <= 0; }).length;
+    var mesesQueExistia = meses6.filter(function(mk) { return mesExistia(v, mk); });
+    if (mesesQueExistia.length < 4) return false; // si tiene menos de 4 meses, no puede cumplir criterio
+    var count = mesesQueExistia.filter(function(mk) { return getUfMes(v, mk) <= 0; }).length;
     return count >= 4;
   });
 
