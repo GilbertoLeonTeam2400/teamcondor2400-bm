@@ -2549,6 +2549,46 @@ function ClasificacionAGVView({ equipo, info, R, RD }) {
                     );
                   })
                 )
+                // ── FILA DE TOTALES DEL GRUPO ──
+                , g.lista.length > 0 && (function(){
+                    var ahora = new Date();
+                    var meses3Labels = [];
+                    for (var i=3;i>=1;i--) {
+                      var d2=new Date(ahora.getFullYear(),ahora.getMonth()-i,1);
+                      var mk2=d2.getFullYear()+"-"+String(d2.getMonth()+1).padStart(2,"0");
+                      var nom2=d2.toLocaleString("es-CL",{month:"short"}).replace(".","").replace(/^./,function(c){return c.toUpperCase();});
+                      var totMk = g.lista.reduce(function(s,v2){
+                        var h=(v2.historial||{})[mk2]; return s+(h&&h.uf?parseFloat(h.uf):0);
+                      },0);
+                      meses3Labels.push({nom:nom2, tot:totMk});
+                    }
+                    var totProm = g.lista.reduce(function(s,v2){return s+v2.prom;},0);
+                    var totActual = g.lista.reduce(function(s,v2){return s+v2.ufMesActual;},0);
+                    return React.createElement('div', {style:{background:g.bg,borderTop:"2px solid "+g.border,padding:"10px 18px",display:"flex",alignItems:"center",gap:14,flexWrap:"wrap",borderBottomLeftRadius:12,borderBottomRightRadius:12}}
+                      , React.createElement('div',{style:{fontSize:11,fontWeight:900,color:g.color,minWidth:200,flex:1}},"📊 TOTAL GRUPO ("+g.lista.length+" ejecutivos)")
+                      , React.createElement('div',{style:{display:"flex",alignItems:"center",gap:6,flexShrink:0}}
+                        , meses3Labels.map(function(m2,mi2){
+                            return React.createElement(React.Fragment,{key:mi2}
+                              , React.createElement('div',{style:{background:"rgba(0,0,0,.06)",borderRadius:8,padding:"5px 10px",textAlign:"center",minWidth:58}}
+                                , React.createElement('div',{style:{fontSize:9,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase"}},m2.nom)
+                                , React.createElement('div',{style:{fontSize:12,fontWeight:900,color:g.color}},fmtUF(m2.tot))
+                              )
+                              , mi2<2 && React.createElement('div',{style:{fontSize:12,color:"#D1D5DB",fontWeight:700}},"→")
+                            );
+                          })
+                      )
+                      , React.createElement('div',{style:{display:"flex",gap:16,flexShrink:0}}
+                        , React.createElement('div',{style:{textAlign:"center"}}
+                          , React.createElement('div',{style:{fontSize:14,fontWeight:900,color:g.color}},fmtUF(totProm)+" UF")
+                          , React.createElement('div',{style:{fontSize:9,color:"#9CA3AF"}}, "Total prom.")
+                        )
+                        , React.createElement('div',{style:{textAlign:"center"}}
+                          , React.createElement('div',{style:{fontSize:14,fontWeight:900,color:"#374151"}},fmtUF(totActual)+" UF")
+                          , React.createElement('div',{style:{fontSize:9,color:"#9CA3AF"}}, "Total mes actual")
+                        )
+                      )
+                    );
+                  })()
           );
         })
     )
