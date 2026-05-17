@@ -2549,42 +2549,47 @@ function ClasificacionAGVView({ equipo, info, R, RD }) {
                     );
                   })
                 )
-                // ── FILA DE TOTALES DEL GRUPO ──
+                // ── CARD DE TOTALES DEL GRUPO ──
                 , g.lista.length > 0 && (function(){
                     var ahora = new Date();
-                    var meses3Labels = [];
+                    var meses3Info = [];
                     for (var i=3;i>=1;i--) {
                       var d2=new Date(ahora.getFullYear(),ahora.getMonth()-i,1);
                       var mk2=d2.getFullYear()+"-"+String(d2.getMonth()+1).padStart(2,"0");
-                      var nom2=d2.toLocaleString("es-CL",{month:"short"}).replace(".","").replace(/^./,function(c){return c.toUpperCase();});
-                      var totMk = g.lista.reduce(function(s,v2){
-                        var h=(v2.historial||{})[mk2]; return s+(h&&h.uf?parseFloat(h.uf):0);
-                      },0);
-                      meses3Labels.push({nom:nom2, tot:totMk});
+                      var nom2=d2.toLocaleString("es-CL",{month:"long"}).replace(/^./,function(c){return c.toUpperCase();});
+                      var totMk=g.lista.reduce(function(s,v2){var h=(v2.historial||{})[mk2];return s+(h&&h.uf?parseFloat(h.uf):0);},0);
+                      var promMk=parseFloat((totMk/g.lista.length).toFixed(2));
+                      meses3Info.push({nom:nom2,tot:totMk,prom:promMk});
                     }
-                    var totProm = g.lista.reduce(function(s,v2){return s+v2.prom;},0);
-                    var totActual = g.lista.reduce(function(s,v2){return s+v2.ufMesActual;},0);
-                    return React.createElement('div', {style:{background:g.bg,borderTop:"2px solid "+g.border,padding:"10px 18px",display:"flex",alignItems:"center",gap:14,flexWrap:"wrap",borderBottomLeftRadius:12,borderBottomRightRadius:12}}
-                      , React.createElement('div',{style:{fontSize:11,fontWeight:900,color:g.color,minWidth:200,flex:1}},"📊 TOTAL GRUPO ("+g.lista.length+" ejecutivos)")
-                      , React.createElement('div',{style:{display:"flex",alignItems:"center",gap:6,flexShrink:0}}
-                        , meses3Labels.map(function(m2,mi2){
-                            return React.createElement(React.Fragment,{key:mi2}
-                              , React.createElement('div',{style:{background:"rgba(0,0,0,.06)",borderRadius:8,padding:"5px 10px",textAlign:"center",minWidth:58}}
-                                , React.createElement('div',{style:{fontSize:9,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase"}},m2.nom)
-                                , React.createElement('div',{style:{fontSize:12,fontWeight:900,color:g.color}},fmtUF(m2.tot))
-                              )
-                              , mi2<2 && React.createElement('div',{style:{fontSize:12,color:"#D1D5DB",fontWeight:700}},"→")
+                    var totProm=g.lista.reduce(function(s,v2){return s+v2.prom;},0);
+                    var promProm=parseFloat((totProm/g.lista.length).toFixed(2));
+                    var totActual=g.lista.reduce(function(s,v2){return s+v2.ufMesActual;},0);
+                    var promActual=parseFloat((totActual/g.lista.length).toFixed(2));
+                    return React.createElement('div', {style:{margin:"0 0 4px 0",background:"linear-gradient(135deg,"+g.bg+",#fff)",border:"2px solid "+g.border,borderTop:"3px solid "+g.color,borderRadius:"0 0 14px 14px",padding:"18px 22px"}}
+                      // Header
+                      , React.createElement('div',{style:{display:"flex",alignItems:"center",gap:8,marginBottom:16}}
+                        , React.createElement('div',{style:{fontSize:18}},g.lista.length===1?"🏅":"📊")
+                        , React.createElement('div',{style:{fontWeight:900,color:g.color,fontSize:14}}, "Resumen del grupo — "+g.lista.length+" ejecutivos")
+                      )
+                      // 4 KPI cards
+                      , React.createElement('div',{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}
+                        // Mes 1 (Feb)
+                        , meses3Info.map(function(m2){
+                            return React.createElement('div',{key:m2.nom,style:{background:"#fff",borderRadius:12,padding:"14px 12px",textAlign:"center",border:"1px solid "+g.border,boxShadow:"0 2px 8px rgba(0,0,0,.04)"}}
+                              , React.createElement('div',{style:{fontSize:10,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8}},m2.nom)
+                              , React.createElement('div',{style:{fontSize:18,fontWeight:900,color:g.color,marginBottom:4}},fmtUF(m2.tot)+" UF")
+                              , React.createElement('div',{style:{height:"1px",background:g.border,margin:"6px 0"}})
+                              , React.createElement('div',{style:{fontSize:11,color:"#6B7280"}}, "Prom. individual")
+                              , React.createElement('div',{style:{fontSize:14,fontWeight:800,color:"#374151"}},fmtUF(m2.prom)+" UF")
                             );
                           })
-                      )
-                      , React.createElement('div',{style:{display:"flex",gap:16,flexShrink:0}}
-                        , React.createElement('div',{style:{textAlign:"center"}}
-                          , React.createElement('div',{style:{fontSize:14,fontWeight:900,color:g.color}},fmtUF(totProm)+" UF")
-                          , React.createElement('div',{style:{fontSize:9,color:"#9CA3AF"}}, "Total prom.")
-                        )
-                        , React.createElement('div',{style:{textAlign:"center"}}
-                          , React.createElement('div',{style:{fontSize:14,fontWeight:900,color:"#374151"}},fmtUF(totActual)+" UF")
-                          , React.createElement('div',{style:{fontSize:9,color:"#9CA3AF"}}, "Total mes actual")
+                        // Mes actual
+                        , React.createElement('div',{style:{background:g.color,borderRadius:12,padding:"14px 12px",textAlign:"center",boxShadow:"0 4px 12px rgba(0,0,0,.15)"}}
+                          , React.createElement('div',{style:{fontSize:10,fontWeight:700,color:"rgba(255,255,255,.7)",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8}},"Mes Actual")
+                          , React.createElement('div',{style:{fontSize:18,fontWeight:900,color:"#fff",marginBottom:4}},fmtUF(totActual)+" UF")
+                          , React.createElement('div',{style:{height:"1px",background:"rgba(255,255,255,.3)",margin:"6px 0"}})
+                          , React.createElement('div',{style:{fontSize:11,color:"rgba(255,255,255,.7)"}}, "Prom. individual")
+                          , React.createElement('div',{style:{fontSize:14,fontWeight:800,color:"#fff"}},fmtUF(promActual)+" UF")
                         )
                       )
                     );
