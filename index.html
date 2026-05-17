@@ -2571,9 +2571,9 @@ function ClasificacionAGVView({ equipo, info, R, RD }) {
                         , React.createElement('div',{style:{fontSize:18}},g.lista.length===1?"🏅":"📊")
                         , React.createElement('div',{style:{fontWeight:900,color:g.color,fontSize:14}}, "Resumen del grupo — "+g.lista.length+" ejecutivos")
                       )
-                      // 4 KPI cards
-                      , React.createElement('div',{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}
-                        // Mes 1 (Feb)
+                      // 4 KPI cards + promedio 3 meses
+                      , React.createElement('div',{style:{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10}}
+                        // 3 meses históricos
                         , meses3Info.map(function(m2){
                             return React.createElement('div',{key:m2.nom,style:{background:"#fff",borderRadius:12,padding:"14px 12px",textAlign:"center",border:"1px solid "+g.border,boxShadow:"0 2px 8px rgba(0,0,0,.04)"}}
                               , React.createElement('div',{style:{fontSize:10,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8}},m2.nom)
@@ -2583,6 +2583,14 @@ function ClasificacionAGVView({ equipo, info, R, RD }) {
                               , React.createElement('div',{style:{fontSize:14,fontWeight:800,color:"#374151"}},fmtUF(m2.prom)+" UF")
                             );
                           })
+                        // Promedio 3 meses (tendencia)
+                        , React.createElement('div',{style:{background:"#fff",borderRadius:12,padding:"14px 12px",textAlign:"center",border:"2px solid "+g.color,boxShadow:"0 2px 8px rgba(0,0,0,.08)"}}
+                          , React.createElement('div',{style:{fontSize:10,fontWeight:700,color:g.color,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8}},"📈 Prom. 3 meses")
+                          , React.createElement('div',{style:{fontSize:18,fontWeight:900,color:g.color,marginBottom:4}},fmtUF(totProm)+" UF")
+                          , React.createElement('div',{style:{height:"1px",background:g.border,margin:"6px 0"}})
+                          , React.createElement('div',{style:{fontSize:11,color:"#6B7280"}}, "Tendencia grupo")
+                          , React.createElement('div',{style:{fontSize:14,fontWeight:800,color:"#374151"}},fmtUF(promProm)+" UF / exec")
+                        )
                         // Mes actual
                         , React.createElement('div',{style:{background:g.color,borderRadius:12,padding:"14px 12px",textAlign:"center",boxShadow:"0 4px 12px rgba(0,0,0,.15)"}}
                           , React.createElement('div',{style:{fontSize:10,fontWeight:700,color:"rgba(255,255,255,.7)",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8}},"Mes Actual")
