@@ -2815,15 +2815,16 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD }) {
     var d2 = new Date(new Date().getFullYear(), new Date().getMonth()-i, 1);
     var mk2 = d2.getFullYear()+"-"+String(d2.getMonth()+1).padStart(2,"0");
     var nom2 = d2.toLocaleString("es-CL",{month:"long",year:"numeric"}).replace(/^./,function(c){return c.toUpperCase();});
-    var totC2=0,totS2=0,totP2=0,totR2=0,totB2=0,totCt2=0;
+    var totC2=0,totS2=0,totP2=0,totR2=0,totB2=0,totCt2=0,totUF2=0;
     equipo.forEach(function(v){
       var h=(v.historial||{})[mk2]||{};
       totC2+=parseInt(h.dpsVenta)||0; totS2+=parseInt(h.dpsSinVenta)||0;
       totP2+=parseInt(h.dpsPendiente)||0; totR2+=parseInt(h.dpsRechazado)||0;
       totB2+=parseInt(h.nBenef)||0; totCt2+=parseInt(h.cttosDig)||0;
+      totUF2+=parseFloat(h.uf)||0;
     });
     var totT2=totC2+totS2+totP2+totR2;
-    mesesDisp.push({mk:mk2,nom:nom2,totC:totC2,totS:totS2,totP:totP2,totR:totR2,totT:totT2,totB:totB2,totCt:totCt2,tasa:totT2>0?Math.round((totC2/totT2)*100):0});
+    mesesDisp.push({mk:mk2,nom:nom2,totC:totC2,totS:totS2,totP:totP2,totR:totR2,totT:totT2,totB:totB2,totCt:totCt2,totUF:parseFloat(totUF2.toFixed(2)),tasa:totT2>0?Math.round((totC2/totT2)*100):0});
   }
 
   var mesKey = mesSeleccionado;
@@ -2926,6 +2927,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD }) {
             ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:activo?"#fff":tieneData?"#374151":"#9CA3AF",marginBottom:6}},m.nom.split(" de ")[0])
             ,tieneData
               ?React.createElement("div",null
+                  ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:activo?"#fff":tieneData?"#374151":"#9CA3AF",marginBottom:2}},m.totUF>0?m.totUF+" UF vendidas":"Sin UF")
                   ,React.createElement("div",{style:{fontSize:11,color:activo?"rgba(255,255,255,.8)":"#6B7280"}},m.totT+" DPS · "+m.tasa+"% cierre")
                   ,React.createElement("div",{style:{fontSize:10,color:activo?"rgba(255,255,255,.6)":"#9CA3AF",marginTop:2}},m.totB+" benef · "+m.totCt+" cttos")
                 )
@@ -2936,7 +2938,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD }) {
 
     // KPIs resumen
     ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16}}
-      ,[{l:"Con Venta",v:totConVenta,c:"#16A34A",bg:"#F0FDF4"},{l:"Sin Venta",v:totSinVenta,c:"#2563EB",bg:"#EFF6FF"},{l:"Pendientes",v:totPendiente,c:"#D97706",bg:"#FFFBEB"},{l:"Rechazadas",v:totRechazado,c:"#DC2626",bg:"#FFF1F2"}]
+      ,[{l:"DPS Con Venta",v:totConVenta,c:"#16A34A",bg:"#F0FDF4"},{l:"DPS Sin Venta",v:totSinVenta,c:"#2563EB",bg:"#EFF6FF"},{l:"DPS Pendientes",v:totPendiente,c:"#D97706",bg:"#FFFBEB"},{l:"DPS Rechazadas",v:totRechazado,c:"#DC2626",bg:"#FFF1F2"}]
         .map(function(k){return React.createElement("div",{key:k.l,style:{background:k.bg,borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #E5E7EB"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:k.c}},k.v) ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},k.l));})
     )
     ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}
@@ -4379,7 +4381,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
     equipo:    [["gestion","👥 Gestionar Equipo"],["carga","📥 Cargar UF/DPS"],["editar","✏️ Editar Estadísticas"],["metricas","📊 Carga Reporte Diario de Métricas"]],
     metas:     [["meta","🎯 Meta del Equipo"],["uflineales","📈 UF's Lineales"]],
     contenido: [["gestPremios","🏆 Gestionar Premios"],["gestDocs","📂 Gestionar Docs"],["excel","📂 Carga Excel"]],
-    analisis:  [["clasificacion","📊 Clasificación AGV"],["agentes0","🚨 Agentes en 0"],["dpsanalisis","🔵 Análisis DPS"],["planagv","📋 Plan de Trabajo AGV"]],
+    analisis:  [["clasificacion","📊 Clasificación AGV"],["agentes0","🚨 Agentes en 0"],["dpsanalisis","📊 Análisis Reporte Diario de Métricas"],["planagv","📋 Plan de Trabajo AGV"]],
   };
   const [bulk,     setBulk]     = useState({});
   const [bulkOk,   setBulkOk]   = useState(false);
