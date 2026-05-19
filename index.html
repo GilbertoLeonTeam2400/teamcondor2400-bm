@@ -9454,6 +9454,8 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
           var ufFaltan = siguienteTramo ? parseFloat((siguienteTramo.desde - ufSim2).toFixed(2)) : 0;
 
           // ── Tendencia ──
+          var metaV2 = v.metaPropia || v.metaUF || ufMeta || 1;
+          var pct = metaV2 > 0 ? ufReal / metaV2 : 0;
           var ritmo = info.elapsed > 0 ? ufReal/info.elapsed : 0;
           var proyFin = ritmo * info.wdTotal;
           var tendTxt = proyFin >= (v.metaUF||ufMeta) ? "↗️ ¡Vas en camino a tu meta!" : proyFin >= (v.metaUF||ufMeta)*0.7 ? "➡️ Ritmo ajustado — acelera esta semana" : "↘️ Hay que acelerar para alcanzar la meta";
