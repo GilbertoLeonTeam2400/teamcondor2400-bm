@@ -5954,47 +5954,6 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                         equipo:equipo, setEquipo:setEquipo, RD:RD, fmtUF2:fmtUF2
                       });
                     })()
-                  , form.vid !== "" && pinFormOk && (
-                    React.createElement('div', null
-                  , React.createElement('div', { style: {display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16} }
-                    , React.createElement('div', { style: {display:"flex",alignItems:"center",gap:10} }
-                      , (function(){
-                          var vFoto = equipo.find(function(e){return String(e.id)===String(form.vid);});
-                          var initials = vFoto && vFoto.nombre ? vFoto.nombre.split(' ').slice(0,2).map(function(p){return p[0];}).join('') : '?';
-                          return React.createElement('div', { style: {width:40,height:40,borderRadius:"50%",overflow:"hidden",border:"2px solid "+RD,flexShrink:0,background:vFoto&&vFoto.fotoUrl?"#000":"rgba(233,7,41,.1)",display:"flex",alignItems:"center",justifyContent:"center"} }
-                            , vFoto && vFoto.fotoUrl
-                              ? React.createElement('img', { src: vFoto.fotoUrl, style: {width:"100%",height:"100%",objectFit:"cover"}, alt: vFoto.nombre })
-                              : React.createElement('span', { style: {fontSize:14,fontWeight:900,color:RD} }, initials)
-                          );
-                        })()
-                      , React.createElement('div', { style: {fontSize:13,fontWeight:800,color:RD,textTransform:"uppercase",letterSpacing:"0.1em"} }, "2. Actividad del día")
-                    )
-                    , React.createElement('button', {
-                        onClick: function(){setPinFormOk(false);setPinFormulario("");},
-                        style: {background:"#FEE2E2",color:"#B91C1C",border:"none",borderRadius:10,padding:"6px 14px",fontSize:12,cursor:"pointer",fontFamily:"inherit",fontWeight:700}
-                      }, "🔒 Cerrar sesion")
-                  )
-                  , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3242}}
-
-                    , React.createElement('div', { style: {background:"#F8FAFC",borderRadius:12,padding:"12px 14px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3244}}
-                      , React.createElement('label', { style: Object.assign({},LBL,{fontSize:11,marginBottom:4}), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3245}}, "Contactos efectivos" )
-                      , React.createElement('input', { type: "number", min: "0", value: form.contactos, onChange: function(e){setForm(Object.assign({},form,{contactos:e.target.value}));}, onFocus: function(e){if(e.target.value==="0")setForm(Object.assign({},form,{contactos:""}));}, style: Object.assign({},INP), placeholder: "0", __self: this, __source: {fileName: _jsxFileName, lineNumber: 3246}} )
-                    )
-
-                    , React.createElement('div', { style: {background:"#F8FAFC",borderRadius:12,padding:"12px 14px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3249}}
-                      , React.createElement('label', { style: Object.assign({},LBL,{fontSize:11,marginBottom:4}), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3250}}, "Cotizaciones enviadas" )
-                      , React.createElement('input', { type: "number", min: "0", value: form.cot, onChange: function(e){setForm(Object.assign({},form,{cot:e.target.value}));}, onFocus: function(e){if(e.target.value==="0")setForm(Object.assign({},form,{cot:""}));}, style: Object.assign({},INP), placeholder: "0", __self: this, __source: {fileName: _jsxFileName, lineNumber: 3251}} )
-                    )
-
-                    , React.createElement('div', { style: {background:"#F0FDF4",borderRadius:12,padding:"12px 14px",border:"2px solid rgba(22,163,74,.25)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3254}}
-                      , React.createElement('label', { style: Object.assign({},LBL,{color:"#16A34A",fontSize:11,marginBottom:4}), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3255}}, "💚 DPS realizadas hoy *"   )
-                      , React.createElement('input', { type: "number", min: "0", value: form.dps, onChange: function(e){setForm(Object.assign({},form,{dps:e.target.value}));}, onFocus: function(e){if(e.target.value==="0")setForm(Object.assign({},form,{dps:""}));}, onBlur: function(e){if(e.target.value===""||e.target.value==="0")setForm(Object.assign({},form,{dps:"0"}));}, style: Object.assign({},INP,{fontWeight:900,fontSize:22,color:"#16A34A"}), placeholder: "0", __self: this, __source: {fileName: _jsxFileName, lineNumber: 3256}} )
-                      , React.createElement('div', { style: {fontSize:10,color:"#16A34A",marginTop:3}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3257}}, "Número de DPS tomadas hoy — campo obligatorio"   )
-                    )
-
-
-                  )
-
                   /* ── Sección 1: Cierres del día ── */
                   , React.createElement('div', { style: {fontSize:13,fontWeight:800,color:RD,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:10} }, "1. Cierres del día"   )
                   , React.createElement('div', { style: {background:"#ffffff",borderRadius:12,padding:"16px",border:"1px solid rgba(233,7,41,.15)",marginBottom:16}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3265}}
@@ -6034,6 +5993,47 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
 
                     /* Formulario nuevo cierre */
                     , React.createElement(NuevoCierreForm, { BTN: BTN, INP: INP, RD: RD, cierresHoy: cierresHoy, setCierresHoy: setCierresHoy, crmData: crmData, TODAY: TODAY, onGuardar: guardarCierreInmediato })
+                  )
+
+                  , form.vid !== "" && pinFormOk && (
+                    React.createElement('div', null
+                  , React.createElement('div', { style: {display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16} }
+                    , React.createElement('div', { style: {display:"flex",alignItems:"center",gap:10} }
+                      , (function(){
+                          var vFoto = equipo.find(function(e){return String(e.id)===String(form.vid);});
+                          var initials = vFoto && vFoto.nombre ? vFoto.nombre.split(' ').slice(0,2).map(function(p){return p[0];}).join('') : '?';
+                          return React.createElement('div', { style: {width:40,height:40,borderRadius:"50%",overflow:"hidden",border:"2px solid "+RD,flexShrink:0,background:vFoto&&vFoto.fotoUrl?"#000":"rgba(233,7,41,.1)",display:"flex",alignItems:"center",justifyContent:"center"} }
+                            , vFoto && vFoto.fotoUrl
+                              ? React.createElement('img', { src: vFoto.fotoUrl, style: {width:"100%",height:"100%",objectFit:"cover"}, alt: vFoto.nombre })
+                              : React.createElement('span', { style: {fontSize:14,fontWeight:900,color:RD} }, initials)
+                          );
+                        })()
+                      , React.createElement('div', { style: {fontSize:13,fontWeight:800,color:RD,textTransform:"uppercase",letterSpacing:"0.1em"} }, "2. Actividad del día")
+                    )
+                    , React.createElement('button', {
+                        onClick: function(){setPinFormOk(false);setPinFormulario("");},
+                        style: {background:"#FEE2E2",color:"#B91C1C",border:"none",borderRadius:10,padding:"6px 14px",fontSize:12,cursor:"pointer",fontFamily:"inherit",fontWeight:700}
+                      }, "🔒 Cerrar sesion")
+                  )
+                  , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3242}}
+
+                    , React.createElement('div', { style: {background:"#F8FAFC",borderRadius:12,padding:"12px 14px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3244}}
+                      , React.createElement('label', { style: Object.assign({},LBL,{fontSize:11,marginBottom:4}), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3245}}, "Contactos efectivos" )
+                      , React.createElement('input', { type: "number", min: "0", value: form.contactos, onChange: function(e){setForm(Object.assign({},form,{contactos:e.target.value}));}, onFocus: function(e){if(e.target.value==="0")setForm(Object.assign({},form,{contactos:""}));}, style: Object.assign({},INP), placeholder: "0", __self: this, __source: {fileName: _jsxFileName, lineNumber: 3246}} )
+                    )
+
+                    , React.createElement('div', { style: {background:"#F8FAFC",borderRadius:12,padding:"12px 14px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3249}}
+                      , React.createElement('label', { style: Object.assign({},LBL,{fontSize:11,marginBottom:4}), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3250}}, "Cotizaciones enviadas" )
+                      , React.createElement('input', { type: "number", min: "0", value: form.cot, onChange: function(e){setForm(Object.assign({},form,{cot:e.target.value}));}, onFocus: function(e){if(e.target.value==="0")setForm(Object.assign({},form,{cot:""}));}, style: Object.assign({},INP), placeholder: "0", __self: this, __source: {fileName: _jsxFileName, lineNumber: 3251}} )
+                    )
+
+                    , React.createElement('div', { style: {background:"#F0FDF4",borderRadius:12,padding:"12px 14px",border:"2px solid rgba(22,163,74,.25)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3254}}
+                      , React.createElement('label', { style: Object.assign({},LBL,{color:"#16A34A",fontSize:11,marginBottom:4}), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3255}}, "💚 DPS realizadas hoy *"   )
+                      , React.createElement('input', { type: "number", min: "0", value: form.dps, onChange: function(e){setForm(Object.assign({},form,{dps:e.target.value}));}, onFocus: function(e){if(e.target.value==="0")setForm(Object.assign({},form,{dps:""}));}, onBlur: function(e){if(e.target.value===""||e.target.value==="0")setForm(Object.assign({},form,{dps:"0"}));}, style: Object.assign({},INP,{fontWeight:900,fontSize:22,color:"#16A34A"}), placeholder: "0", __self: this, __source: {fileName: _jsxFileName, lineNumber: 3256}} )
+                      , React.createElement('div', { style: {fontSize:10,color:"#16A34A",marginTop:3}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3257}}, "Número de DPS tomadas hoy — campo obligatorio"   )
+                    )
+
+
                   )
 
                   /* ── Sección 3: Notas ── */
@@ -6196,8 +6196,17 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
             ):(
               React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3460}}
                 , React.createElement('div', { style: {display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3461}}
-                  , React.createElement('div', { style: {fontSize:20,fontWeight:900,color:RD}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3462}}, "Mi Productividad" )
-                  , React.createElement('button', { onClick: histLogout, style: {background:"#FEE2E2",color:R,border:"none",borderRadius:10,padding:"8px 16px",fontSize:13,cursor:"pointer",fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3463}}, "Cerrar sesion" )
+                  , React.createElement('div', { style: {display:"flex",alignItems:"center",gap:10} }
+                    , (function(){
+                        var vH=equipo.find(function(e){return String(e.id)===String(histVid);});
+                        var ini=vH&&vH.nombre?vH.nombre.split(' ').slice(0,2).map(function(p){return p[0];}).join(''):'?';
+                        return React.createElement('div',{style:{width:38,height:38,borderRadius:"50%",overflow:"hidden",border:"2px solid "+RD,flexShrink:0,background:vH&&vH.fotoUrl?"#000":"rgba(233,7,41,.1)",display:"flex",alignItems:"center",justifyContent:"center"}}
+                          ,vH&&vH.fotoUrl?React.createElement('img',{src:vH.fotoUrl,style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement('span',{style:{fontSize:13,fontWeight:900,color:RD}},ini)
+                        );
+                      })()
+                    , React.createElement('div', { style: {fontSize:20,fontWeight:900,color:RD} }, "Mi Productividad" )
+                  )
+                  , React.createElement('button', { onClick: histLogout, style: {background:"#FEE2E2",color:R,border:"none",borderRadius:10,padding:"8px 16px",fontSize:13,cursor:"pointer",fontWeight:700} }, "Cerrar sesion" )
                 )
                 , histV && (
                   React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3466}}
@@ -6767,11 +6776,19 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
           React.createElement('div', { style: {maxWidth:760,margin:"0 auto"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3593}}
             , React.createElement('div', { style: {background:"#fff",borderRadius:20,padding:"28px 26px",boxShadow:"0 4px 24px rgba(233,7,41,.09)",marginBottom:24,border:"1px solid rgba(233,7,41,.1)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3594}}
               /* Name selector */
-              , React.createElement('div', { style: {marginBottom:20}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3596}}
+              , React.createElement('div', { style: {marginBottom:20, display:"flex", alignItems:"center", gap:12} }
+                , recoNombre && (function(){
+                    var vR=equipo.find(function(e){return e.nombre===recoNombre;});
+                    if(!vR) return null;
+                    var ini=vR.nombre.split(' ').slice(0,2).map(function(p){return p[0];}).join('');
+                    return React.createElement('div',{style:{width:44,height:44,borderRadius:"50%",overflow:"hidden",border:"2px solid "+RD,flexShrink:0,background:vR.fotoUrl?"#000":"rgba(233,7,41,.1)",display:"flex",alignItems:"center",justifyContent:"center"}}
+                      ,vR.fotoUrl?React.createElement('img',{src:vR.fotoUrl,style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement('span',{style:{fontSize:14,fontWeight:900,color:RD}},ini)
+                    );
+                  })()
                 , React.createElement('select', { value: recoNombre, onChange: function(e){setRecoNombre(e.target.value);},
-                  style: {width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid rgba(233,7,41,.2)",fontSize:15,fontWeight:600,background:"#fff"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3597}}
-                  , React.createElement('option', { value: "", __self: this, __source: {fileName: _jsxFileName, lineNumber: 3599}}, "👤 Selecciona tu nombre para personalizar"     )
-                  , equipo.map(function(v){return React.createElement('option', { key: v.id, value: v.nombre, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3600}}, v.nombre);})
+                  style: {flex:1,padding:"12px 14px",borderRadius:12,border:"1.5px solid rgba(233,7,41,.2)",fontSize:15,fontWeight:600,background:"#fff"} }
+                  , React.createElement('option', { value: "" }, "👤 Selecciona tu nombre para personalizar" )
+                  , equipo.map(function(v){return React.createElement('option', { key: v.id, value: v.nombre }, v.nombre);})
                 )
               )
 
@@ -9485,9 +9502,19 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
 
       /* ── HEADER ── */
       , React.createElement('div', { style:{background:"linear-gradient(135deg,"+RD+","+R+")",borderRadius:16,padding:"22px 24px",color:"#fff",marginBottom:20} }
-        , React.createElement('div', { style:{fontSize:11,color:"rgba(255,255,255,.7)",textTransform:"uppercase",letterSpacing:"0.2em",marginBottom:4} }, "Mi Meta de este Mes")
-        , React.createElement('div', { style:{fontSize:22,fontWeight:900} }, "💰 ¿Cuánto ganarás en ", info.mes.split(" ")[0], pinOk && v ? ", "+(v.nombre.split(" ")[0])+"?" : "?")
-        , React.createElement('div', { style:{fontSize:13,color:"rgba(255,255,255,.7)",marginTop:4} }, pinOk && v ? "¡Hola "+v.nombre.split(" ")[0]+"! Simula tus ganancias y comprométete con tu meta." : "Elige tu meta, simula tus ganancias y comprométete.")
+        , React.createElement('div', { style:{display:"flex",alignItems:"center",gap:12,marginBottom:8} }
+          , pinOk && v && (function(){
+              var ini=v.nombre.split(' ').slice(0,2).map(function(p){return p[0];}).join('');
+              return React.createElement('div',{style:{width:38,height:38,borderRadius:"50%",overflow:"hidden",border:"2px solid rgba(255,255,255,.5)",flexShrink:0,background:v.fotoUrl?"#000":"rgba(255,255,255,.2)",display:"flex",alignItems:"center",justifyContent:"center"}}
+                ,v.fotoUrl?React.createElement('img',{src:v.fotoUrl,style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement('span',{style:{fontSize:13,fontWeight:900,color:"#fff"}},ini)
+              );
+            })()
+          , React.createElement('div', null
+            , React.createElement('div', { style:{fontSize:11,color:"rgba(255,255,255,.7)",textTransform:"uppercase",letterSpacing:"0.2em",marginBottom:2} }, "Mi Meta de este Mes")
+            , React.createElement('div', { style:{fontSize:22,fontWeight:900} }, "💰 ¿Cuánto ganarás en ", info.mes.split(" ")[0], pinOk && v ? ", "+(v.nombre.split(" ")[0])+"?" : "?")
+            , React.createElement('div', { style:{fontSize:13,color:"rgba(255,255,255,.7)",marginTop:2} }, pinOk && v ? "¡Hola "+v.nombre.split(" ")[0]+"! Simula tus ganancias y comprométete con tu meta." : "Elige tu meta, simula tus ganancias y comprométete.")
+          )
+        )
       )
 
       /* ── LOGIN ── */
