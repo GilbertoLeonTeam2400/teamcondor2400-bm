@@ -4596,6 +4596,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
 
   //  UI state 
   const [tab,      setTab]      = useState("equipo");
+  const [calcKey,  setCalcKey]  = useState(0); // reset calculadora session on tab leave
   const [selId,    setSelId]    = useState(null);
   const [metaMod,  setMetaMod]  = useState(null);
   // Supervisor
@@ -5313,7 +5314,26 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
           )
           , React.createElement('div', { className:"main-tabs", style: {display:"flex",gap:3,overflowX:"auto",justifyContent:"center",flexWrap:"wrap"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2998}}
             , TABS.map(function(t){
-              return React.createElement('button', { key: t.k, onClick: function(){setTab(t.k);}, style: {padding:"10px 16px",border:"none",borderRadius:"10px 10px 0 0",cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:12,whiteSpace:"nowrap",background:tab===t.k?BG:"rgba(255,255,255,.1)",color:tab===t.k?R:"rgba(255,255,255,.8)",transition:"all .2s"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3000}}, t.l);
+              return React.createElement('button', { key: t.k, onClick: function(){
+                // Auto-logout cuando sale de formulario
+                if(tab==="formulario" && t.k!=="formulario" && pinFormOk) {
+                  setPinFormOk(false); setPinFormulario(""); setPinFormErr(false);
+                  setForm({vid:"",contactos:"",cot:"",cierres:"",uf:"",dps:"0",nota:"",hombres:"0",mujeres:"0",conecta:"0"});
+                }
+                // Auto-logout cuando sale de historial
+                if(tab==="historial" && t.k!=="historial" && histAcc) {
+                  histLogout();
+                }
+                // Auto-logout cuando sale de CRM
+                if(tab==="crm" && t.k!=="crm" && crmAcc) {
+                  crmLogout();
+                }
+                // Auto-logout calculadora (remount)
+                if(tab==="calculadora" && t.k!=="calculadora") {
+                  setCalcKey(function(k){return k+1;});
+                }
+                setTab(t.k);
+              }, style: {padding:"10px 16px",border:"none",borderRadius:"10px 10px 0 0",cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:12,whiteSpace:"nowrap",background:tab===t.k?BG:"rgba(255,255,255,.1)",color:tab===t.k?R:"rgba(255,255,255,.8)",transition:"all .2s"} }, t.l);
             })
           )
         )
@@ -5882,10 +5902,10 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
           React.createElement('div', { style: {maxWidth:600,margin:"0 auto"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3190}}
             , React.createElement('div', { style: {background:"linear-gradient(135deg,"+RD+","+R+")",borderRadius:16,padding:"18px 22px",color:"#fff",marginBottom:20,display:"flex",alignItems:"center",gap:18} }
               , (function(){
-                  var vEjec = equipo.find(function(e){return e.id===Number(form.vid);});
+                  var vEjec = pinFormOk ? equipo.find(function(e){return e.id===Number(form.vid);}) : null;
                   var ufPersonal = vEjec ? (parseFloat(vEjec.uf)||0) : 0;
                   var metaPersonal = vEjec && vEjec.metaUF>0 ? vEjec.metaUF : metaUFSafe;
-                  var pctPersonal = metaPersonal>0 ? Math.min(Math.round((ufPersonal/metaPersonal)*100),100) : 0;
+                  var pctPersonal = vEjec && metaPersonal>0 ? Math.min(Math.round((ufPersonal/metaPersonal)*100),100) : 0;
                   var faltaPersonal = Math.max(0, metaPersonal - ufPersonal);
                   return React.createElement(React.Fragment, null
                     , React.createElement('div', { style: {textAlign:"center",minWidth:80} },
@@ -6772,7 +6792,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
         /* ===== CUÁNTO GANO ===== */
         , tab==="calculadora" && (
           React.createElement('div', { style: {maxWidth:560,margin:"0 auto",padding:"0 4px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3587}}
-            , React.createElement(CalculadoraGanancias, { equipo: equipo, setEquipo: setEquipo, info: info, premioConecta: premioConecta, nombrePremio: nombrePremio, tablaPremios: tablaPremios, premiosImgs: premiosImgs })
+            , React.createElement(CalculadoraGanancias, { key: calcKey, equipo: equipo, setEquipo: setEquipo, info: info, premioConecta: premioConecta, nombrePremio: nombrePremio, tablaPremios: tablaPremios, premiosImgs: premiosImgs })
           )
         )
         /* ===== INFO Y DOCS IMPORTANTES ===== */
