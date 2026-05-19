@@ -3577,6 +3577,145 @@ function PlanNotaEditor({ vid, nota }) {
   );
 }
 
+function BenchmarkView({ benchmark, setBenchmark, equipo, info, R, RD }) {
+  var [msg, setMsg] = React.useState("");
+  var [preview, setPreview] = React.useState(null);
+  var [mesLabel, setMesLabel] = React.useState("");
+  var [cargando, setCargando] = React.useState(false);
+
+  function handleFile(e) {
+    var file = e.target.files[0]; if(!file) return;
+    if(!mesLabel.trim()){ setMsg("⚠️ Primero escribe el nombre del mes (ej: Enero 2026)"); return; }
+    setCargando(true); setMsg("⏳ Leyendo archivo...");
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      try {
+        var filas = [];
+        if(window.XLSX) {
+          var wb = window.XLSX.read(ev.target.result, {type:"binary"});
+          var sheetName = wb.SheetNames.find(function(s){ return s.toLowerCase().replace(/\s/g,"").indexOf("resumenagente")>=0; }) || wb.SheetNames[0];
+          var ws = wb.Sheets[sheetName];
+          var rawArr = window.XLSX.utils.sheet_to_json(ws, {header:1, defval:""});
+          var headerRow = -1;
+          for(var ri=0; ri<Math.min(rawArr.length,10); ri++) {
+            var rowStr = rawArr[ri].map(function(c){return String(c).trim().toUpperCase();});
+            if(rowStr.indexOf("CC")>=0 && rowStr.some(function(c){return c.indexOf("NOMBRE")>=0;})) { headerRow=ri; break; }
+          }
+          if(headerRow<0){ setMsg("❌ No se encontró fila de encabezados."); setCargando(false); return; }
+          var headers = rawArr[headerRow].map(function(c){return String(c).trim();});
+          for(var di=headerRow+1; di<rawArr.length; di++) {
+            var dataRow=rawArr[di];
+            if(!dataRow||dataRow.every(function(c){return !c&&c!==0;})) continue;
+            var obj={}; headers.forEach(function(h,j){obj[h]=dataRow[j]!==undefined?dataRow[j]:"";});
+            filas.push(obj);
+          }
+        }
+        var miEquipo = filas.filter(function(f){ return parseInt(String(f["CC"]||f["cc"]||"").trim())===2400; });
+        if(!miEquipo.length){ setMsg("⚠️ No se encontraron filas CC=2400."); setCargando(false); return; }
+
+        // Sumar totales del equipo
+        var totUF=0, totDps=0, totCV=0, totSV=0, totP=0, totR=0, totB=0, totCt=0;
+        miEquipo.forEach(function(f){
+          totUF  += parseFloat(String(f["UF  DIG."]||f["UF DIG."]||f["UF"]||"0").replace(",","."))||0;
+          totCV  += parseInt(String(f["DPS c/ venta"]||f["DPS c/venta"]||"0"))||0;
+          totSV  += parseInt(String(f["DPS sin venta"]||"0"))||0;
+          totP   += parseInt(String(f["DPS Pendientes"]||f["DPS Pendiente"]||"0"))||0;
+          totR   += parseInt(String(f["Rechazadas"]||f["Rechaz"]||"0"))||0;
+          totB   += parseInt(String(f["N° Benef"]||f["N°Benef"]||"0"))||0;
+          totCt  += parseInt(String(f["Cttos Dig"]||"0"))||0;
+        });
+        totDps = totCV+totSV+totP+totR;
+        var tasa = totDps>0?Math.round((totCV/totDps)*100):0;
+        setPreview({uf:parseFloat(totUF.toFixed(2)),dps:totDps,dpsCV:totCV,dpsSV:totSV,dpsP:totP,dpsR:totR,nBenef:totB,cttosDig:totCt,tasa:tasa,mesLabel:mesLabel.trim()});
+        setMsg("✅ "+miEquipo.length+" ejecutivos leídos. Revisa y confirma.");
+        setCargando(false);
+      } catch(err){ setMsg("❌ Error: "+err.message); setCargando(false); }
+    };
+    reader.onerror=function(){ setMsg("❌ No se pudo leer el archivo."); setCargando(false); };
+    if(!window.XLSX){
+      var script=document.createElement("script");
+      script.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+      script.onload=function(){reader.readAsBinaryString(file);};
+      document.head.appendChild(script);
+    } else { reader.readAsBinaryString(file); }
+  }
+
+  function confirmar() {
+    if(!preview) return;
+    setBenchmark(preview);
+    if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","benchmark"), preview)
+        .then(function(){ setMsg("✅ Benchmark guardado: "+preview.mesLabel); setPreview(null); })
+        .catch(function(e){ setMsg("⚠️ Error Firebase: "+e.message); });
+    else { setMsg("✅ Benchmark guardado localmente."); setPreview(null); }
+  }
+
+  var METRICAS = benchmark ? [
+    {l:"UF Total",          v:benchmark.uf,      c:"#C9A84C"},
+    {l:"DPS Con Venta",     v:benchmark.dpsCV,   c:"#16A34A"},
+    {l:"DPS Sin Venta",     v:benchmark.dpsSV,   c:"#2563EB"},
+    {l:"DPS Pendientes",    v:benchmark.dpsP,    c:"#D97706"},
+    {l:"DPS Rechazadas",    v:benchmark.dpsR,    c:"#DC2626"},
+    {l:"N° Beneficiarios",  v:benchmark.nBenef,  c:"#0891B2"},
+    {l:"Contratos Dig.",    v:benchmark.cttosDig,c:"#059669"},
+    {l:"Tasa Cierre",       v:benchmark.tasa+"%",c:"#7C3AED"},
+  ] : [];
+
+  return React.createElement("div",{style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(233,7,41,.09)"}}
+    ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:RD,marginBottom:4}},"📌 Mes Benchmark — Referencia de Comparación")
+    ,React.createElement("div",{style:{fontSize:12,color:"#6B7280",marginBottom:20}},"Elige tu mejor mes o el que quieras como referencia. Se mostrará como comparativo en el dashboard principal.")
+
+    // Benchmark actual
+    ,benchmark && React.createElement("div",{style:{background:"linear-gradient(135deg,#1E3A5F,#1D4ED8)",borderRadius:14,padding:"16px 20px",marginBottom:20,color:"#fff"}}
+      ,React.createElement("div",{style:{fontSize:11,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:"0.15em",marginBottom:4}},"📌 Benchmark actual")
+      ,React.createElement("div",{style:{fontSize:16,fontWeight:900,marginBottom:12}},benchmark.mesLabel)
+      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}
+        ,METRICAS.map(function(m){
+          return React.createElement("div",{key:m.l,style:{background:"rgba(255,255,255,.1)",borderRadius:10,padding:"10px",textAlign:"center"}}
+            ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:"#fff"}},m.v)
+            ,React.createElement("div",{style:{fontSize:9,color:"rgba(255,255,255,.6)",textTransform:"uppercase",marginTop:2}},m.l)
+          );
+        })
+      )
+    )
+
+    // Cargar nuevo benchmark
+    ,React.createElement("div",{style:{marginBottom:16}}
+      ,React.createElement("div",{style:{fontSize:13,fontWeight:700,color:"#374151",marginBottom:8}},"Cargar nuevo mes benchmark:")
+      ,React.createElement("input",{type:"text",value:mesLabel,onChange:function(e){setMesLabel(e.target.value);},
+          placeholder:"Nombre del mes (ej: Enero 2026, Mejor Mes)",
+          style:{width:"100%",padding:"10px 14px",borderRadius:10,border:"1.5px solid #E5E7EB",fontSize:13,fontFamily:"inherit",marginBottom:10,boxSizing:"border-box"}})
+      ,React.createElement("label",{style:{display:"inline-flex",alignItems:"center",gap:8,background:R,color:"#fff",borderRadius:10,padding:"10px 20px",cursor:"pointer",fontWeight:700,fontSize:13}}
+        ,"📎 Seleccionar Excel del mes"
+        ,React.createElement("input",{type:"file",accept:".xlsx,.xls,.csv",style:{display:"none"},onChange:handleFile})
+      )
+    )
+    ,msg&&React.createElement("div",{style:{background:"#F0FDF4",borderRadius:10,padding:"10px 14px",marginBottom:12,fontSize:12,color:"#15803D",fontWeight:600}},msg)
+
+    // Preview
+    ,preview&&React.createElement("div",null
+      ,React.createElement("div",{style:{fontWeight:700,color:"#374151",marginBottom:10}},"Vista previa — "+preview.mesLabel+":")
+      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:12}}
+        ,[
+          {l:"UF Total",v:preview.uf,c:"#C9A84C"},{l:"DPS c/venta",v:preview.dpsCV,c:"#16A34A"},
+          {l:"Sin venta",v:preview.dpsSV,c:"#2563EB"},{l:"Pendientes",v:preview.dpsP,c:"#D97706"},
+          {l:"Rechazadas",v:preview.dpsR,c:"#DC2626"},{l:"Beneficiarios",v:preview.nBenef,c:"#0891B2"},
+          {l:"Cttos Dig",v:preview.cttosDig,c:"#059669"},{l:"Tasa cierre",v:preview.tasa+"%",c:"#7C3AED"},
+        ].map(function(m){
+          return React.createElement("div",{key:m.l,style:{background:"#F8FAFC",borderRadius:10,padding:"12px",textAlign:"center",border:"1px solid #E5E7EB"}}
+            ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:m.c}},m.v)
+            ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",marginTop:3}},m.l)
+          );
+        })
+      )
+      ,React.createElement("button",{onClick:confirmar,
+          style:{background:"#16A34A",color:"#fff",border:"none",borderRadius:10,padding:"10px 24px",fontSize:14,fontWeight:900,cursor:"pointer",fontFamily:"inherit"}}
+        ,"💾 Guardar como benchmark")
+    )
+  );
+}
+
+
 function GestPremiosView({ premiosImgs, setPremiosImgs, info, R, RD, tablaPremios, setTablaPremios, premioConecta, setPremioConecta, TABLA_DEFAULT }) {
   var mesKey = info.mesKey;
   var mesLabel = new Date().toLocaleString("es-CL",{month:"long",year:"numeric"}).replace(/^./,function(c){return c.toUpperCase();});
@@ -4165,6 +4304,12 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
         setFbError(false);
         setLoaded(true);
         setSincronizado(true);
+        // Cargar benchmark
+        if(window.__fbDb&&window.__fbDoc&&window.__fbGetDoc){
+          window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","benchmark"))
+            .then(function(snap){ if(snap.exists&&snap.data()) setBenchmark(snap.data()); })
+            .catch(function(){});
+        }
         // ── Cargar imágenes de premios al iniciar la app ──
         (function cargarImagenesPremios(){
           var mesKey2 = new Date().getFullYear()+"-"+String(new Date().getMonth()+1).padStart(2,"0");
@@ -4380,7 +4525,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
   // Map group -> sub-tabs
   const SUP_GRUPOS = {
     dashboard: [["dashboard","📊 Dashboard"],["calEjec","📅 Calendario Ejecutivos"]],
-    equipo:    [["gestion","👥 Gestionar Equipo"],["carga","📥 Cargar UF/DPS"],["editar","✏️ Editar Estadísticas"],["metricas","📊 Carga Reporte Diario de Métricas"]],
+    equipo:    [["gestion","👥 Gestionar Equipo"],["carga","📥 Cargar UF/DPS"],["editar","✏️ Editar Estadísticas"],["metricas","📊 Carga Reporte Diario de Métricas"],["benchmark","📌 Cargar Mes Benchmark"]],
     metas:     [["meta","🎯 Meta del Equipo"],["uflineales","📈 UF's Lineales"]],
     contenido: [["gestPremios","🏆 Gestionar Premios"],["gestDocs","📂 Gestionar Docs"],["excel","📂 Carga Excel"]],
     analisis:  [["clasificacion","📊 Clasificación AGV"],["agentes0","🚨 Agentes en 0"],["dpsanalisis","📊 Análisis Reporte Diario de Métricas"],["planagv","📋 Plan de Trabajo AGV"]],
@@ -4393,6 +4538,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
   const [cierresHoy,    setCierresHoy]    = useState([]);
   const [recoNombre,    setRecoNombre]    = useState("");
   const [premioConecta, setPremioConecta] = useState(100000); // Monto por plan Conecta (editable en supervisor)
+  const [benchmark, setBenchmark] = useState(null); // Mes de referencia elegido por supervisor
 
   // Tablas de premios por antigüedad (editables desde Supervisor → Gestionar Premios)
   const TABLA_DEFAULT = {
@@ -4523,6 +4669,27 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
   const equipoValido = equipo.filter(function(v){ return v && v.nombre && typeof v.nombre === 'string'; });
   const totUF   = equipoValido.reduce(function(s,v){return s+(parseFloat(v.uf)||0);},0);
   const totDPS  = equipoValido.reduce(function(s,v){return s+(parseInt(v.dps)||0);},0);
+  // Benchmark proporcional: ajusta el total del mes benchmark al día actual del mes
+  const bmProp = (function(){
+    if(!benchmark) return null;
+    var diasMes = new Date(new Date().getFullYear(), new Date().getMonth()+1, 0).getDate();
+    var diaHoy = new Date().getDate();
+    var prop = diaHoy / diasMes;
+    return {
+      uf:    parseFloat(((benchmark.uf||0)    * prop).toFixed(2)),
+      dps:   Math.round((benchmark.dps||0)   * prop),
+      benef: Math.round((benchmark.nBenef||0)* prop),
+      cttos: Math.round((benchmark.cttosDig||0)*prop),
+      tasa:  benchmark.tasa||0,
+      mesLabel: benchmark.mesLabel||"Benchmark",
+      prop:  Math.round(prop*100),
+    };
+  })();
+  function bmDiff(actual, bm) {
+    if(!bm||bm===0) return null;
+    var pct = Math.round(((actual-bm)/bm)*100);
+    return {pct:pct, color:pct>=0?"#4ADE80":"#FCA5A5", txt:(pct>=0?"▲ +":"▼ ")+Math.abs(pct)+"%"};
+  }
   // DPS KPIs — desde historial del mes actual
   const totDpsConVenta    = equipoValido.reduce(function(s,v){var h=(v.historial||{})[info.mesKey];return s+(h?parseInt(h.dpsVenta)||0:0);},0);
   const totDpsSinVenta    = equipoValido.reduce(function(s,v){var h=(v.historial||{})[info.mesKey];return s+(h?parseInt(h.dpsSinVenta)||0:0);},0);
@@ -5097,6 +5264,12 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                   , React.createElement('div', { style: {fontSize:13,color:"rgba(201,168,76,.8)",fontWeight:700,marginTop:4,letterSpacing:"0.08em"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3055}}
                     , "de "+metaUFSafe+" UF meta del mes"
                   )
+                  , bmProp && (function(){
+                      var d=bmDiff(totUF,bmProp.uf);
+                      return React.createElement('div',{style:{fontSize:11,fontWeight:700,marginTop:5,color:d?d.color:"#9CA3AF"}},
+                        d?d.txt:"=","  vs benchmark ",bmProp.mesLabel," · esperado ",bmProp.uf," UF (día ",new Date().getDate(),"/",new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate(),")"
+                      );
+                    })()
                 )
                 /* Barra de progreso estilo marcador */
                 , React.createElement('div', { style: {marginBottom:16}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3060}}
@@ -5785,15 +5958,17 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                     )
                     , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3341}}
                       , [
-                        {l:"Contactos efectivos",  v:tot.contactos, c:"#3B82F6", bg:"#EFF6FF"},
-                        {l:"Cotizaciones enviadas", v:tot.cot,       c:"#F59E0B", bg:"#FFFBEB"},
-                        {l:"Contratos cerrados",   v:tot.cierres,   c:"#16A34A", bg:"#F0FDF4"},
-                        {l:"DPS realizadas",          v:tot.dps,       c:"#8B5CF6", bg:"#F5F3FF"},
+                        {l:"Contactos efectivos",  v:tot.contactos, c:"#3B82F6", bg:"#EFF6FF", bm:null},
+                        {l:"Cotizaciones enviadas", v:tot.cot,       c:"#F59E0B", bg:"#FFFBEB", bm:null},
+                        {l:"Contratos cerrados",   v:tot.cierres,   c:"#16A34A", bg:"#F0FDF4", bm:null},
+                        {l:"DPS realizadas",       v:tot.dps,       c:"#8B5CF6", bg:"#F5F3FF", bm:bmProp?bmProp.dps:null},
                       ].map(function(k){
+                        var diff = k.bm ? bmDiff(k.v, k.bm) : null;
                         return (
-                          React.createElement('div', { key: k.l, style: {background:k.bg,borderRadius:12,padding:"14px 16px",border:"1px solid "+k.c+"33"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3349}}
-                            , React.createElement('div', { style: {fontSize:28,fontWeight:900,color:k.c,lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3350}}, k.v)
-                            , React.createElement('div', { style: {fontSize:12,color:"#6B7280",marginTop:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3351}}, k.l)
+                          React.createElement('div', { key: k.l, style: {background:k.bg,borderRadius:12,padding:"14px 16px",border:"1px solid "+k.c+"33"} }
+                            , React.createElement('div', { style: {fontSize:28,fontWeight:900,color:k.c,lineHeight:1}}, k.v)
+                            , React.createElement('div', { style: {fontSize:12,color:"#6B7280",marginTop:4}}, k.l)
+                            , diff && React.createElement('div', {style:{fontSize:10,fontWeight:700,color:diff.color,marginTop:3}}, diff.txt+" vs bm")
                           )
                         );
                       })
@@ -6940,6 +7115,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                 , supVista==="excel"&&React.createElement(ExcelDataView, { equipo: equipo, setEquipo: setEquipo, info: info, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3772}} )
                 , supVista==="agentes0"&&React.createElement(AgentesEnCeroView, { equipo: equipo, info: info, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3773}} )
                 , supVista==="metricas" && React.createElement(MetricasReportView, { equipo:equipo, setEquipo:setEquipo, info:info, R:R, RD:RD })
+                , supVista==="benchmark" && React.createElement(BenchmarkView, { benchmark:benchmark, setBenchmark:setBenchmark, equipo:equipo, info:info, R:R, RD:RD })
                 , supVista==="dpsanalisis" && React.createElement(DpsAnalisisView, { equipo:equipo, setEquipo:setEquipo, info:info, R:R, RD:RD })
                 , supVista==="planagv" && React.createElement(PlanAGVView, { equipo:equipo, info:info, R:R, RD:RD })
                 , supVista==="calEjec"&&(
