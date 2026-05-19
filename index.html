@@ -4901,10 +4901,33 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
     setEquipo(equipo.map(function(v){const e=bulk[v.id];if(!e)return v;const nu=e.uf!==""?parseFloat(e.uf):v.uf;const nd=e.dps!==""?parseInt(e.dps):v.dps;return Object.assign({},v,{uf:isNaN(nu)?v.uf:nu,dps:isNaN(nd)?v.dps:nd});}));
     setBulkOk(true);setTimeout(function(){setBulkOk(false);},3500);
   }
-  function enviarReporte(){
+  // Guarda un cierre individual inmediatamente como rep separado
+  function guardarCierreInmediato(cierre) {
     if(!form.vid) return;
-    const id  = Number(form.vid);
-    const dps = parseInt(form.dps)||0;
+    const id = Number(form.vid);
+    const repCierre = {
+      fecha: TODAY,
+      uf: parseFloat(cierre.uf.toFixed(2)),
+      nombre: cierre.clienteNombre||"",
+      hombres: cierre.sexo==="hombre"?1:0,
+      mujeres: cierre.sexo==="mujer"?1:0,
+      conecta: cierre.conecta?1:0,
+      origen: cierre.origen||"fonasa",
+      isapre: cierre.isapre||"",
+      cierres:1, dps:0, contactos:0, cot:0, nota:"",
+      detalleCierres:[cierre],
+    };
+    const nuevoEquipo = equipo.map(function(v){
+      if(v.id!==id) return v;
+      var todosReps = (v.rep||[]).concat([repCierre]);
+      var ufRecalculado = parseFloat(todosReps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0).toFixed(2));
+      var dpsRecalculado = todosReps.reduce(function(s,r){return s+(parseInt(r.dps)||0);},0);
+      return Object.assign({},v,{uf:ufRecalculado,dps:dpsRecalculado,rep:todosReps});
+    });
+    setEquipo(nuevoEquipo);
+  }
+
+  function enviarReporte(){
     const dpsVenta = parseInt(form.dpsVenta)||0;
     // Calcular totales desde los cierres registrados
     const ufTotal     = cierresHoy.reduce(function(s,c){return s+c.uf;},0);
@@ -6010,7 +6033,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                     )
 
                     /* Formulario nuevo cierre */
-                    , React.createElement(NuevoCierreForm, { BTN: BTN, INP: INP, RD: RD, cierresHoy: cierresHoy, setCierresHoy: setCierresHoy, crmData: crmData, TODAY: TODAY })
+                    , React.createElement(NuevoCierreForm, { BTN: BTN, INP: INP, RD: RD, cierresHoy: cierresHoy, setCierresHoy: setCierresHoy, crmData: crmData, TODAY: TODAY, onGuardar: guardarCierreInmediato })
                   )
 
                   /* ── Sección 3: Notas ── */
@@ -8246,10 +8269,11 @@ function EditarMetaEquipo({ metaEquipo, setMetaEquipo, premioConecta, setPremioC
 
 
 // ── Formulario de nuevo cierre (componente propio para poder usar useState) ──
-function NuevoCierreForm({ BTN, INP, RD, cierresHoy, setCierresHoy, crmData, TODAY }) {
+function NuevoCierreForm({ BTN, INP, RD, cierresHoy, setCierresHoy, crmData, TODAY, onGuardar }) {
   const [nc, setNc] = React.useState({uf:"", sexo:"hombre", conecta:false, origen:"fonasa", isapre:"", clienteNombre:""});
-  const [dupWarning, setDupWarning] = React.useState(null); // cliente CRM similar detectado
+  const [dupWarning, setDupWarning] = React.useState(null);
   const [dupConfirmed, setDupConfirmed] = React.useState(false);
+  const [guardado, setGuardado] = React.useState(false);
 
   function buscarDuplicado(nombre) {
     if (!nombre || !crmData || crmData.length === 0) { setDupWarning(null); return; }
@@ -8269,9 +8293,11 @@ function NuevoCierreForm({ BTN, INP, RD, cierresHoy, setCierresHoy, crmData, TOD
     if (!uf || uf <= 0) return;
     if (nc.origen === "isapre" && !nc.isapre) { window.alert("Por favor selecciona la Isapre de origen."); return; }
     if (dupWarning && !dupConfirmed) return;
-    setCierresHoy(cierresHoy.concat([{uf:uf, sexo:nc.sexo, conecta:nc.conecta, origen:nc.origen, isapre:nc.isapre||"", clienteNombre:nc.clienteNombre}]));
+    // Guardar inmediatamente
+    if(onGuardar) onGuardar({uf:uf, sexo:nc.sexo, conecta:nc.conecta, origen:nc.origen, isapre:nc.isapre||"", clienteNombre:nc.clienteNombre});
     setNc({uf:"", sexo:"hombre", conecta:false, origen:"fonasa", isapre:"", clienteNombre:""});
     setDupWarning(null); setDupConfirmed(false);
+    setGuardado(true); setTimeout(function(){setGuardado(false);},2000);
   }
   return (
     React.createElement('div', { style: {background:"#fff",borderRadius:10,padding:"14px",border:"1.5px dashed rgba(233,7,41,.3)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4473}}
@@ -8345,8 +8371,8 @@ function NuevoCierreForm({ BTN, INP, RD, cierresHoy, setCierresHoy, crmData, TOD
           , React.createElement('label', { htmlFor: "conecta-chk", style: {fontSize:13,fontWeight:600,color:"#059669",cursor:"pointer"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4500}}, "Plan Conecta" )
         )
       )
-      , React.createElement('button', { onClick: agregar, style: Object.assign({},BTN,{width:"100%",padding:"10px"}), __self: this, __source: {fileName: _jsxFileName, lineNumber: 4503}}, "✓ Agregar este cierre"
-
+      , guardado && React.createElement('div',{style:{background:"#F0FDF4",borderRadius:8,padding:"8px 12px",marginBottom:8,fontSize:12,color:"#16A34A",fontWeight:700}},"✅ ¡Cierre guardado! Ya aparece en tu lista del mes.")
+      , React.createElement('button', { onClick: agregar, style: Object.assign({},BTN,{width:"100%",padding:"10px"}) }, "✓ Guardar cierre ahora"
       )
     )
   );
