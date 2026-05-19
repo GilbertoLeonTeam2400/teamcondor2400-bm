@@ -2997,11 +2997,210 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD }) {
   );
 }
 
-// ── Plan de Trabajo AGV ───────────────────────────────────────────────────────
+// ── Vista Plan de Trabajo para el Ejecutivo ───────────────────────────────────
+function PlanEjecutivoView({ v, info, R, RD }) {
+  var [plan, setPlan] = React.useState(null);
+  var [calInput, setCalInput] = React.useState("");
+  var [calFecha, setCalFecha] = React.useState("");
+  var [notaEjec, setNotaEjec] = React.useState("");
+  var [editNota, setEditNota] = React.useState(false);
+  var [guardado, setGuardado] = React.useState(false);
+
+  // Cargar plan desde Firebase
+  React.useEffect(function(){
+    if(!window.__fbDb||!window.__fbDoc||!window.__fbGetDoc) return;
+    window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","plan_agv"))
+      .then(function(snap){
+        if(snap.exists&&snap.data()&&snap.data().planes){
+          var p=snap.data().planes[v.id];
+          if(p) setPlan(p);
+        }
+      }).catch(function(){});
+  },[v.id]);
+
+  if(!plan) return React.createElement('div',{style:{textAlign:"center",padding:32,color:"#9CA3AF",fontSize:13}}
+    ,"⏳ Tu plan de trabajo se está preparando. Vuelve pronto."
+  );
+
+  // Lenguaje positivo para niveles
+  var accionesBase = plan.accionesBase || [];
+  var accionesCustom = plan.accionesCustom || [];
+  var todasAcciones = accionesBase.concat(accionesCustom.map(function(a){return {txt:a.txt,done:a.done,custom:true};}));
+  var accionesChecked = plan.acciones || [];
+  var completadas = accionesBase.filter(function(a){return accionesChecked.indexOf(a)>=0;}).length
+    + accionesCustom.filter(function(a){return a.done;}).length;
+  var total = accionesBase.length + accionesCustom.length;
+  var pct = total>0?Math.round((completadas/total)*100):0;
+
+  // Mensaje motivacional según progreso
+  var motivMsg = pct===100 ? "🏆 ¡Completaste todas las acciones del mes! Eso es compromiso de élite." :
+    pct>=75 ? "🚀 ¡Increíble avance! Estás en la recta final — ¡un empujón más!" :
+    pct>=50 ? "💪 ¡Vas a la mitad! Cada acción completada te acerca a tus metas." :
+    pct>=25 ? "⚡ ¡Buen comienzo! El camino está trazado — sigue adelante." :
+    "🎯 Tu plan está listo. ¡El primer paso es el más importante!";
+
+  // Estado en lenguaje positivo
+  var estadoLabel = plan.estado==="comprometido" ? "✅ Comprometido con el plan"
+    : plan.estado==="en_proceso" ? "🔄 En proceso — ¡vas avanzando!"
+    : plan.estado==="seguimiento" ? "🤝 En seguimiento con tu supervisor"
+    : "⏳ Plan listo para comenzar";
+  var estadoColor = plan.estado==="comprometido"?"#16A34A":plan.estado==="en_proceso"?"#D97706":plan.estado==="seguimiento"?"#7C3AED":"#9CA3AF";
+
+  // Calendario: actividades del ejecutivo
+  var calendario = plan.calendario || [];
+
+  function saveCalendario(nuevosCal) {
+    if(!window.__fbDb||!window.__fbDoc||!window.__fbGetDoc||!window.__fbSetDoc) return;
+    window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","plan_agv")).then(function(snap){
+      var planes=snap.exists&&snap.data()&&snap.data().planes?JSON.parse(JSON.stringify(snap.data().planes)):{};
+      if(!planes[v.id]) planes[v.id]={};
+      planes[v.id].calendario=nuevosCal;
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","plan_agv"),{planes:planes,ts:Date.now()});
+      setPlan(function(p){return Object.assign({},p,{calendario:nuevosCal});});
+    });
+  }
+
+  function addActividad() {
+    if(!calInput.trim()) return;
+    var nueva={txt:calInput.trim(),fecha:calFecha,done:false,ts:Date.now()};
+    var nuevoCal=[].concat(calendario,[nueva]).sort(function(a,b){return (a.fecha||"").localeCompare(b.fecha||"");});
+    saveCalendario(nuevoCal);
+    setCalInput(""); setCalFecha("");
+  }
+
+  function toggleActividad(idx) {
+    var nuevoCal=calendario.map(function(c,i){return i===idx?Object.assign({},c,{done:!c.done}):c;});
+    saveCalendario(nuevoCal);
+  }
+
+  function removeActividad(idx) {
+    var nuevoCal=calendario.filter(function(_,i){return i!==idx;});
+    saveCalendario(nuevoCal);
+  }
+
+  function saveNotaEjec() {
+    if(!window.__fbDb||!window.__fbDoc||!window.__fbGetDoc||!window.__fbSetDoc) return;
+    window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","plan_agv")).then(function(snap){
+      var planes=snap.exists&&snap.data()&&snap.data().planes?JSON.parse(JSON.stringify(snap.data().planes)):{};
+      if(!planes[v.id]) planes[v.id]={};
+      planes[v.id].notaEjecutivo=notaEjec;
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","plan_agv"),{planes:planes,ts:Date.now()});
+      setPlan(function(p){return Object.assign({},p,{notaEjecutivo:notaEjec});});
+      setEditNota(false); setGuardado(true); setTimeout(function(){setGuardado(false);},2000);
+    });
+  }
+
+  return React.createElement('div', {style:{marginTop:24}}
+    // Header
+    , React.createElement('div',{style:{background:"linear-gradient(135deg,#1a0008,#3d0010,#6B0018)",borderRadius:18,padding:"22px 22px",marginBottom:16,color:"#fff"}}
+      , React.createElement('div',{style:{fontSize:11,color:"rgba(255,200,200,.7)",textTransform:"uppercase",letterSpacing:"0.15em",marginBottom:4}},"📋 MI PLAN DE TRABAJO — "+info.mes.toUpperCase())
+      , React.createElement('div',{style:{fontSize:19,fontWeight:900,marginBottom:6}},"Hola "+v.nombre.split(" ")[0]+" — este es tu plan de éxito 🚀")
+      , React.createElement('div',{style:{fontSize:12,color:"rgba(255,255,255,.7)",marginBottom:14}},motivMsg)
+      // Progreso
+      , React.createElement('div',{style:{display:"flex",alignItems:"center",gap:12}}
+        , React.createElement('div',{style:{flex:1,background:"rgba(255,255,255,.15)",borderRadius:99,height:10,overflow:"hidden"}}
+          , React.createElement('div',{style:{width:pct+"%",height:"100%",background:pct===100?"#4ADE80":pct>=50?"#FCD34D":"#FB923C",borderRadius:99,transition:"width .5s"}})
+        )
+        , React.createElement('div',{style:{fontSize:14,fontWeight:900,color:"#fff",flexShrink:0}},pct+"%")
+      )
+      , React.createElement('div',{style:{fontSize:11,color:"rgba(255,255,255,.6)",marginTop:4}},completadas+"/"+total+" acciones completadas · "+estadoLabel)
+    )
+
+    // Acciones del plan
+    , React.createElement('div',{style:{background:"#fff",borderRadius:16,padding:"20px",marginBottom:16,boxShadow:"0 2px 12px rgba(0,0,0,.06)"}}
+      , React.createElement('div',{style:{fontSize:14,fontWeight:900,color:"#1F2937",marginBottom:14}},"✅ Mis acciones comprometidas")
+      , accionesBase.length===0&&accionesCustom.length===0
+        ? React.createElement('div',{style:{color:"#9CA3AF",fontSize:12,fontStyle:"italic"}},"Tu plan se está preparando junto a tu supervisor.")
+        : React.createElement('div',null
+            , accionesBase.map(function(acc,i){
+                var done=accionesChecked.indexOf(acc)>=0;
+                return React.createElement('div',{key:i,style:{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,marginBottom:6,background:done?"#F0FDF4":"#F8FAFC",border:"1.5px solid "+(done?"#86EFAC":"#E5E7EB")}}
+                  , React.createElement('div',{style:{width:20,height:20,borderRadius:4,border:"2px solid "+(done?"#16A34A":"#D1D5DB"),background:done?"#16A34A":"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}
+                    , done&&React.createElement('span',{style:{color:"#fff",fontSize:12,fontWeight:900}},"✓")
+                  )
+                  , React.createElement('span',{style:{fontSize:13,color:done?"#166534":"#374151",textDecoration:done?"line-through":"none",flex:1}},acc)
+                );
+              })
+            , accionesCustom.map(function(acc,i){
+                return React.createElement('div',{key:"c"+i,style:{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,marginBottom:6,background:acc.done?"#F0FDF4":"#EFF6FF",border:"1.5px solid "+(acc.done?"#86EFAC":"#BFDBFE")}}
+                  , React.createElement('div',{style:{width:20,height:20,borderRadius:4,border:"2px solid "+(acc.done?"#16A34A":"#93C5FD"),background:acc.done?"#16A34A":"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}
+                    , acc.done&&React.createElement('span',{style:{color:"#fff",fontSize:12,fontWeight:900}},"✓")
+                  )
+                  , React.createElement('span',{style:{fontSize:13,color:acc.done?"#166534":"#1D4ED8",textDecoration:acc.done?"line-through":"none",flex:1}},acc.txt)
+                );
+              })
+          )
+    )
+
+    // Notas del ejecutivo
+    , React.createElement('div',{style:{background:"#fff",borderRadius:16,padding:"20px",marginBottom:16,boxShadow:"0 2px 12px rgba(0,0,0,.06)"}}
+      , React.createElement('div',{style:{fontSize:14,fontWeight:900,color:"#1F2937",marginBottom:10}},"📝 Mis notas y avances")
+      , guardado&&React.createElement('div',{style:{fontSize:11,color:"#16A34A",fontWeight:700,marginBottom:6}},"✅ Guardado")
+      , editNota
+        ? React.createElement('div',null
+            , React.createElement('textarea',{value:notaEjec,onChange:function(e){setNotaEjec(e.target.value);},rows:5,
+                placeholder:"Escribe tus avances, resultados o ideas aquí...",
+                style:{width:"100%",padding:12,borderRadius:10,border:"1.5px solid #D1D5DB",fontSize:13,fontFamily:"inherit",resize:"vertical",boxSizing:"border-box"}})
+            , React.createElement('div',{style:{display:"flex",gap:8,marginTop:8}}
+              , React.createElement('button',{onClick:saveNotaEjec,style:{background:"#16A34A",color:"#fff",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,cursor:"pointer",fontWeight:700}},"💾 Guardar")
+              , React.createElement('button',{onClick:function(){setEditNota(false);},style:{background:"#F3F4F6",color:"#374151",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,cursor:"pointer"}},"Cancelar")
+            )
+          )
+        : React.createElement('div',{onClick:function(){setEditNota(true);setNotaEjec(plan.notaEjecutivo||"");},
+              style:{minHeight:80,background:"#F8FAFC",borderRadius:10,border:"1.5px dashed #D1D5DB",padding:"12px 14px",fontSize:13,color:plan.notaEjecutivo?"#374151":"#9CA3AF",cursor:"pointer",lineHeight:1.6}}
+            , plan.notaEjecutivo || "Click para agregar tus notas, avances y resultados...")
+    )
+
+    // Calendario de actividades
+    , React.createElement('div',{style:{background:"#fff",borderRadius:16,padding:"20px",boxShadow:"0 2px 12px rgba(0,0,0,.06)"}}
+      , React.createElement('div',{style:{fontSize:14,fontWeight:900,color:"#1F2937",marginBottom:4}},"📅 Mi Calendario de Actividades")
+      , React.createElement('div',{style:{fontSize:11,color:"#6B7280",marginBottom:14}},"Agenda tus próximas actividades y bloques de trabajo. Tu supervisor también las verá.")
+      // Agregar actividad
+      , React.createElement('div',{style:{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}
+        , React.createElement('input',{type:"date",value:calFecha,onChange:function(e){setCalFecha(e.target.value);},
+            style:{padding:"8px 10px",borderRadius:8,border:"1.5px solid #E5E7EB",fontSize:12,fontFamily:"inherit",color:"#374151"}})
+        , React.createElement('input',{type:"text",value:calInput,onChange:function(e){setCalInput(e.target.value);},
+            onKeyDown:function(e){if(e.key==="Enter")addActividad();},
+            placeholder:"Describe la actividad o bloque...",
+            style:{flex:1,minWidth:180,padding:"8px 12px",borderRadius:8,border:"1.5px solid #E5E7EB",fontSize:12,fontFamily:"inherit"}})
+        , React.createElement('button',{onClick:addActividad,style:{background:R,color:"#fff",border:"none",borderRadius:8,padding:"8px 16px",fontSize:12,cursor:"pointer",fontWeight:700,fontFamily:"inherit",flexShrink:0}},"+ Agregar")
+      )
+      // Lista de actividades
+      , calendario.length===0
+        ? React.createElement('div',{style:{textAlign:"center",padding:"24px",color:"#9CA3AF",fontSize:12,fontStyle:"italic"}},"Aún no tienes actividades agendadas. ¡Empieza a planificar!")
+        : React.createElement('div',null
+            , calendario.map(function(act,i){
+                return React.createElement('div',{key:i,style:{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,marginBottom:6,background:act.done?"#F0FDF4":"#fff",border:"1.5px solid "+(act.done?"#86EFAC":"#E5E7EB")}}
+                  , React.createElement('div',{onClick:function(){toggleActividad(i);},style:{width:20,height:20,borderRadius:"50%",border:"2px solid "+(act.done?"#16A34A":"#D1D5DB"),background:act.done?"#16A34A":"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,cursor:"pointer"}}
+                    , act.done&&React.createElement('span',{style:{color:"#fff",fontSize:11,fontWeight:900}},"✓")
+                  )
+                  , act.fecha&&React.createElement('span',{style:{fontSize:11,fontWeight:700,color:act.done?"#16A34A":"#7C3AED",flexShrink:0,background:act.done?"#DCFCE7":"#EDE9FE",borderRadius:6,padding:"2px 7px"}},act.fecha)
+                  , React.createElement('span',{style:{fontSize:13,color:act.done?"#166534":"#374151",textDecoration:act.done?"line-through":"none",flex:1}},act.txt)
+                  , React.createElement('button',{onClick:function(){removeActividad(i);},style:{background:"none",border:"none",cursor:"pointer",color:"#DC2626",fontSize:14,opacity:.5}},"✕")
+                );
+              })
+          )
+    )
+  );
+}
+
+// ── Plan de Trabajo AGV (Supervisor) ─────────────────────────────────────────
 function PlanAGVView({ equipo, info, R, RD }) {
   var [planes, setPlanes] = React.useState(function(){
     try{ return JSON.parse(localStorage.getItem("PLAN_AGV")||"{}"); }catch(e){return {};}
   });
+
+  // Load from Firebase on mount
+  React.useEffect(function(){
+    if(!window.__fbDb||!window.__fbDoc||!window.__fbGetDoc) return;
+    window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","plan_agv"))
+      .then(function(snap){
+        if(snap.exists&&snap.data()&&snap.data().planes){
+          setPlanes(snap.data().planes);
+          try{localStorage.setItem("PLAN_AGV",JSON.stringify(snap.data().planes));}catch(e){}
+        }
+      }).catch(function(){});
+  },[]);
   var [expandido, setExpandido] = React.useState({});
   var [grupFiltro, setGrupFiltro] = React.useState("todos");
 
@@ -3109,15 +3308,29 @@ function PlanAGVView({ equipo, info, R, RD }) {
       window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","plan_agv"),{planes:nuevo,ts:Date.now()}).catch(function(){});
   }
 
-  function getPlan(id) { return planes[id]||{acciones:[],nota:"",estado:"pendiente",accionesCustom:[]}; }
+  function getPlan(id) { return planes[id]||{acciones:[],nota:"",estado:"pendiente",accionesCustom:[],diagsCustom:null,accionesBase:null}; }
   function toggleAccion(id,acc) { var p=JSON.parse(JSON.stringify(getPlan(id))); var idx=(p.acciones||[]).indexOf(acc); if(idx>=0)p.acciones.splice(idx,1);else{p.acciones=p.acciones||[];p.acciones.push(acc);} var np=Object.assign({},planes);np[id]=p;savePlanes(np); }
   function toggleCustomAccion(id,acc) { var p=JSON.parse(JSON.stringify(getPlan(id))); var item=(p.accionesCustom||[]).find(function(a){return a.txt===acc;}); if(item)item.done=!item.done; var np=Object.assign({},planes);np[id]=p;savePlanes(np); }
   function addAccion(id,txt) { if(!txt||!txt.trim())return; var p=JSON.parse(JSON.stringify(getPlan(id))); p.accionesCustom=p.accionesCustom||[]; p.accionesCustom.push({txt:txt.trim(),done:false}); var np=Object.assign({},planes);np[id]=p;savePlanes(np); }
   function removeCustomAccion(id,acc) { var p=JSON.parse(JSON.stringify(getPlan(id))); p.accionesCustom=(p.accionesCustom||[]).filter(function(a){return a.txt!==acc;}); var np=Object.assign({},planes);np[id]=p;savePlanes(np); }
   function setEstado(id,estado) { var p=Object.assign({},getPlan(id),{estado:estado}); var np=Object.assign({},planes);np[id]=p;savePlanes(np); }
+  // Editar diagnóstico
+  function removeDiag(id, diagIdx, diagsBase) {
+    var p=JSON.parse(JSON.stringify(getPlan(id)));
+    var current=p.diagsCustom!==null?p.diagsCustom:diagsBase.slice();
+    current.splice(diagIdx,1); p.diagsCustom=current;
+    var np=Object.assign({},planes);np[id]=p;savePlanes(np);
+  }
+  function removeAccionBase(id, acc, accionesBase) {
+    var p=JSON.parse(JSON.stringify(getPlan(id)));
+    var current=p.accionesBase!==null?p.accionesBase:accionesBase.slice();
+    var idx=current.indexOf(acc); if(idx>=0) current.splice(idx,1);
+    p.accionesBase=current;
+    var np=Object.assign({},planes);np[id]=p;savePlanes(np);
+  }
 
   var ESTADO_OPTS=[{k:"pendiente",l:"⏳ Pendiente",c:"#9CA3AF",bg:"#F3F4F6"},{k:"en_proceso",l:"🔄 En proceso",c:"#D97706",bg:"#FEF9C3"},{k:"comprometido",l:"✅ Comprometido",c:"#16A34A",bg:"#DCFCE7"},{k:"seguimiento",l:"🚨 Requiere seguimiento",c:"#DC2626",bg:"#FEE2E2"}];
-  var GC={alto:{color:"#16A34A",bg:"#F0FDF4",border:"#86EFAC",label:"🟢 Alto"},medio:{color:"#D97706",bg:"#FFFBEB",border:"#FCD34D",label:"🟡 Medio"},bajo:{color:"#DC2626",bg:"#FFF1F2",border:"#FCA5A5",label:"🔴 Bajo"}};
+  var GC={alto:{color:"#16A34A",bg:"#F0FDF4",border:"#86EFAC",label:"🟢 Alto Rendimiento"},medio:{color:"#D97706",bg:"#FFFBEB",border:"#FCD34D",label:"🟡 En Desarrollo"},bajo:{color:"#DC2626",bg:"#FFF1F2",border:"#FCA5A5",label:"🔴 Atención — Oportunidad de Mejora"}};
 
   var ejecutivos=equipo.map(function(v){var prom=promUF3(v),ma=mesesAnt2(v),diag=diagnostico(v,prom,ma);return Object.assign({},v,{prom:prom,ma:ma,diag:diag});}).sort(function(a,b){var o={bajo:0,medio:1,alto:2};return o[a.diag.nivel]-o[b.diag.nivel]||a.nombre.localeCompare(b.nombre);});
   var filtrados=grupFiltro==="todos"?ejecutivos:ejecutivos.filter(function(v){return v.diag.nivel===grupFiltro;});
@@ -3149,16 +3362,66 @@ function PlanAGVView({ equipo, info, R, RD }) {
               ,React.createElement("div",{style:{fontSize:16,color:"#9CA3AF",flexShrink:0}},abierto?"▲":"▼")
             )
             ,abierto&&React.createElement("div",{style:{padding:"18px 20px",borderTop:"1px solid "+gc.border,background:"#FAFBFF"}}
-              ,React.createElement("div",{style:{marginBottom:16}} ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:"#374151",marginBottom:8}},"🔍 Diagnóstico") ,v.diag.diags.map(function(d,i){return React.createElement("div",{key:i,style:{display:"flex",gap:6,marginBottom:4}} ,React.createElement("span",{style:{color:gc.color,fontWeight:700}},"•") ,React.createElement("span",{style:{fontSize:12,color:"#4B5563"}},d));}) )
+              // Diagnóstico editable
+              ,(function(){
+                  var diagsBase=v.diag.diags;
+                  var diagsMostrar=plan.diagsCustom!==null&&plan.diagsCustom!==undefined?plan.diagsCustom:diagsBase;
+                  return React.createElement("div",{style:{marginBottom:16}}
+                    ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:8}}
+                      ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:"#374151"}},"🔍 Diagnóstico")
+                      ,React.createElement("span",{style:{fontSize:10,color:"#9CA3AF"}},"(✕ para eliminar un punto)")
+                    )
+                    ,diagsMostrar.length===0
+                      ? React.createElement("div",{style:{fontSize:12,color:"#9CA3AF",fontStyle:"italic",padding:"8px"}},"Sin puntos de diagnóstico.")
+                      : diagsMostrar.map(function(d,i){
+                          return React.createElement("div",{key:i,style:{display:"flex",alignItems:"flex-start",gap:6,marginBottom:4,padding:"6px 8px",borderRadius:8,background:"#fff",border:"1px solid #F3F4F6"}}
+                            ,React.createElement("span",{style:{color:gc.color,fontWeight:700,flexShrink:0}},"•")
+                            ,React.createElement("span",{style:{fontSize:12,color:"#4B5563",flex:1}},d)
+                            ,React.createElement("button",{onClick:function(){removeDiag(v.id,i,diagsBase);},style:{background:"none",border:"none",cursor:"pointer",color:"#DC2626",fontSize:13,padding:"0 4px",flexShrink:0,opacity:.6}},"✕")
+                          );
+                        })
+                    ,plan.diagsCustom!==null&&plan.diagsCustom!==undefined&&React.createElement("button",{onClick:function(){var p=JSON.parse(JSON.stringify(getPlan(v.id)));p.diagsCustom=null;var np=Object.assign({},planes);np[v.id]=p;savePlanes(np);},style:{fontSize:10,color:"#6B7280",background:"none",border:"1px solid #E5E7EB",borderRadius:6,padding:"3px 8px",cursor:"pointer",marginTop:4}},"↩️ Restaurar diagnóstico original")
+                  );
+                })()
+              // Acciones del plan editables
               ,React.createElement("div",{style:{marginBottom:16}}
-                ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:"#374151",marginBottom:8}},"✅ Acciones del Plan")
-                ,acCheck.map(function(acc,i){var checked=(plan.acciones||[]).indexOf(acc)>=0; return React.createElement("div",{key:i,onClick:function(){toggleAccion(v.id,acc);},style:{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",borderRadius:8,marginBottom:4,background:checked?"#DCFCE7":"#fff",border:"1px solid "+(checked?"#86EFAC":"#E5E7EB"),cursor:"pointer"}} ,React.createElement("div",{style:{width:18,height:18,borderRadius:4,border:"2px solid "+(checked?"#16A34A":"#D1D5DB"),background:checked?"#16A34A":"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}} ,checked&&React.createElement("span",{style:{color:"#fff",fontSize:12,fontWeight:900}},"✓")) ,React.createElement("span",{style:{fontSize:12,color:checked?"#166534":"#374151",textDecoration:checked?"line-through":"none"}},acc));})
+                ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:8}}
+                  ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:"#374151"}},"✅ Acciones del Plan")
+                  ,React.createElement("span",{style:{fontSize:10,color:"#9CA3AF"}},"(✕ para eliminar · click para marcar completada)")
+                )
+                // Acciones base (editables)
+                ,(function(){
+                    var acBase=v.diag.acciones;
+                    var acMostrar=plan.accionesBase!==null&&plan.accionesBase!==undefined?plan.accionesBase:acBase;
+                    return acMostrar.map(function(acc,i){
+                      var checked=(plan.acciones||[]).indexOf(acc)>=0;
+                      return React.createElement("div",{key:i,style:{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",borderRadius:8,marginBottom:4,background:checked?"#DCFCE7":"#fff",border:"1px solid "+(checked?"#86EFAC":"#E5E7EB")}}
+                        ,React.createElement("div",{onClick:function(){toggleAccion(v.id,acc);},style:{width:18,height:18,borderRadius:4,border:"2px solid "+(checked?"#16A34A":"#D1D5DB"),background:checked?"#16A34A":"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,cursor:"pointer"}}
+                          ,checked&&React.createElement("span",{style:{color:"#fff",fontSize:12,fontWeight:900}},"✓")
+                        )
+                        ,React.createElement("span",{onClick:function(){toggleAccion(v.id,acc);},style:{fontSize:12,color:checked?"#166534":"#374151",textDecoration:checked?"line-through":"none",flex:1,cursor:"pointer"}},acc)
+                        ,React.createElement("button",{onClick:function(){removeAccionBase(v.id,acc,acBase);},style:{background:"none",border:"none",cursor:"pointer",color:"#DC2626",fontSize:13,padding:"0 4px",opacity:.6}},"✕")
+                      );
+                    });
+                  })()
+                // Acciones personalizadas
                 ,(plan.accionesCustom||[]).map(function(acc,i){return React.createElement("div",{key:"c"+i,style:{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",borderRadius:8,marginBottom:4,background:acc.done?"#DCFCE7":"#EFF6FF",border:"1px solid "+(acc.done?"#86EFAC":"#BFDBFE")}} ,React.createElement("div",{onClick:function(){toggleCustomAccion(v.id,acc.txt);},style:{width:18,height:18,borderRadius:4,border:"2px solid "+(acc.done?"#16A34A":"#93C5FD"),background:acc.done?"#16A34A":"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,cursor:"pointer"}} ,acc.done&&React.createElement("span",{style:{color:"#fff",fontSize:12,fontWeight:900}},"✓")) ,React.createElement("span",{style:{fontSize:12,flex:1,color:acc.done?"#166534":"#1D4ED8",textDecoration:acc.done?"line-through":"none"}},acc.txt) ,React.createElement("button",{onClick:function(){removeCustomAccion(v.id,acc.txt);},style:{background:"none",border:"none",cursor:"pointer",color:"#DC2626",fontSize:14,padding:"0 4px"}},"×"));})
                 ,React.createElement(PlanAccionInput,{vid:v.id,onAdd:addAccion,R:R})
               )
               ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}
                 ,React.createElement("div",null ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:"#374151",marginBottom:8}},"📌 Estado") ,ESTADO_OPTS.map(function(est){return React.createElement("div",{key:est.k,onClick:function(){setEstado(v.id,est.k);},style:{padding:"7px 12px",borderRadius:8,cursor:"pointer",fontSize:12,fontWeight:700,marginBottom:4,background:plan.estado===est.k?est.bg:"#F8FAFC",color:plan.estado===est.k?est.c:"#6B7280",border:"1.5px solid "+(plan.estado===est.k?est.c:"#E5E7EB")}},est.l);}))
                 ,React.createElement(PlanNotaEditor,{vid:v.id,nota:plan.nota||""})
+              )
+              // Calendario del ejecutivo (solo lectura para supervisor)
+              ,(plan.calendario&&plan.calendario.length>0)&&React.createElement("div",{style:{marginTop:12,background:"#F0FDF4",borderRadius:12,padding:"12px 16px",border:"1px solid #86EFAC"}}
+                ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:"#16A34A",marginBottom:8}},"📅 Actividades agendadas por el ejecutivo")
+                ,plan.calendario.map(function(act,i){
+                    return React.createElement("div",{key:i,style:{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px solid rgba(134,239,172,.3)"}}
+                      ,React.createElement("span",{style:{fontSize:12,color:act.done?"#16A34A":"#7C3AED",fontWeight:700,flexShrink:0}},act.done?"✅":"📌")
+                      ,act.fecha&&React.createElement("span",{style:{fontSize:11,color:"#6B7280",flexShrink:0}},act.fecha+" —")
+                      ,React.createElement("span",{style:{fontSize:12,color:act.done?"#166534":"#374151",textDecoration:act.done?"line-through":"none"}},act.txt)
+                    );
+                  })
               )
             )
           );
@@ -4569,7 +4832,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
     {k:"formulario",    l:"📋 Mis Cierres y Actividad Diaria"},
     {k:"calculadora",   l:"🎯 Mi Meta de este Mes!"},
     {k:"infodocs",      l:"📌 Info y Docs Importantes"},
-    {k:"historial",     l:"📈 Mi Productividad"},
+    {k:"historial",     l:"📈 Mi Productividad y Plan"},
     {k:"crm",           l:"📒 Mi Agenda y Gestión de Clientes"},
     {k:"reconocimiento",l:"🌟 Reconocimientos"},
     {k:"supervisor",    l:"🔐 Supervisor"},
@@ -7236,6 +7499,7 @@ function ProdEditableInner({ v, equipo, setEquipo, guardarProductividad, guardan
           }, "🔒 Cerrar sesion")
       )
       , React.createElement(HistorialPersonal, { histV: v, histLogout: function(){}, info: info, hallMeses: HALL_MESES, equipo: equipo })
+      , React.createElement(PlanEjecutivoView, { v: v, info: info, R: R, RD: RD })
     )
   );
 }
