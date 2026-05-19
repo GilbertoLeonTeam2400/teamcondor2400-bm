@@ -5880,13 +5880,30 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
         /* ===== MI REPORTE ===== */
         , tab==="formulario" && (
           React.createElement('div', { style: {maxWidth:600,margin:"0 auto"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3190}}
-            , React.createElement('div', { style: {background:"linear-gradient(135deg,"+RD+","+R+")",borderRadius:16,padding:"18px 22px",color:"#fff",marginBottom:20,display:"flex",alignItems:"center",gap:18}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3191}}
-              , React.createElement('div', { style: {textAlign:"center",minWidth:80}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3192}}, React.createElement('div', { style: {fontSize:34,fontWeight:900,lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3192}}, fmtUF2(totUF)), React.createElement('div', { style: {fontSize:10,color:"rgba(255,255,255,.65)",textTransform:"uppercase",letterSpacing:"0.12em",marginTop:3}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3192}}, "UF equipo" ))
-              , React.createElement('div', { style: {flex:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3193}}
-                , React.createElement('div', { style: {display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:7,fontWeight:600}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3194}}, React.createElement('span', { style: {color:"rgba(255,255,255,.75)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3194}}, "Avance del equipo"  ), React.createElement('span', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3194}}, (META_UF>0?Math.round((totUF/metaUFSafe)*100):0)+"% de "+META_UF+" UF"))
-                , React.createElement(Bar, { pct: META_UF>0?Math.round((totUF/metaUFSafe)*100):0, color: "rgba(255,255,255,.9)", h: 10, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3195}} )
-                , React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.6)",marginTop:6}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3196}}, "Faltan "+fmtUF2(falta)+" UF para la meta del equipo")
-              )
+            , React.createElement('div', { style: {background:"linear-gradient(135deg,"+RD+","+R+")",borderRadius:16,padding:"18px 22px",color:"#fff",marginBottom:20,display:"flex",alignItems:"center",gap:18} }
+              , (function(){
+                  var vEjec = equipo.find(function(e){return e.id===Number(form.vid);});
+                  var ufPersonal = vEjec ? (parseFloat(vEjec.uf)||0) : 0;
+                  var metaPersonal = vEjec && vEjec.metaUF>0 ? vEjec.metaUF : metaUFSafe;
+                  var pctPersonal = metaPersonal>0 ? Math.min(Math.round((ufPersonal/metaPersonal)*100),100) : 0;
+                  var faltaPersonal = Math.max(0, metaPersonal - ufPersonal);
+                  return React.createElement(React.Fragment, null
+                    , React.createElement('div', { style: {textAlign:"center",minWidth:80} },
+                        React.createElement('div', { style: {fontSize:34,fontWeight:900,lineHeight:1} }, fmtUF2(ufPersonal)),
+                        React.createElement('div', { style: {fontSize:10,color:"rgba(255,255,255,.65)",textTransform:"uppercase",letterSpacing:"0.12em",marginTop:3} }, "UF Logradas!")
+                      )
+                    , React.createElement('div', { style: {flex:1} }
+                      , React.createElement('div', { style: {display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:7,fontWeight:600} },
+                          React.createElement('span', { style: {color:"rgba(255,255,255,.75)"} }, "Mi avance personal"),
+                          React.createElement('span', null, pctPersonal+"% de "+metaPersonal+" UF")
+                        )
+                      , React.createElement(Bar, { pct: pctPersonal, color: "rgba(255,255,255,.9)", h: 10 })
+                      , React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.6)",marginTop:6} },
+                          faltaPersonal>0 ? "Me faltan "+fmtUF2(faltaPersonal)+" UF para mi meta" : "¡Meta personal cumplida! 🎉"
+                        )
+                    )
+                  );
+                })()
             )
             , React.createElement('div', { style: {background:"#fff",borderRadius:18,padding:32,boxShadow:"0 4px 20px rgba(233,7,41,.09)",border:"1px solid rgba(233,7,41,.08)"} }
               , enviado?(
