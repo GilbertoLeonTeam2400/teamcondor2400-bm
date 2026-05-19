@@ -5855,7 +5855,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                             return React.createElement('div', {key:i, style:{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:12,marginBottom:6,background:"#F8FAFC",border:"1px solid #E5E7EB"}}
                               , React.createElement('div', {style:{fontSize:11,color:"#9CA3AF",flexShrink:0,minWidth:70}}, r.fecha||"")
                               , React.createElement('div', {style:{flex:1}}
-                                , React.createElement('div', {style:{fontWeight:800,color:RD,fontSize:14}}, fmtUF2(parseFloat(r.uf)||0)+" UF")
+                                , React.createElement('div', {style:{fontWeight:800,color:RD,fontSize:14}}, fmtUF2(parseFloat(r.uf)||0)+" UF"+(r.nombre?" · "+r.nombre:""))
                                 , React.createElement('div', {style:{fontSize:11,color:"#6B7280",marginTop:1}},
                                     sexo+" "+(r.hombres||0)+"H / "+(r.mujeres||0)+"M"
                                     +(r.conecta>0?" · 💚 "+r.conecta+" Conecta":"")
@@ -5896,7 +5896,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                               : React.createElement('span', { style: {fontSize:14,fontWeight:900,color:RD} }, initials)
                           );
                         })()
-                      , React.createElement('div', { style: {fontSize:13,fontWeight:800,color:RD,textTransform:"uppercase",letterSpacing:"0.1em"} }, "1. Actividad del día")
+                      , React.createElement('div', { style: {fontSize:13,fontWeight:800,color:RD,textTransform:"uppercase",letterSpacing:"0.1em"} }, "2. Actividad del día")
                     )
                     , React.createElement('button', {
                         onClick: function(){setPinFormOk(false);setPinFormulario("");},
@@ -5924,8 +5924,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
 
                   )
 
-                  /* ── Sección 2: Cierres del día ── */
-                  , React.createElement('div', { style: {fontSize:13,fontWeight:800,color:RD,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:10}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3264}}, "2. Cierres del día"   )
+                  /* ── Sección 1: Cierres del día ── */
+                  , React.createElement('div', { style: {fontSize:13,fontWeight:800,color:RD,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:10} }, "1. Cierres del día"   )
                   , React.createElement('div', { style: {background:"#ffffff",borderRadius:12,padding:"16px",border:"1px solid rgba(233,7,41,.15)",marginBottom:16}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3265}}
                     , React.createElement('div', { style: {fontSize:12,color:"#6B7280",marginBottom:12}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3266}}, "Registra cada contrato cerrado hoy. Cada cierre está asociado a una DPS con venta."
 
