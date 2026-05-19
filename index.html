@@ -2997,16 +2997,28 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD }) {
   );
 }
 
+// Acciones base para todos los agentes de venta
+var ACCIONES_BASE_DEFAULT = [
+  "Revisión de guión de ventas y manejo de objeciones",
+  "Acompañamiento en al menos 3 reuniones por semana por Teams",
+  "Lograr enviar al menos 3 cotizaciones diarias",
+  "Meta mínima actividad DPS: 1 interdiaria",
+  "Definir canales de prospección y bloques de horario de trabajo",
+  "15 minutos diarios de feedback o conversatorio por Teams para revisar gestión del día, medir avances y definir nuevas estrategias",
+];
+
 // ── Vista Plan de Trabajo para el Ejecutivo ───────────────────────────────────
 function PlanEjecutivoView({ v, info, R, RD }) {
   var [plan, setPlan] = React.useState(null);
   var [calInput, setCalInput] = React.useState("");
   var [calFecha, setCalFecha] = React.useState("");
-  var [notaEjec, setNotaEjec] = React.useState("");
   var [editNota, setEditNota] = React.useState(false);
+  var [notaEjec, setNotaEjec] = React.useState("");
   var [guardado, setGuardado] = React.useState(false);
+  var [accionExpandida, setAccionExpandida] = React.useState(null);
+  var [editandoAccion, setEditandoAccion] = React.useState(null);
+  var [editAccionTxt, setEditAccionTxt] = React.useState("");
 
-  // Cargar plan desde Firebase
   React.useEffect(function(){
     if(!window.__fbDb||!window.__fbDoc||!window.__fbGetDoc) return;
     window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","plan_agv"))
@@ -3014,175 +3026,259 @@ function PlanEjecutivoView({ v, info, R, RD }) {
         if(snap.exists&&snap.data()&&snap.data().planes){
           var p=snap.data().planes[v.id];
           if(p) setPlan(p);
+          else setPlan({acciones:[],nota:"",estado:"pendiente",accionesCustom:[],diagsCustom:null,accionesBase:null,calendario:[],notaEjecutivo:"",semanasAcciones:{}});
         }
       }).catch(function(){});
   },[v.id]);
 
-  if(!plan) return React.createElement('div',{style:{textAlign:"center",padding:32,color:"#9CA3AF",fontSize:13}}
-    ,"⏳ Tu plan de trabajo se está preparando. Vuelve pronto."
-  );
-
-  // Lenguaje positivo para niveles
-  var accionesBase = plan.accionesBase || [];
-  var accionesCustom = plan.accionesCustom || [];
-  var todasAcciones = accionesBase.concat(accionesCustom.map(function(a){return {txt:a.txt,done:a.done,custom:true};}));
-  var accionesChecked = plan.acciones || [];
-  var completadas = accionesBase.filter(function(a){return accionesChecked.indexOf(a)>=0;}).length
-    + accionesCustom.filter(function(a){return a.done;}).length;
-  var total = accionesBase.length + accionesCustom.length;
-  var pct = total>0?Math.round((completadas/total)*100):0;
-
-  // Mensaje motivacional según progreso
-  var motivMsg = pct===100 ? "🏆 ¡Completaste todas las acciones del mes! Eso es compromiso de élite." :
-    pct>=75 ? "🚀 ¡Increíble avance! Estás en la recta final — ¡un empujón más!" :
-    pct>=50 ? "💪 ¡Vas a la mitad! Cada acción completada te acerca a tus metas." :
-    pct>=25 ? "⚡ ¡Buen comienzo! El camino está trazado — sigue adelante." :
-    "🎯 Tu plan está listo. ¡El primer paso es el más importante!";
-
-  // Estado en lenguaje positivo
-  var estadoLabel = plan.estado==="comprometido" ? "✅ Comprometido con el plan"
-    : plan.estado==="en_proceso" ? "🔄 En proceso — ¡vas avanzando!"
-    : plan.estado==="seguimiento" ? "🤝 En seguimiento con tu supervisor"
-    : "⏳ Plan listo para comenzar";
-  var estadoColor = plan.estado==="comprometido"?"#16A34A":plan.estado==="en_proceso"?"#D97706":plan.estado==="seguimiento"?"#7C3AED":"#9CA3AF";
-
-  // Calendario: actividades del ejecutivo
-  var calendario = plan.calendario || [];
-
-  function saveCalendario(nuevosCal) {
+  function savePlanField(updates) {
     if(!window.__fbDb||!window.__fbDoc||!window.__fbGetDoc||!window.__fbSetDoc) return;
     window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","plan_agv")).then(function(snap){
       var planes=snap.exists&&snap.data()&&snap.data().planes?JSON.parse(JSON.stringify(snap.data().planes)):{};
-      if(!planes[v.id]) planes[v.id]={};
-      planes[v.id].calendario=nuevosCal;
+      if(!planes[v.id]) planes[v.id]={acciones:[],nota:"",estado:"pendiente",accionesCustom:[],accionesBase:null,calendario:[],notaEjecutivo:"",semanasAcciones:{}};
+      Object.assign(planes[v.id],updates);
       window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","plan_agv"),{planes:planes,ts:Date.now()});
-      setPlan(function(p){return Object.assign({},p,{calendario:nuevosCal});});
+      setPlan(function(p){return Object.assign({},p,updates);});
     });
   }
 
-  function addActividad() {
+  if(!plan) return React.createElement("div",{style:{textAlign:"center",padding:40,color:"#9CA3AF",fontSize:13}},"⏳ Tu plan de trabajo se está preparando. Vuelve pronto.");
+
+  var accionesBase = plan.accionesBase!==null&&plan.accionesBase!==undefined ? plan.accionesBase : ACCIONES_BASE_DEFAULT.slice();
+  var accionesCustom = plan.accionesCustom||[];
+  var accionesChecked = plan.acciones||[];
+  var semanasAcciones = plan.semanasAcciones||{};
+  var calendario = plan.calendario||[];
+
+  // Progreso total
+  var totAcc = accionesBase.length + accionesCustom.length;
+  var compBase = accionesBase.filter(function(a){return accionesChecked.indexOf(a)>=0;}).length;
+  var compCustom = accionesCustom.filter(function(a){return a.done;}).length;
+  var completadas = compBase + compCustom;
+  var pct = totAcc>0?Math.round((completadas/totAcc)*100):0;
+
+  // Consistencia semanal (semanas marcadas de todas las acciones)
+  var totalSemMarcadas=0, totalSemPosibles=0;
+  accionesBase.forEach(function(acc){
+    var sems=semanasAcciones[acc]||{};
+    for(var s=1;s<=4;s++){totalSemPosibles++;if(sems[s])totalSemMarcadas++;}
+  });
+  var consistencia = totalSemPosibles>0?Math.round((totalSemMarcadas/totalSemPosibles)*100):0;
+
+  var motivMsg = pct===100?"🏆 ¡Completaste todas las acciones! Eso es compromiso de élite. 🌟":
+    pct>=75?"🚀 ¡Vas con todo! Estás en la recta final — ¡un empujón más!":
+    pct>=50?"💪 ¡Mitad del camino! Cada acción completada te acerca a tus metas.":
+    pct>=25?"⚡ ¡Buen comienzo! El camino está trazado — sigue adelante.":
+    "🎯 Tu plan está listo. ¡El primer paso es el más importante!";
+
+  var consistMsg = consistencia>=75?"🔥 ¡Consistencia élite! La constancia es tu mayor ventaja.":
+    consistencia>=50?"💪 Buena consistencia — ¡sigue manteniendo el ritmo!":
+    consistencia>=25?"⚡ Consistencia en construcción — ¡cada semana suma!":
+    "📅 Comienza a marcar tus semanas para ver tu consistencia.";
+
+  function toggleSemana(acc, sem) {
+    var nuevasSems = JSON.parse(JSON.stringify(semanasAcciones));
+    if(!nuevasSems[acc]) nuevasSems[acc]={};
+    nuevasSems[acc][sem] = !nuevasSems[acc][sem];
+    savePlanField({semanasAcciones:nuevasSems});
+  }
+
+  function saveComentarioSem(acc, sem, txt) {
+    var nuevasSems = JSON.parse(JSON.stringify(semanasAcciones));
+    if(!nuevasSems[acc]) nuevasSems[acc]={};
+    nuevasSems[acc]["com"+sem] = txt;
+    savePlanField({semanasAcciones:nuevasSems});
+  }
+
+  function saveEditAccion(oldAcc) {
+    if(!editAccionTxt.trim()) return;
+    var nuevasBase = accionesBase.map(function(a){return a===oldAcc?editAccionTxt.trim():a;});
+    // Also update semanasAcciones key
+    var nuevasSems = JSON.parse(JSON.stringify(semanasAcciones));
+    if(nuevasSems[oldAcc]&&oldAcc!==editAccionTxt.trim()){
+      nuevasSems[editAccionTxt.trim()]=nuevasSems[oldAcc];
+      delete nuevasSems[oldAcc];
+    }
+    // Update acciones checked
+    var nuevasChecked = accionesChecked.map(function(a){return a===oldAcc?editAccionTxt.trim():a;});
+    savePlanField({accionesBase:nuevasBase,semanasAcciones:nuevasSems,acciones:nuevasChecked});
+    setEditandoAccion(null);
+  }
+
+  function addCalActividad() {
     if(!calInput.trim()) return;
     var nueva={txt:calInput.trim(),fecha:calFecha,done:false,ts:Date.now()};
     var nuevoCal=[].concat(calendario,[nueva]).sort(function(a,b){return (a.fecha||"").localeCompare(b.fecha||"");});
-    saveCalendario(nuevoCal);
-    setCalInput(""); setCalFecha("");
+    savePlanField({calendario:nuevoCal}); setCalInput(""); setCalFecha("");
   }
+  function toggleActividad(idx) { var nc=calendario.map(function(c,i){return i===idx?Object.assign({},c,{done:!c.done}):c;}); savePlanField({calendario:nc}); }
+  function removeActividad(idx) { var nc=calendario.filter(function(_,i){return i!==idx;}); savePlanField({calendario:nc}); }
 
-  function toggleActividad(idx) {
-    var nuevoCal=calendario.map(function(c,i){return i===idx?Object.assign({},c,{done:!c.done}):c;});
-    saveCalendario(nuevoCal);
-  }
+  function renderAccion(acc, isCustom, idx) {
+    var done = isCustom ? acc.done : accionesChecked.indexOf(acc)>=0;
+    var accKey = isCustom ? acc.txt : acc;
+    var sems = semanasAcciones[accKey]||{};
+    var semsMarcadas = [1,2,3,4].filter(function(s){return sems[s];}).length;
+    var abierto = accionExpandida===accKey;
+    var editando = editandoAccion===accKey;
 
-  function removeActividad(idx) {
-    var nuevoCal=calendario.filter(function(_,i){return i!==idx;});
-    saveCalendario(nuevoCal);
-  }
-
-  function saveNotaEjec() {
-    if(!window.__fbDb||!window.__fbDoc||!window.__fbGetDoc||!window.__fbSetDoc) return;
-    window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","plan_agv")).then(function(snap){
-      var planes=snap.exists&&snap.data()&&snap.data().planes?JSON.parse(JSON.stringify(snap.data().planes)):{};
-      if(!planes[v.id]) planes[v.id]={};
-      planes[v.id].notaEjecutivo=notaEjec;
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","plan_agv"),{planes:planes,ts:Date.now()});
-      setPlan(function(p){return Object.assign({},p,{notaEjecutivo:notaEjec});});
-      setEditNota(false); setGuardado(true); setTimeout(function(){setGuardado(false);},2000);
-    });
-  }
-
-  return React.createElement('div', {style:{marginTop:24}}
-    // Header
-    , React.createElement('div',{style:{background:"linear-gradient(135deg,#1a0008,#3d0010,#6B0018)",borderRadius:18,padding:"22px 22px",marginBottom:16,color:"#fff"}}
-      , React.createElement('div',{style:{fontSize:11,color:"rgba(255,200,200,.7)",textTransform:"uppercase",letterSpacing:"0.15em",marginBottom:4}},"📋 MI PLAN DE TRABAJO — "+info.mes.toUpperCase())
-      , React.createElement('div',{style:{fontSize:19,fontWeight:900,marginBottom:6}},"Hola "+v.nombre.split(" ")[0]+" — este es tu plan de éxito 🚀")
-      , React.createElement('div',{style:{fontSize:12,color:"rgba(255,255,255,.7)",marginBottom:14}},motivMsg)
-      // Progreso
-      , React.createElement('div',{style:{display:"flex",alignItems:"center",gap:12}}
-        , React.createElement('div',{style:{flex:1,background:"rgba(255,255,255,.15)",borderRadius:99,height:10,overflow:"hidden"}}
-          , React.createElement('div',{style:{width:pct+"%",height:"100%",background:pct===100?"#4ADE80":pct>=50?"#FCD34D":"#FB923C",borderRadius:99,transition:"width .5s"}})
+    return React.createElement("div",{key:accKey+(isCustom?"_c":""),style:{borderRadius:12,marginBottom:8,border:"1.5px solid "+(done?"#86EFAC":isCustom?"#BFDBFE":"#E5E7EB"),overflow:"hidden"}}
+      // Header acción
+      ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",background:done?"#F0FDF4":isCustom?"#EFF6FF":"#fff",cursor:"pointer"}}
+        // Checkbox completado
+        ,React.createElement("div",{onClick:function(){
+            if(isCustom){ var p=JSON.parse(JSON.stringify(plan)); var item=p.accionesCustom.find(function(a){return a.txt===acc.txt;}); if(item)item.done=!item.done; savePlanField({accionesCustom:p.accionesCustom}); }
+            else{ var nc=accionesChecked.indexOf(acc)>=0?accionesChecked.filter(function(a){return a!==acc;}):accionesChecked.concat([acc]); savePlanField({acciones:nc}); }
+          },style:{width:20,height:20,borderRadius:4,border:"2px solid "+(done?"#16A34A":isCustom?"#93C5FD":"#D1D5DB"),background:done?"#16A34A":"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}
+          ,done&&React.createElement("span",{style:{color:"#fff",fontSize:12,fontWeight:900}},"✓")
         )
-        , React.createElement('div',{style:{fontSize:14,fontWeight:900,color:"#fff",flexShrink:0}},pct+"%")
+        // Texto (editable)
+        ,editando
+          ? React.createElement("div",{style:{flex:1,display:"flex",gap:6}}
+              ,React.createElement("input",{value:editAccionTxt,onChange:function(e){setEditAccionTxt(e.target.value);},autoFocus:true,
+                  onKeyDown:function(e){if(e.key==="Enter")saveEditAccion(acc);if(e.key==="Escape")setEditandoAccion(null);},
+                  style:{flex:1,padding:"4px 8px",borderRadius:6,border:"1.5px solid "+R,fontSize:12,fontFamily:"inherit"}})
+              ,React.createElement("button",{onClick:function(){saveEditAccion(acc);},style:{background:"#16A34A",color:"#fff",border:"none",borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",fontWeight:700}},"✓")
+              ,React.createElement("button",{onClick:function(){setEditandoAccion(null);},style:{background:"#F3F4F6",border:"none",borderRadius:6,padding:"4px 8px",fontSize:11,cursor:"pointer"}},"✕")
+            )
+          : React.createElement("span",{onClick:function(){setAccionExpandida(abierto?null:accKey);},style:{fontSize:12,color:done?"#166534":"#374151",textDecoration:done?"line-through":"none",flex:1,lineHeight:1.4}},accKey)
+        // Consistencia semanas
+        ,!editando&&React.createElement("div",{style:{display:"flex",gap:3,flexShrink:0}}
+          ,[1,2,3,4].map(function(s){
+              return React.createElement("div",{key:s,title:"Sem "+s,style:{width:14,height:14,borderRadius:3,background:sems[s]?"#16A34A":"#E5E7EB",fontSize:8,color:sems[s]?"#fff":"#9CA3AF",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}},s);
+            })
+        )
+        // Editar / expandir
+        ,!editando&&React.createElement("div",{style:{display:"flex",gap:4,flexShrink:0}}
+          ,React.createElement("button",{onClick:function(){setEditandoAccion(accKey);setEditAccionTxt(accKey);},style:{background:"none",border:"none",cursor:"pointer",fontSize:12,color:"#9CA3AF",padding:"0 3px"}},"✏️")
+          ,React.createElement("button",{onClick:function(){setAccionExpandida(abierto?null:accKey);},style:{background:"none",border:"none",cursor:"pointer",fontSize:12,color:"#9CA3AF",padding:"0 3px"}},abierto?"▲":"▼")
+        )
       )
-      , React.createElement('div',{style:{fontSize:11,color:"rgba(255,255,255,.6)",marginTop:4}},completadas+"/"+total+" acciones completadas · "+estadoLabel)
+      // Panel semanal expandido
+      ,abierto&&React.createElement("div",{style:{padding:"12px 14px",background:"#F8FAFC",borderTop:"1px solid #E5E7EB"}}
+        ,React.createElement("div",{style:{fontSize:11,fontWeight:700,color:"#374151",marginBottom:8}},"📅 Seguimiento semanal — "+semsMarcadas+"/4 semanas cumplidas")
+        ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8}}
+          ,[1,2,3,4].map(function(sem){
+              var marcada=sems[sem]||false;
+              var com=sems["com"+sem]||"";
+              return React.createElement("div",{key:sem,style:{background:marcada?"#DCFCE7":"#fff",borderRadius:10,padding:"10px 12px",border:"1.5px solid "+(marcada?"#86EFAC":"#E5E7EB")}}
+                ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6,marginBottom:6}}
+                  ,React.createElement("div",{onClick:function(){toggleSemana(accKey,sem);},style:{width:18,height:18,borderRadius:4,border:"2px solid "+(marcada?"#16A34A":"#D1D5DB"),background:marcada?"#16A34A":"#fff",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}
+                    ,marcada&&React.createElement("span",{style:{color:"#fff",fontSize:11,fontWeight:900}},"✓")
+                  )
+                  ,React.createElement("span",{style:{fontSize:12,fontWeight:700,color:marcada?"#16A34A":"#374151"}},"Semana "+sem)
+                  ,marcada&&React.createElement("span",{style:{fontSize:10,color:"#16A34A",fontWeight:700}},"✅ Cumplida")
+                )
+                ,React.createElement(SemComentario,{accKey:accKey,sem:sem,com:com,onSave:saveComentarioSem})
+              );
+            })
+        )
+      )
+    );
+  }
+
+  return React.createElement("div",{style:{marginTop:24}}
+    // Header
+    ,React.createElement("div",{style:{background:"linear-gradient(135deg,#1a0008,#3d0010,#6B0018)",borderRadius:18,padding:"22px 22px",marginBottom:16,color:"#fff"}}
+      ,React.createElement("div",{style:{fontSize:11,color:"rgba(255,200,200,.7)",textTransform:"uppercase",letterSpacing:"0.15em",marginBottom:4}},"🎯 MI PLAN DE ÉXITO — "+info.mes.toUpperCase())
+      ,React.createElement("div",{style:{fontSize:19,fontWeight:900,marginBottom:6}},"Hola "+v.nombre.split(" ")[0]+" — este es tu plan 🚀")
+      ,React.createElement("div",{style:{fontSize:12,color:"rgba(255,255,255,.8)",marginBottom:14}},motivMsg)
+      ,React.createElement("div",{style:{display:"flex",gap:16,flexWrap:"wrap",marginBottom:10}}
+        ,React.createElement("div",{style:{flex:1}}
+          ,React.createElement("div",{style:{fontSize:10,color:"rgba(255,255,255,.6)",marginBottom:4}},"Acciones completadas")
+          ,React.createElement("div",{style:{background:"rgba(255,255,255,.15)",borderRadius:99,height:8,overflow:"hidden"}}
+            ,React.createElement("div",{style:{width:pct+"%",height:"100%",background:pct===100?"#4ADE80":pct>=50?"#FCD34D":"#FB923C",borderRadius:99}})
+          )
+          ,React.createElement("div",{style:{fontSize:11,color:"rgba(255,255,255,.7)",marginTop:3}},pct+"% · "+completadas+"/"+totAcc+" acciones")
+        )
+        ,React.createElement("div",{style:{flex:1}}
+          ,React.createElement("div",{style:{fontSize:10,color:"rgba(255,255,255,.6)",marginBottom:4}},"Consistencia semanal")
+          ,React.createElement("div",{style:{background:"rgba(255,255,255,.15)",borderRadius:99,height:8,overflow:"hidden"}}
+            ,React.createElement("div",{style:{width:consistencia+"%",height:"100%",background:consistencia>=75?"#4ADE80":consistencia>=50?"#FCD34D":"#FB923C",borderRadius:99}})
+          )
+          ,React.createElement("div",{style:{fontSize:11,color:"rgba(255,255,255,.7)",marginTop:3}},consistencia+"% — "+consistMsg.split("!")[0]+"!")
+        )
+      )
     )
 
-    // Acciones del plan
-    , React.createElement('div',{style:{background:"#fff",borderRadius:16,padding:"20px",marginBottom:16,boxShadow:"0 2px 12px rgba(0,0,0,.06)"}}
-      , React.createElement('div',{style:{fontSize:14,fontWeight:900,color:"#1F2937",marginBottom:14}},"✅ Mis acciones comprometidas")
-      , accionesBase.length===0&&accionesCustom.length===0
-        ? React.createElement('div',{style:{color:"#9CA3AF",fontSize:12,fontStyle:"italic"}},"Tu plan se está preparando junto a tu supervisor.")
-        : React.createElement('div',null
-            , accionesBase.map(function(acc,i){
-                var done=accionesChecked.indexOf(acc)>=0;
-                return React.createElement('div',{key:i,style:{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,marginBottom:6,background:done?"#F0FDF4":"#F8FAFC",border:"1.5px solid "+(done?"#86EFAC":"#E5E7EB")}}
-                  , React.createElement('div',{style:{width:20,height:20,borderRadius:4,border:"2px solid "+(done?"#16A34A":"#D1D5DB"),background:done?"#16A34A":"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}
-                    , done&&React.createElement('span',{style:{color:"#fff",fontSize:12,fontWeight:900}},"✓")
-                  )
-                  , React.createElement('span',{style:{fontSize:13,color:done?"#166534":"#374151",textDecoration:done?"line-through":"none",flex:1}},acc)
-                );
-              })
-            , accionesCustom.map(function(acc,i){
-                return React.createElement('div',{key:"c"+i,style:{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,marginBottom:6,background:acc.done?"#F0FDF4":"#EFF6FF",border:"1.5px solid "+(acc.done?"#86EFAC":"#BFDBFE")}}
-                  , React.createElement('div',{style:{width:20,height:20,borderRadius:4,border:"2px solid "+(acc.done?"#16A34A":"#93C5FD"),background:acc.done?"#16A34A":"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}
-                    , acc.done&&React.createElement('span',{style:{color:"#fff",fontSize:12,fontWeight:900}},"✓")
-                  )
-                  , React.createElement('span',{style:{fontSize:13,color:acc.done?"#166534":"#1D4ED8",textDecoration:acc.done?"line-through":"none",flex:1}},acc.txt)
-                );
-              })
-          )
+    // Acciones con bloques semanales
+    ,React.createElement("div",{style:{background:"#fff",borderRadius:16,padding:"20px",marginBottom:16,boxShadow:"0 2px 12px rgba(0,0,0,.06)"}}
+      ,React.createElement("div",{style:{fontSize:14,fontWeight:900,color:"#1F2937",marginBottom:4}},"✅ Mis acciones comprometidas")
+      ,React.createElement("div",{style:{fontSize:11,color:"#6B7280",marginBottom:14}},"✏️ para editar · ▼ para ver seguimiento semanal · los cuadros de colores muestran tus semanas cumplidas")
+      ,accionesBase.map(function(acc){return renderAccion(acc,false,0);})
+      ,accionesCustom.map(function(acc,i){return renderAccion(acc,true,i);})
+      ,React.createElement(PlanAccionInput,{vid:v.id,onAdd:function(id,txt){
+          var nuevasCustom=(plan.accionesCustom||[]).concat([{txt:txt,done:false}]);
+          savePlanField({accionesCustom:nuevasCustom});
+        },R:R})
     )
 
     // Notas del ejecutivo
-    , React.createElement('div',{style:{background:"#fff",borderRadius:16,padding:"20px",marginBottom:16,boxShadow:"0 2px 12px rgba(0,0,0,.06)"}}
-      , React.createElement('div',{style:{fontSize:14,fontWeight:900,color:"#1F2937",marginBottom:10}},"📝 Mis notas y avances")
-      , guardado&&React.createElement('div',{style:{fontSize:11,color:"#16A34A",fontWeight:700,marginBottom:6}},"✅ Guardado")
-      , editNota
-        ? React.createElement('div',null
-            , React.createElement('textarea',{value:notaEjec,onChange:function(e){setNotaEjec(e.target.value);},rows:5,
+    ,React.createElement("div",{style:{background:"#fff",borderRadius:16,padding:"20px",marginBottom:16,boxShadow:"0 2px 12px rgba(0,0,0,.06)"}}
+      ,React.createElement("div",{style:{fontSize:14,fontWeight:900,color:"#1F2937",marginBottom:10}},"📝 Mis notas y avances generales")
+      ,guardado&&React.createElement("div",{style:{fontSize:11,color:"#16A34A",fontWeight:700,marginBottom:6}},"✅ Guardado")
+      ,editNota
+        ? React.createElement("div",null
+            ,React.createElement("textarea",{value:notaEjec,onChange:function(e){setNotaEjec(e.target.value);},rows:5,
                 placeholder:"Escribe tus avances, resultados o ideas aquí...",
                 style:{width:"100%",padding:12,borderRadius:10,border:"1.5px solid #D1D5DB",fontSize:13,fontFamily:"inherit",resize:"vertical",boxSizing:"border-box"}})
-            , React.createElement('div',{style:{display:"flex",gap:8,marginTop:8}}
-              , React.createElement('button',{onClick:saveNotaEjec,style:{background:"#16A34A",color:"#fff",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,cursor:"pointer",fontWeight:700}},"💾 Guardar")
-              , React.createElement('button',{onClick:function(){setEditNota(false);},style:{background:"#F3F4F6",color:"#374151",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,cursor:"pointer"}},"Cancelar")
+            ,React.createElement("div",{style:{display:"flex",gap:8,marginTop:8}}
+              ,React.createElement("button",{onClick:function(){savePlanField({notaEjecutivo:notaEjec});setEditNota(false);setGuardado(true);setTimeout(function(){setGuardado(false);},2000);},style:{background:"#16A34A",color:"#fff",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,cursor:"pointer",fontWeight:700}},"💾 Guardar")
+              ,React.createElement("button",{onClick:function(){setEditNota(false);},style:{background:"#F3F4F6",color:"#374151",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,cursor:"pointer"}},"Cancelar")
             )
           )
-        : React.createElement('div',{onClick:function(){setEditNota(true);setNotaEjec(plan.notaEjecutivo||"");},
+        : React.createElement("div",{onClick:function(){setEditNota(true);setNotaEjec(plan.notaEjecutivo||"");},
               style:{minHeight:80,background:"#F8FAFC",borderRadius:10,border:"1.5px dashed #D1D5DB",padding:"12px 14px",fontSize:13,color:plan.notaEjecutivo?"#374151":"#9CA3AF",cursor:"pointer",lineHeight:1.6}}
-            , plan.notaEjecutivo || "Click para agregar tus notas, avances y resultados...")
+            ,plan.notaEjecutivo||"Click para agregar tus notas, avances y resultados generales del mes...")
     )
 
-    // Calendario de actividades
-    , React.createElement('div',{style:{background:"#fff",borderRadius:16,padding:"20px",boxShadow:"0 2px 12px rgba(0,0,0,.06)"}}
-      , React.createElement('div',{style:{fontSize:14,fontWeight:900,color:"#1F2937",marginBottom:4}},"📅 Mi Calendario de Actividades")
-      , React.createElement('div',{style:{fontSize:11,color:"#6B7280",marginBottom:14}},"Agenda tus próximas actividades y bloques de trabajo. Tu supervisor también las verá.")
-      // Agregar actividad
-      , React.createElement('div',{style:{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}
-        , React.createElement('input',{type:"date",value:calFecha,onChange:function(e){setCalFecha(e.target.value);},
-            style:{padding:"8px 10px",borderRadius:8,border:"1.5px solid #E5E7EB",fontSize:12,fontFamily:"inherit",color:"#374151"}})
-        , React.createElement('input',{type:"text",value:calInput,onChange:function(e){setCalInput(e.target.value);},
-            onKeyDown:function(e){if(e.key==="Enter")addActividad();},
-            placeholder:"Describe la actividad o bloque...",
-            style:{flex:1,minWidth:180,padding:"8px 12px",borderRadius:8,border:"1.5px solid #E5E7EB",fontSize:12,fontFamily:"inherit"}})
-        , React.createElement('button',{onClick:addActividad,style:{background:R,color:"#fff",border:"none",borderRadius:8,padding:"8px 16px",fontSize:12,cursor:"pointer",fontWeight:700,fontFamily:"inherit",flexShrink:0}},"+ Agregar")
+    // Calendario
+    ,React.createElement("div",{style:{background:"#fff",borderRadius:16,padding:"20px",boxShadow:"0 2px 12px rgba(0,0,0,.06)"}}
+      ,React.createElement("div",{style:{fontSize:14,fontWeight:900,color:"#1F2937",marginBottom:4}},"📅 Mi Calendario de Actividades")
+      ,React.createElement("div",{style:{fontSize:11,color:"#6B7280",marginBottom:14}},"Agenda tus próximas actividades y bloques de trabajo. Tu supervisor también las verá.")
+      ,React.createElement("div",{style:{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}
+        ,React.createElement("input",{type:"date",value:calFecha,onChange:function(e){setCalFecha(e.target.value);},style:{padding:"8px 10px",borderRadius:8,border:"1.5px solid #E5E7EB",fontSize:12,fontFamily:"inherit"}})
+        ,React.createElement("input",{type:"text",value:calInput,onChange:function(e){setCalInput(e.target.value);},onKeyDown:function(e){if(e.key==="Enter")addCalActividad();},placeholder:"Describe la actividad o bloque...",style:{flex:1,minWidth:180,padding:"8px 12px",borderRadius:8,border:"1.5px solid #E5E7EB",fontSize:12,fontFamily:"inherit"}})
+        ,React.createElement("button",{onClick:addCalActividad,style:{background:R,color:"#fff",border:"none",borderRadius:8,padding:"8px 16px",fontSize:12,cursor:"pointer",fontWeight:700,fontFamily:"inherit",flexShrink:0}},"+ Agregar")
       )
-      // Lista de actividades
-      , calendario.length===0
-        ? React.createElement('div',{style:{textAlign:"center",padding:"24px",color:"#9CA3AF",fontSize:12,fontStyle:"italic"}},"Aún no tienes actividades agendadas. ¡Empieza a planificar!")
-        : React.createElement('div',null
-            , calendario.map(function(act,i){
-                return React.createElement('div',{key:i,style:{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,marginBottom:6,background:act.done?"#F0FDF4":"#fff",border:"1.5px solid "+(act.done?"#86EFAC":"#E5E7EB")}}
-                  , React.createElement('div',{onClick:function(){toggleActividad(i);},style:{width:20,height:20,borderRadius:"50%",border:"2px solid "+(act.done?"#16A34A":"#D1D5DB"),background:act.done?"#16A34A":"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,cursor:"pointer"}}
-                    , act.done&&React.createElement('span',{style:{color:"#fff",fontSize:11,fontWeight:900}},"✓")
-                  )
-                  , act.fecha&&React.createElement('span',{style:{fontSize:11,fontWeight:700,color:act.done?"#16A34A":"#7C3AED",flexShrink:0,background:act.done?"#DCFCE7":"#EDE9FE",borderRadius:6,padding:"2px 7px"}},act.fecha)
-                  , React.createElement('span',{style:{fontSize:13,color:act.done?"#166534":"#374151",textDecoration:act.done?"line-through":"none",flex:1}},act.txt)
-                  , React.createElement('button',{onClick:function(){removeActividad(i);},style:{background:"none",border:"none",cursor:"pointer",color:"#DC2626",fontSize:14,opacity:.5}},"✕")
-                );
-              })
-          )
+      ,calendario.length===0
+        ? React.createElement("div",{style:{textAlign:"center",padding:24,color:"#9CA3AF",fontSize:12,fontStyle:"italic"}},"Aún no tienes actividades agendadas. ¡Empieza a planificar!")
+        : calendario.map(function(act,i){
+            return React.createElement("div",{key:i,style:{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,marginBottom:6,background:act.done?"#F0FDF4":"#fff",border:"1.5px solid "+(act.done?"#86EFAC":"#E5E7EB")}}
+              ,React.createElement("div",{onClick:function(){toggleActividad(i);},style:{width:20,height:20,borderRadius:"50%",border:"2px solid "+(act.done?"#16A34A":"#D1D5DB"),background:act.done?"#16A34A":"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,cursor:"pointer"}}
+                ,act.done&&React.createElement("span",{style:{color:"#fff",fontSize:11,fontWeight:900}},"✓")
+              )
+              ,act.fecha&&React.createElement("span",{style:{fontSize:11,fontWeight:700,color:act.done?"#16A34A":"#7C3AED",flexShrink:0,background:act.done?"#DCFCE7":"#EDE9FE",borderRadius:6,padding:"2px 7px"}},act.fecha)
+              ,React.createElement("span",{style:{fontSize:13,color:act.done?"#166534":"#374151",textDecoration:act.done?"line-through":"none",flex:1}},act.txt)
+              ,React.createElement("button",{onClick:function(){removeActividad(i);},style:{background:"none",border:"none",cursor:"pointer",color:"#DC2626",fontSize:14,opacity:.5}},"✕")
+            );
+          })
     )
   );
 }
+
+// Sub-componente para comentario semanal (evita re-render)
+function SemComentario({ accKey, sem, com, onSave }) {
+  var [txt, setTxt] = React.useState(com);
+  var [editando, setEditando] = React.useState(false);
+  React.useEffect(function(){setTxt(com);},[com]);
+  return React.createElement("div",null
+    ,editando
+      ? React.createElement("div",null
+          ,React.createElement("textarea",{value:txt,onChange:function(e){setTxt(e.target.value);},rows:2,autoFocus:true,
+              placeholder:"¿Qué pasó esta semana?",
+              style:{width:"100%",padding:"6px 8px",borderRadius:6,border:"1px solid #D1D5DB",fontSize:11,fontFamily:"inherit",resize:"none",boxSizing:"border-box"}})
+          ,React.createElement("div",{style:{display:"flex",gap:4,marginTop:4}}
+            ,React.createElement("button",{onClick:function(){onSave(accKey,sem,txt);setEditando(false);},style:{background:"#16A34A",color:"#fff",border:"none",borderRadius:5,padding:"3px 8px",fontSize:10,cursor:"pointer",fontWeight:700}},"✓ Guardar")
+            ,React.createElement("button",{onClick:function(){setEditando(false);setTxt(com);},style:{background:"#F3F4F6",border:"none",borderRadius:5,padding:"3px 6px",fontSize:10,cursor:"pointer"}},"✕")
+          )
+        )
+      : React.createElement("div",{onClick:function(){setEditando(true);},style:{fontSize:11,color:txt?"#4B5563":"#9CA3AF",fontStyle:txt?"normal":"italic",cursor:"pointer",lineHeight:1.4,padding:"2px 0",minHeight:18}}
+          ,txt||"+ Agregar comentario de esta semana...")
+  );
+}
+
+
 
 // ── Plan de Trabajo AGV (Supervisor) ─────────────────────────────────────────
 function PlanAGVView({ equipo, info, R, RD }) {
@@ -3308,7 +3404,7 @@ function PlanAGVView({ equipo, info, R, RD }) {
       window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","plan_agv"),{planes:nuevo,ts:Date.now()}).catch(function(){});
   }
 
-  function getPlan(id) { return planes[id]||{acciones:[],nota:"",estado:"pendiente",accionesCustom:[],diagsCustom:null,accionesBase:null}; }
+  function getPlan(id) { return planes[id]||{acciones:[],nota:"",estado:"pendiente",accionesCustom:[],diagsCustom:null,accionesBase:ACCIONES_BASE_DEFAULT.slice()}; }
   function toggleAccion(id,acc) { var p=JSON.parse(JSON.stringify(getPlan(id))); var idx=(p.acciones||[]).indexOf(acc); if(idx>=0)p.acciones.splice(idx,1);else{p.acciones=p.acciones||[];p.acciones.push(acc);} var np=Object.assign({},planes);np[id]=p;savePlanes(np); }
   function toggleCustomAccion(id,acc) { var p=JSON.parse(JSON.stringify(getPlan(id))); var item=(p.accionesCustom||[]).find(function(a){return a.txt===acc;}); if(item)item.done=!item.done; var np=Object.assign({},planes);np[id]=p;savePlanes(np); }
   function addAccion(id,txt) { if(!txt||!txt.trim())return; var p=JSON.parse(JSON.stringify(getPlan(id))); p.accionesCustom=p.accionesCustom||[]; p.accionesCustom.push({txt:txt.trim(),done:false}); var np=Object.assign({},planes);np[id]=p;savePlanes(np); }
@@ -4831,10 +4927,10 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
     {k:"equipo",        l:"🏆 Equipo"},
     {k:"formulario",    l:"📋 Mis Cierres y Actividad Diaria"},
     {k:"calculadora",   l:"🎯 Mi Meta de este Mes!"},
-    {k:"infodocs",      l:"📌 Info y Docs Importantes"},
-    {k:"historial",     l:"📈 Mi Productividad y Plan"},
+    {k:"historial",     l:"🎯 Mi Desempeño y Plan de Éxito"},
     {k:"crm",           l:"📒 Mi Agenda y Gestión de Clientes"},
     {k:"reconocimiento",l:"🌟 Reconocimientos"},
+    {k:"infodocs",      l:"📌 Info y Docs Importantes"},
     {k:"supervisor",    l:"🔐 Supervisor"},
   ];
 
