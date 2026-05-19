@@ -5783,7 +5783,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                 , React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.6)",marginTop:6}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3196}}, "Faltan "+fmtUF2(falta)+" UF para la meta del equipo")
               )
             )
-            , React.createElement('div', { style: {background:"#fff",borderRadius:18,padding:32,boxShadow:"0 4px 20px rgba(233,7,41,.09)",border:"1px solid rgba(233,7,41,.08)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3199}}
+            , React.createElement('div', { style: {background:"#fff",borderRadius:18,padding:32,boxShadow:"0 4px 20px rgba(233,7,41,.09)",border:"1px solid rgba(233,7,41,.08)"} }
               , enviado?(
                 React.createElement('div', { style: {textAlign:"center",padding:"40px 0"} }
                   , React.createElement('div', { style: {width:64,height:64,background:"#DCFCE7",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px",fontSize:28,fontWeight:900,color:"#16A34A"} }, "✓")
@@ -5837,6 +5837,52 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                       )
                     )
                   )
+                  , form.vid !== "" && pinFormOk && (function(){
+                      var vAct = equipo.find(function(e){return e.id===Number(form.vid);});
+                      var reps = vAct ? (vAct.rep||[]).filter(function(r){
+                        return r.uf && parseFloat(r.uf)>0;
+                      }).sort(function(a,b){return (b.fecha||"").localeCompare(a.fecha||"");}) : [];
+                      var totalUFMes = vAct ? (vAct.uf||0) : 0;
+                      if(!reps.length) return null;
+                      return React.createElement('div', {style:{marginBottom:20}}
+                        , React.createElement('div', {style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}
+                          , React.createElement('div', {style:{fontSize:14,fontWeight:900,color:RD}}, "📋 Mis cierres del mes")
+                          , React.createElement('div', {style:{background:"#FFF0F2",borderRadius:99,padding:"4px 12px",fontSize:13,fontWeight:900,color:RD}}, fmtUF2(totalUFMes)+" UF total")
+                        )
+                        , reps.map(function(r, i){
+                            var sexo = r.hombres>0&&r.mujeres<=0?"👨":r.mujeres>0&&r.hombres<=0?"👩":"👥";
+                            var origen = r.origen||"";
+                            return React.createElement('div', {key:i, style:{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:12,marginBottom:6,background:"#F8FAFC",border:"1px solid #E5E7EB"}}
+                              , React.createElement('div', {style:{fontSize:11,color:"#9CA3AF",flexShrink:0,minWidth:70}}, r.fecha||"")
+                              , React.createElement('div', {style:{flex:1}}
+                                , React.createElement('div', {style:{fontWeight:800,color:RD,fontSize:14}}, fmtUF2(parseFloat(r.uf)||0)+" UF")
+                                , React.createElement('div', {style:{fontSize:11,color:"#6B7280",marginTop:1}},
+                                    sexo+" "+(r.hombres||0)+"H / "+(r.mujeres||0)+"M"
+                                    +(r.conecta>0?" · 💚 "+r.conecta+" Conecta":"")
+                                    +(r.dps>0?" · "+r.dps+" DPS":"")
+                                    +(origen?" · "+origen:"")
+                                  )
+                              )
+                              , React.createElement('button', {
+                                  onClick: function(){
+                                    if(!window.confirm("¿Eliminar este cierre?")) return;
+                                    var nuevosReps = (vAct.rep||[]).filter(function(_,idx){
+                                      return idx !== (vAct.rep||[]).indexOf(r);
+                                    });
+                                    // Recalcular uf total
+                                    var nuevaUF = nuevosReps.reduce(function(s,rr){return s+(parseFloat(rr.uf)||0);},0);
+                                    var nuevoEquipo = equipo.map(function(e){
+                                      if(e.id!==vAct.id) return e;
+                                      return Object.assign({},e,{rep:nuevosReps,uf:parseFloat(nuevaUF.toFixed(2))});
+                                    });
+                                    setEquipo(nuevoEquipo);
+                                  },
+                                  style:{background:"#FEE2E2",color:"#DC2626",border:"none",borderRadius:8,padding:"5px 10px",fontSize:12,cursor:"pointer",flexShrink:0}
+                                }, "🗑️")
+                            );
+                          })
+                      );
+                    })()
                   , form.vid !== "" && pinFormOk && (
                     React.createElement('div', null
                   , React.createElement('div', { style: {display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16} }
