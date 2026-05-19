@@ -2816,12 +2816,14 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD }) {
     var mk2 = d2.getFullYear()+"-"+String(d2.getMonth()+1).padStart(2,"0");
     var nom2 = d2.toLocaleString("es-CL",{month:"long",year:"numeric"}).replace(/^./,function(c){return c.toUpperCase();});
     var totC2=0,totS2=0,totP2=0,totR2=0,totB2=0,totCt2=0,totUF2=0;
+    var esMesActual2 = (mk2 === info.mesKey);
     equipo.forEach(function(v){
       var h=(v.historial||{})[mk2]||{};
       totC2+=parseInt(h.dpsVenta)||0; totS2+=parseInt(h.dpsSinVenta)||0;
       totP2+=parseInt(h.dpsPendiente)||0; totR2+=parseInt(h.dpsRechazado)||0;
       totB2+=parseInt(h.nBenef)||0; totCt2+=parseInt(h.cttosDig)||0;
-      totUF2+=parseFloat(h.uf)||0;
+      // Mes actual: usar v.uf (estado live). Meses anteriores: usar h.uf del historial
+      totUF2 += esMesActual2 ? (parseFloat(v.uf)||0) : (parseFloat(h.uf)||0);
     });
     var totT2=totC2+totS2+totP2+totR2;
     mesesDisp.push({mk:mk2,nom:nom2,totC:totC2,totS:totS2,totP:totP2,totR:totR2,totT:totT2,totB:totB2,totCt:totCt2,totUF:parseFloat(totUF2.toFixed(2)),tasa:totT2>0?Math.round((totC2/totT2)*100):0});
