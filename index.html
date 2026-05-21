@@ -19,6 +19,9 @@
     @media (max-width: 600px) {
       .top10-fila3 { grid-template-columns: 1fr !important; }
       .top10-fila4 { grid-template-columns: 1fr !important; }
+      /* Pipeline DPS: forzar scroll horizontal en celular */
+      .pipeline-dps-wrap { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+      .pipeline-dps-grid { min-width: 320px !important; grid-template-columns: repeat(5,minmax(60px,1fr)) !important; }
       /* Premios: 1 columna en celular */
       .premios-grid { grid-template-columns: 1fr !important; }
       .agv-resumen-grid { grid-template-columns: repeat(3,1fr) !important; }
@@ -1699,17 +1702,25 @@ console.log("💡 Si faltan ejecutivos, ejecuta: window.recuperarDatos()");
 // ─────────────────────────────────────────────────────────────────────────────
 function fmtUF(n) {
   if (n === null || n === undefined || isNaN(n)) return "0";
-  var fixed = parseFloat(n.toFixed(3));
-  var str = fixed.toString().replace(".", ",");
-  return str;
+  // Truncar (nunca redondear) a 3 decimales
+  var t = Math.floor(Math.abs(n) * 1000) / 1000 * (n < 0 ? -1 : 1);
+  // Mostrar 3 decimales, luego eliminar trailing zero del 3ro (si es 0)
+  var s = t.toFixed(3);
+  if (s.slice(-1) === "0") s = s.slice(0, -1); // 16.560 → 16.56
+  // Nunca menos de 2 decimales
+  var parts = s.split(".");
+  if (!parts[1] || parts[1].length < 2) s = t.toFixed(2);
+  return s.replace(".", ",");
 }
 // ── Formateador UF 2 dec: truncado (sin redondeo), sin ceros finales, coma ──
 function fmtUF2(n) {
   if (n === null || n === undefined || isNaN(n)) return "0";
-  var truncated = Math.floor(n * 100) / 100;
-  var fixed = parseFloat(truncated.toFixed(2));
-  var str = fixed.toString().replace(".", ",");
-  return str;
+  var t = Math.floor(Math.abs(n) * 1000) / 1000 * (n < 0 ? -1 : 1);
+  var s = t.toFixed(3);
+  if (s.slice(-1) === "0") s = s.slice(0, -1);
+  var parts = s.split(".");
+  if (!parts[1] || parts[1].length < 2) s = t.toFixed(2);
+  return s.replace(".", ",");
 }
 
 function hoyStr() { return new Date().toLocaleDateString("es-CL"); }
@@ -2443,7 +2454,13 @@ function ClasificacionAGVView({ equipo, info, R, RD }) {
     { key:"bajo",  label:"🔴 Bajo Rendimiento",  sub:"Promedio < 12 UF", color:"#DC2626", bg:"#FFF1F2", border:"#FCA5A5", lista:bajos  },
   ];
 
-  function fmtUF(n) { return n.toFixed(2).replace('.',','); }
+  function fmtUF(n) {
+    if(!n&&n!==0) return "0";
+    var t=Math.floor(Math.abs(n)*1000)/1000*(n<0?-1:1);
+    var s=t.toFixed(3); if(s.slice(-1)==="0") s=s.slice(0,-1);
+    var p=s.split("."); if(!p[1]||p[1].length<2) s=t.toFixed(2);
+    return s.replace(".",",");
+  }
 
   return React.createElement('div', { style:{background:"#fff",borderRadius:18,padding:26,boxShadow:"0 3px 16px rgba(233,7,41,.07)"} }
     // Header
@@ -3091,6 +3108,10 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
                 },
                 style:{marginTop:8,background:esBenchmark?"#1D4ED8":"rgba(29,78,216,.1)",color:esBenchmark?"#fff":"#1D4ED8",borderRadius:8,padding:"4px 8px",fontSize:9,fontWeight:700,textAlign:"center",cursor:"pointer"}
               }, esBenchmark?"📌 Benchmark activo":"📌 Usar como Benchmark")
+              , esBenchmark && React.createElement("button",{
+                  onClick:function(e){e.stopPropagation();setBenchmark(null);if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","benchmark"),{});},
+                  style:{marginTop:4,background:"#FEE2E2",color:"#B91C1C",borderRadius:8,padding:"4px 8px",fontSize:9,fontWeight:700,textAlign:"center",cursor:"pointer",border:"none",width:"100%",fontFamily:"inherit"}
+                },"✕ Quitar benchmark")
           );
         })
     )
@@ -6157,8 +6178,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
               /* ── DPS PIPELINE KPIs ── */
               , totDpsTotal > 0 && React.createElement('div', { style:{background:"rgba(255,255,255,.04)",borderRadius:14,padding:"16px 18px",marginBottom:16,border:"1px solid rgba(99,179,237,.2)"} }
                 , React.createElement('div', { style:{fontSize:9,color:"rgba(99,179,237,.8)",textTransform:"uppercase",letterSpacing:"0.18em",marginBottom:12,fontWeight:700} }, "🔵 PIPELINE DPS — ESTADO ACTUAL")
-                , React.createElement('div', { style:{overflowX:"auto"} }
-                  , React.createElement('div', { style:{display:"grid",gridTemplateColumns:"repeat(5,minmax(70px,1fr))",gap:8,minWidth:350} }
+                , React.createElement('div', { className:"pipeline-dps-wrap", style:{overflowX:"auto"} }
+                  , React.createElement('div', { className:"pipeline-dps-grid", style:{display:"grid",gridTemplateColumns:"repeat(5,minmax(70px,1fr))",gap:8,minWidth:350} }
                   , [
                       {label:"Total DPS", val:totDpsTotal, color:"#E2E8F0", bg:"rgba(255,255,255,.12)"},
                       {label:"DPS Con Venta", val:totDpsConVenta, color:"#4ADE80", bg:"rgba(74,222,128,.12)"},
@@ -9185,8 +9206,13 @@ function UFLinealesView({ equipo, info }) {
   var calificadosMesActual = equipo.filter(function(v){ return v.uf >= 12; }).sort(function(a,b){ return b.uf-a.uf; });
 
   function fmtUF2(n) {
-    var t = Math.floor(n * 100) / 100;
-    return parseFloat(t.toFixed(2)).toString().replace(".", ",");
+    if(!n&&n!==0) return "0";
+    var t=Math.floor(Math.abs(n)*1000)/1000*(n<0?-1:1);
+    var s=t.toFixed(3);
+    if(s.slice(-1)==="0") s=s.slice(0,-1);
+    var parts=s.split(".");
+    if(!parts[1]||parts[1].length<2) s=t.toFixed(2);
+    return s.replace(".",",");
   }
   function primerNombreApellido(nombre) {
     var p = nombre.trim().split(/\s+/);
