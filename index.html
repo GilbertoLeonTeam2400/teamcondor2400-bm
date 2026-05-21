@@ -2854,7 +2854,7 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
 }
 
 // ── Análisis DPS (supervisor) ─────────────────────────────────────────────────
-function DpsAnalisisView({ equipo, setEquipo, info, R, RD }) {
+function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchmark, setSupVista }) {
   var [mesSeleccionado, setMesSeleccionado] = React.useState(info.mesKey);
   var [sortCol, setSortCol] = React.useState("dpsConVenta");
   var [sortAsc, setSortAsc] = React.useState(false);
@@ -2977,18 +2977,41 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD }) {
       ,mesesDisp.map(function(m){
           var activo=m.mk===mesSeleccionado;
           var tieneData=m.totT>0||m.totB>0||m.totCt>0;
-          return React.createElement("div",{key:m.mk,onClick:function(){setMesSeleccionado(m.mk);},
-              style:{flexShrink:0,background:activo?"linear-gradient(135deg,"+RD+",#C91B2F)":tieneData?"#F8FAFC":"#F3F4F6",borderRadius:14,padding:"14px 18px",cursor:"pointer",border:activo?"2px solid "+RD:"2px solid "+(tieneData?"#E5E7EB":"#F3F4F6"),minWidth:140,transition:"all .2s",boxShadow:activo?"0 4px 16px rgba(233,7,41,.3)":"none"}}
-            ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:activo?"#fff":tieneData?"#374151":"#9CA3AF",marginBottom:6}},m.nom.split(" de ")[0])
-            ,tieneData
-              ?React.createElement("div",null
-                  ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:activo?"#fff":tieneData?"#374151":"#9CA3AF",marginBottom:2}},m.totUF>0?m.totUF+" UF vendidas":"Sin UF")
-                  ,React.createElement("div",{style:{fontSize:11,color:activo?"rgba(255,255,255,.8)":"#6B7280"}},m.totT+" DPS · "+m.tasa+"% cierre")
-                  ,React.createElement("div",{style:{fontSize:10,color:activo?"rgba(255,255,255,.6)":"#9CA3AF",marginTop:2}},m.totB+" benef · "+m.totCt+" cttos")
-                )
-              :React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",fontStyle:"italic"}},"Sin datos")
+          var esBenchmark=benchmark&&benchmark.mesLabel&&benchmark.mesLabel===m.nom.split(" de ")[0];
+          return React.createElement("div",{key:m.mk,
+              style:{flexShrink:0,background:activo?"linear-gradient(135deg,"+RD+",#C91B2F)":tieneData?"#F8FAFC":"#F3F4F6",borderRadius:14,padding:"14px 18px",cursor:"pointer",border:activo?"2px solid "+RD:"2px solid "+(esBenchmark?"#1D4ED8":tieneData?"#E5E7EB":"#F3F4F6"),minWidth:140,transition:"all .2s",boxShadow:activo?"0 4px 16px rgba(233,7,41,.3)":esBenchmark?"0 4px 16px rgba(29,78,216,.2)":"none"}}
+            ,React.createElement("div",{onClick:function(){setMesSeleccionado(m.mk);}}
+              ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:activo?"#fff":tieneData?"#374151":"#9CA3AF",marginBottom:6}},m.nom.split(" de ")[0])
+              ,tieneData
+                ?React.createElement("div",null
+                    ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:activo?"#fff":tieneData?"#374151":"#9CA3AF",marginBottom:2}},m.totUF>0?m.totUF+" UF vendidas":"Sin UF")
+                    ,React.createElement("div",{style:{fontSize:11,color:activo?"rgba(255,255,255,.8)":"#6B7280"}},m.totT+" DPS · "+m.tasa+"% cierre")
+                    ,React.createElement("div",{style:{fontSize:10,color:activo?"rgba(255,255,255,.6)":"#9CA3AF",marginTop:2}},m.totB+" benef · "+m.totCt+" cttos")
+                  )
+                :React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",fontStyle:"italic"}},"Sin datos")
+            )
+            ,tieneData&&setBenchmark&&React.createElement("div",{
+                onClick:function(e){
+                  e.stopPropagation();
+                  var bm={mesLabel:m.nom.split(" de ")[0],uf:m.totUF,dps:m.totT,dpsCV:m.totC,dpsSV:m.totS,dpsP:m.totP,dpsR:m.totR,nBenef:m.totB,cttosDig:m.totCt,tasa:m.tasa};
+                  setBenchmark(bm);
+                  if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
+                    window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","benchmark"),bm);
+                },
+                style:{marginTop:8,background:esBenchmark?"#1D4ED8":"rgba(29,78,216,.1)",color:esBenchmark?"#fff":"#1D4ED8",borderRadius:8,padding:"4px 8px",fontSize:9,fontWeight:700,textAlign:"center",cursor:"pointer"}
+              }, esBenchmark?"📌 Benchmark activo":"📌 Usar como Benchmark")
           );
         })
+    )
+    ,React.createElement("div",{style:{display:"flex",gap:10,alignItems:"center",marginBottom:16,flexWrap:"wrap"}}
+      ,React.createElement("div",{style:{fontSize:13,fontWeight:700,color:"#374151"}},"Mes: "+(mesesDisp.find(function(m){return m.mk===mesSeleccionado;})||{nom:mesSeleccionado}).nom)
+      ,setSupVista&&React.createElement("button",{
+          onClick:function(){ setSupVista("metricas"); },
+          style:{background:"#1D4ED8",color:"#fff",border:"none",borderRadius:8,padding:"6px 14px",fontSize:11,cursor:"pointer",fontWeight:700,fontFamily:"inherit"}
+        },"📥 Cargar reporte para este mes")
+      ,benchmark&&React.createElement("div",{style:{background:"#EFF6FF",borderRadius:8,padding:"5px 12px",fontSize:11,color:"#1D4ED8",fontWeight:700}}
+        ,"📌 Benchmark: "+benchmark.mesLabel
+      )
     )
 
     // KPIs resumen
@@ -3710,6 +3733,11 @@ function CierresEditables({ vAct, reps, totalUFMes, equipo, setEquipo, RD, fmtUF
   );
 }
 
+
+// ── Historial Métricas (wrapper que abre EditarDatosView en subvista historial) ──
+function HistorialMetricasView({ equipo, info, R, RD }) {
+  return React.createElement(EditarDatosView, { equipo:equipo, setEquipo:function(){}, info:info, _initSubVista:"historial" });
+}
 
 function BenchmarkView({ benchmark, setBenchmark, equipo, info, R, RD }) {
   var [msg, setMsg] = React.useState("");
@@ -4660,10 +4688,10 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
   // Map group -> sub-tabs
   const SUP_GRUPOS = {
     dashboard: [["dashboard","📊 Dashboard"],["calEjec","📅 Calendario Ejecutivos"]],
-    equipo:    [["gestion","👥 Gestionar Equipo"],["carga","📥 Cargar UF/DPS"],["editar","✏️ Editar Estadísticas"],["metricas","📊 Carga Reporte Diario de Métricas"],["benchmark","📌 Cargar Mes Benchmark"]],
+    equipo:    [["gestion","👥 Gestionar Equipo"],["carga","📥 Cargar UF/DPS"],["editar","✏️ Editar Estadísticas"]],
     metas:     [["meta","🎯 Meta del Equipo"],["uflineales","📈 UF's Lineales"]],
-    contenido: [["gestPremios","🏆 Gestionar Premios"],["gestDocs","📂 Gestionar Docs"],["excel","📂 Carga Excel"]],
-    analisis:  [["clasificacion","📊 Clasificación AGV"],["agentes0","🚨 Agentes en 0"],["dpsanalisis","📊 Análisis Reporte Diario de Métricas"],["planagv","📋 Plan de Trabajo AGV"]],
+    contenido: [["gestPremios","🏆 Gestionar Premios"],["gestDocs","📂 Gestionar Docs"]],
+    analisis:  [["clasificacion","📊 Clasificación AGV"],["agentes0","🚨 Agentes en 0"],["dpsanalisis","📊 Análisis Reporte Diario de Métricas"],["historialMetricas","📋 Ver Historial Métricas"],["planagv","📋 Plan de Trabajo AGV"]],
   };
   const [bulk,     setBulk]     = useState({});
   const [bulkOk,   setBulkOk]   = useState(false);
@@ -7336,9 +7364,9 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                 )
                 , supVista==="excel"&&React.createElement(ExcelDataView, { equipo: equipo, setEquipo: setEquipo, info: info, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3772}} )
                 , supVista==="agentes0"&&React.createElement(AgentesEnCeroView, { equipo: equipo, info: info, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3773}} )
+                , supVista==="dpsanalisis" && React.createElement(DpsAnalisisView, { equipo:equipo, setEquipo:setEquipo, info:info, R:R, RD:RD, benchmark:benchmark, setBenchmark:setBenchmark, setSupVista:setSupVista })
+                , supVista==="historialMetricas" && React.createElement(HistorialMetricasView, { equipo:equipo, info:info, R:R, RD:RD })
                 , supVista==="metricas" && React.createElement(MetricasReportView, { equipo:equipo, setEquipo:setEquipo, info:info, R:R, RD:RD })
-                , supVista==="benchmark" && React.createElement(BenchmarkView, { benchmark:benchmark, setBenchmark:setBenchmark, equipo:equipo, info:info, R:R, RD:RD })
-                , supVista==="dpsanalisis" && React.createElement(DpsAnalisisView, { equipo:equipo, setEquipo:setEquipo, info:info, R:R, RD:RD })
                 , supVista==="planagv" && React.createElement(PlanAGVView, { equipo:equipo, info:info, R:R, RD:RD })
                 , supVista==="calEjec"&&(
                   React.createElement('div', { style: {background:"#fff",borderRadius:18,padding:26,boxShadow:"0 3px 16px rgba(233,7,41,.07)"} }
@@ -8003,7 +8031,7 @@ function ProdEditableInner({ v, equipo, setEquipo, guardarProductividad, guardan
 }
 
 // ── Editor de datos supervisor ────────────────────────────────────
-function EditarDatosView({ equipo, setEquipo, info }) {
+function EditarDatosView({ equipo, setEquipo, info, _initSubVista }) {
   const RD = "#C41230", R = "#E9192A";
   const [editVid,    setEditVid]    = React.useState("");
   const [mesEditando, setMesEditando] = React.useState(null); // {key, label, data}
@@ -9077,7 +9105,7 @@ function ExcelDataView({ equipo, setEquipo, info }) {
     return labels;
   })();
 
-  const [subVista, setSubVista] = React.useState("historial");
+  const [subVista, setSubVista] = React.useState(_initSubVista||"historial");
   const [editing,  setEditing]  = React.useState(null);
   const [editVal,  setEditVal]  = React.useState("");
   const [saved,    setSaved]    = React.useState(false);
