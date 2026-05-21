@@ -2974,19 +2974,24 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
     var esMesAct = mesKey===info.mesKey;
     // Para mes actual, calcular sexo y conecta desde reportes del ejecutivo
     var pctF=0, pctM=0, conecta=0;
+    var totSexReps=0;
     if(esMesAct){
       var reps=v.rep||[];
       var totH=reps.reduce(function(s,r){return s+(parseInt(r.hombres)||0);},0);
       var totMu=reps.reduce(function(s,r){return s+(parseInt(r.mujeres)||0);},0);
-      var totSex=totH+totMu;
-      pctM=totSex>0?Math.round((totMu/totSex)*100):0;
-      pctH=totSex>0?Math.round((totH/totSex)*100):0;
+      totSexReps=totH+totMu;
+      // pctF=Mujer, pctM=Hombre (correcto)
+      pctF=totSexReps>0?Math.round((totMu/totSexReps)*100):0;
+      pctM=totSexReps>0?Math.round((totH/totSexReps)*100):0;
       conecta=reps.reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0);
     } else {
-      pctF=parseInt(h.pctF)||0; pctM=parseInt(h.pctM)||0;
-      pctH=pctM>0&&pctF===0?100-pctM:pctF;
+      pctF=parseInt(h.pctF)||0;
+      pctM=parseInt(h.pctM)||0;
+      if(pctF===0&&pctM>0) pctF=100-pctM;
+      if(pctM===0&&pctF>0) pctM=100-pctF;
       conecta=parseInt(h.conecta)||0;
     }
+    var cttosDig=parseInt(h.cttosDig)||0;
     return {
       id: v.id, nombre: v.nombre,
       uf:          esMesAct ? (parseFloat(v.uf)||0) : (parseFloat(h.ufDig)||parseFloat(h.uf)||0),
@@ -2994,11 +2999,12 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
       dpsSinVenta:  parseInt(h.dpsSinVenta)||0,
       dpsPendiente: parseInt(h.dpsPendiente)||0,
       dpsRechazado: parseInt(h.dpsRechazado)||0,
-      // Para mes actual: si no hay datos del Excel, usar v.dps como total
       dpsTotal: (parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0) || (esMesAct?(parseInt(v.dps)||0):0),
       nBenef:   parseInt(h.nBenef)||0,
-      cttosDig: parseInt(h.cttosDig)||0,
-      pctF: esMesAct?pctH:pctF, pctM: pctM, conecta: conecta,
+      cttosDig: cttosDig,
+      // Para el ponderado de % sexo usar totSexReps cuando es mes actual
+      _sexBase: esMesAct ? totSexReps : cttosDig,
+      pctF: pctF, pctM: pctM, conecta: conecta,
     };
   });
 
@@ -3014,8 +3020,10 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
   var totCttos=datos.reduce(function(s,d){return s+d.cttosDig;},0);
   var totConecta=datos.reduce(function(s,d){return s+d.conecta;},0);
   // Promedio % sexo ponderado por cttos
-  var totPctF=totCttos>0?Math.round(datos.reduce(function(s,d){return s+(d.pctF*(d.cttosDig||0));},0)/totCttos):0;
-  var totPctM=totCttos>0?Math.round(datos.reduce(function(s,d){return s+(d.pctM*(d.cttosDig||0));},0)/totCttos):0;
+  // Usar _sexBase como denominador (rep[] para mes actual, cttosDig para histórico)
+  var totSexBase=datos.reduce(function(s,d){return s+(d._sexBase||0);},0);
+  var totPctF=totSexBase>0?Math.round(datos.reduce(function(s,d){return s+(d.pctF*(d._sexBase||0));},0)/totSexBase):0;
+  var totPctM=totSexBase>0?Math.round(datos.reduce(function(s,d){return s+(d.pctM*(d._sexBase||0));},0)/totSexBase):0;
   var totUF=datos.reduce(function(s,d){return s+d.uf;},0);
 
   // Guardar edición en Firebase
@@ -4147,6 +4155,15 @@ function TendenciasView({ equipo, info, R, RD }) {
       if(campo==="dpsSinVenta") return parseInt(h.dpsSinVenta)||0;
       if(campo==="dpsPendiente") return parseInt(h.dpsPendiente)||0;
       if(campo==="dpsRechazado") return parseInt(h.dpsRechazado)||0;
+      // pctF/pctM mes actual: calcular desde rep[] igual que el dashboard
+      if(campo==="pctF"||campo==="pctM"){
+        var repsV=v.rep||[];
+        var totHv=repsV.reduce(function(s,r){return s+(parseInt(r.hombres)||0);},0);
+        var totMv=repsV.reduce(function(s,r){return s+(parseInt(r.mujeres)||0);},0);
+        var totSv=totHv+totMv;
+        if(totSv===0) return 0;
+        return campo==="pctF"?Math.round((totMv/totSv)*100):Math.round((totHv/totSv)*100);
+      }
       return parseFloat(h[campo])||0;
     }
     if(campo==="uf") return parseFloat(h.uf)||parseFloat(h.ufDig)||0;
@@ -4158,23 +4175,23 @@ function TendenciasView({ equipo, info, R, RD }) {
   var equipoData = meses.map(function(m){
     var val;
     if(selKPI==="pctF"||selKPI==="pctM"){
-      // % Mujer/Hombre: promedio ponderado por contratos, no suma
-      var totalCttos=equipo.reduce(function(s,v){
-        var h=(v.historial||{})[m.mk]||{};
-        return s+(parseInt(h.cttosDig)||0);
-      },0);
-      if(totalCttos===0){
-        // Fallback: promedio simple de quienes tienen datos
-        var conDatos=equipo.filter(function(v){return getVal(v,m.mk,selKPI)>0;});
-        val=conDatos.length>0?Math.round(conDatos.reduce(function(s,v){return s+getVal(v,m.mk,selKPI);},0)/conDatos.length):0;
+      var nowKeyEq=(function(){var n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");})();
+      if(m.mk===nowKeyEq){
+        // Mes actual: sumar hombres/mujeres de rep[] de todo el equipo
+        var totHEq=equipo.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.hombres)||0);},0);},0);
+        var totMEq=equipo.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.mujeres)||0);},0);},0);
+        var totSEq=totHEq+totMEq;
+        val=totSEq>0?(selKPI==="pctF"?Math.round((totMEq/totSEq)*100):Math.round((totHEq/totSEq)*100)):0;
       } else {
-        var sumPond=equipo.reduce(function(s,v){
-          var h=(v.historial||{})[m.mk]||{};
-          var cttos=parseInt(h.cttosDig)||0;
-          var pct=getVal(v,m.mk,selKPI);
-          return s+(cttos*pct);
-        },0);
-        val=Math.round(sumPond/totalCttos);
+        // Meses históricos: ponderado por cttosDig
+        var totalCttos=equipo.reduce(function(s,v){var h=(v.historial||{})[m.mk]||{};return s+(parseInt(h.cttosDig)||0);},0);
+        if(totalCttos===0){
+          var conDatos=equipo.filter(function(v){return getVal(v,m.mk,selKPI)>0;});
+          val=conDatos.length>0?Math.round(conDatos.reduce(function(s,v){return s+getVal(v,m.mk,selKPI);},0)/conDatos.length):0;
+        } else {
+          var sumPond=equipo.reduce(function(s,v){var h=(v.historial||{})[m.mk]||{};var cttos=parseInt(h.cttosDig)||0;var pct=getVal(v,m.mk,selKPI);return s+(cttos*pct);},0);
+          val=Math.round(sumPond/totalCttos);
+        }
       }
     } else {
       val=equipo.reduce(function(s,v){return s+getVal(v,m.mk,selKPI);},0);
