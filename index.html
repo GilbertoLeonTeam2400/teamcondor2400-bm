@@ -2705,13 +2705,11 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
           ).trim().toUpperCase();
 
           // Nombres EXACTOS del reporte de administración (Resumen Agentes, fila 4)
-          // Prioridad: columnas del MES ACTUAL (segunda tanda: X,Y,Z,AA,AB)
-          // "Total DPS " con espacio = col X = DPS del mes actual
-          // "Total DPS" sin espacio = col S = DPS históricas acumuladas (NO usar)
+          // Col X=Total DPS mes actual, Col Y=DPS con venta, Z=sin venta, AA=pendientes, AB=rechazadas
           var dpsConVenta  = parseInt(String(f["DPS con venta"]||f["DPS c/ venta"]||f["DPS c/venta"]||"0")) || 0;
           var dpsSinVenta  = parseInt(String(f["DPS sin venta.1"]||f["DPS sin venta "]||f["DPS sin venta"]||"0")) || 0;
           var dpsPendiente = parseInt(String(f["DPS Pendientes .1"]||f["DPS Pendientes "]||f["DPS Pendientes"]||f["DPS Pendiente"]||"0")) || 0;
-          var dpsRechazado = parseInt(String(f["Rechazadas.1"]||f["Rechazadas"]||f["Rechazada"]||f["Rechaz"]||"0")) || 0;
+          var dpsRechazado = parseInt(String(f["Rechazadas.1"]||f["Rechazadas"]||f["Rechazada"]||"0")) || 0;
           var dpsTotal     = parseInt(String(f["Total DPS "]||f["Total DPS"]||"0")) || 0;
           var uf = parseFloat(parseFloat(String(f["UF  DIG."]||f["UF DIG."]||f["UF Dif"]||f["UF"]||"0").replace(",",".")).toFixed(2)) || 0;
           var nBenef       = parseInt(String(f["N° Benef"]||f["N° Benef."]||f["N°Benef"]||"0")) || 0;
@@ -2777,7 +2775,7 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
       };
       hist[mesKey] = mes;
       var _mn=(function(){var n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");})();
-      var _dt=dpsTotal||(match.dpsConVenta+match.dpsSinVenta+match.dpsPendiente+match.dpsRechazado);
+      var _dt=match.dpsTotal||(match.dpsConVenta+match.dpsSinVenta+match.dpsPendiente+match.dpsRechazado);
       return Object.assign({}, v, {historial:hist}, mesKey===_mn?{dps:_dt}:{});
     });
     if(window.skipSnapshotRef) window.skipSnapshotRef.current=true;
@@ -2785,7 +2783,7 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
     setPreview([]);
     var _nm=mesesOpciones.find(function(m){return m.mk===mesKey;});
     if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey),{equipo:nuevoEquipo})
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey),{equipo:nuevoEquipo,metaEquipo:window.__metaEquipoActual||550})
         .then(function(){ setMsg("✅ ¡Guardado! DPS de "+(_nm?_nm.nom:mesKey)+" actualizadas."); setTimeout(function(){if(window.skipSnapshotRef)window.skipSnapshotRef.current=false;},4000); })
         .catch(function(e){ setMsg("⚠️ Error Firebase: "+e.message); if(window.skipSnapshotRef)window.skipSnapshotRef.current=false; });
     else { setMsg("✅ Actualizado localmente."); if(window.skipSnapshotRef)window.skipSnapshotRef.current=false; }
@@ -2820,6 +2818,31 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
     , msg && React.createElement('div', {style:{background:"#F0FDF4",borderRadius:10,padding:"10px 16px",marginBottom:16,fontSize:12,color:"#15803D",fontWeight:600}}, msg)
     // Preview
     , preview.length > 0 && React.createElement('div', null
+      , (function(){
+        var _tv=preview.reduce(function(s,p){return s+(p.dpsTotal||0);},0);
+        var _cv=preview.reduce(function(s,p){return s+(p.dpsConVenta||0);},0);
+        var _sv=preview.reduce(function(s,p){return s+(p.dpsSinVenta||0);},0);
+        var _pv=preview.reduce(function(s,p){return s+(p.dpsPendiente||0);},0);
+        var _rv=preview.reduce(function(s,p){return s+(p.dpsRechazado||0);},0);
+        var _uf=preview.reduce(function(s,p){return s+(p.uf||0);},0).toFixed(2);
+        var _nb=preview.reduce(function(s,p){return s+(p.nBenef||0);},0);
+        var _ct=preview.reduce(function(s,p){return s+(p.cttosDig||0);},0);
+        return React.createElement("div",{style:{background:"linear-gradient(135deg,#EFF6FF,#DBEAFE)",borderRadius:12,padding:"14px 18px",marginBottom:14,border:"1px solid #93C5FD"}}
+          ,React.createElement("div",{style:{fontSize:12,fontWeight:900,color:"#1D4ED8",marginBottom:10}},"📊 Resumen del equipo CC=2400 — "+preview.length+" ejecutivos")
+          ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:8}}
+            ,React.createElement("div",{style:{textAlign:"center",background:"#fff",borderRadius:8,padding:"8px"}},React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#374151"}},_tv),React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase"}},"Total DPS"))
+            ,React.createElement("div",{style:{textAlign:"center",background:"#fff",borderRadius:8,padding:"8px"}},React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#16A34A"}},_cv),React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase"}},"Con Venta"))
+            ,React.createElement("div",{style:{textAlign:"center",background:"#fff",borderRadius:8,padding:"8px"}},React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#2563EB"}},_sv),React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase"}},"Sin Venta"))
+            ,React.createElement("div",{style:{textAlign:"center",background:"#fff",borderRadius:8,padding:"8px"}},React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#D97706"}},_pv),React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase"}},"Pendientes"))
+          )
+          ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}
+            ,React.createElement("div",{style:{textAlign:"center",background:"#fff",borderRadius:8,padding:"8px"}},React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#DC2626"}},_rv),React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase"}},"Rechazadas"))
+            ,React.createElement("div",{style:{textAlign:"center",background:"#fff",borderRadius:8,padding:"8px"}},React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#C9A84C"}},_uf+" UF"),React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase"}},"UF Total"))
+            ,React.createElement("div",{style:{textAlign:"center",background:"#fff",borderRadius:8,padding:"8px"}},React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#0891B2"}},_nb),React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase"}},"Beneficiarios"))
+            ,React.createElement("div",{style:{textAlign:"center",background:"#fff",borderRadius:8,padding:"8px"}},React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#059669"}},_ct),React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase"}},"Contratos"))
+          )
+        );
+      })()
       , React.createElement('div', {style:{fontWeight:800,color:"#374151",marginBottom:10}}, "Vista previa — "+preview.length+" ejecutivos detectados:")
       , React.createElement('div', {style:{overflowX:"auto"}}
         , React.createElement('table', {style:{width:"100%",borderCollapse:"collapse",fontSize:12}}
@@ -2851,6 +2874,21 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
                   )
                 );
               })
+            // ── Fila de TOTALES ──
+            , preview.length > 0 && React.createElement('tr',{style:{borderTop:"2px solid #E5E7EB",background:"#F8FAFC",fontWeight:900}}
+                , React.createElement('td',{style:{padding:"8px 10px",fontWeight:900,color:"#374151",fontSize:12}},"TOTALES ("+preview.length+" ej.)")
+                , React.createElement('td',{style:{padding:"8px 10px",color:"#16A34A",fontWeight:900,textAlign:"center",fontSize:13}},preview.reduce(function(s,p){return s+(p.dpsConVenta||0);},0))
+                , React.createElement('td',{style:{padding:"8px 10px",color:"#2563EB",fontWeight:900,textAlign:"center",fontSize:13}},preview.reduce(function(s,p){return s+(p.dpsSinVenta||0);},0))
+                , React.createElement('td',{style:{padding:"8px 10px",color:"#D97706",fontWeight:900,textAlign:"center",fontSize:13}},preview.reduce(function(s,p){return s+(p.dpsPendiente||0);},0))
+                , React.createElement('td',{style:{padding:"8px 10px",color:"#DC2626",fontWeight:900,textAlign:"center",fontSize:13}},preview.reduce(function(s,p){return s+(p.dpsRechazado||0);},0))
+                , React.createElement('td',{style:{padding:"8px 10px",color:"#374151",fontWeight:900,textAlign:"center",fontSize:13}},preview.reduce(function(s,p){return s+(p.dpsTotal||0);},0))
+                , React.createElement('td',{style:{padding:"8px 10px",color:"#C9A84C",fontWeight:900,textAlign:"center",fontSize:13}},preview.reduce(function(s,p){return s+(p.uf||0);},0).toFixed(2))
+                , React.createElement('td',{style:{padding:"8px 10px",color:"#0891B2",fontWeight:900,textAlign:"center",fontSize:13}},preview.reduce(function(s,p){return s+(p.nBenef||0);},0))
+                , React.createElement('td',{style:{padding:"8px 10px",color:"#059669",fontWeight:900,textAlign:"center",fontSize:13}},preview.reduce(function(s,p){return s+(p.cttosDig||0);},0))
+                , React.createElement('td',{style:{padding:"8px 10px",textAlign:"center"}})
+                , React.createElement('td',{style:{padding:"8px 10px",textAlign:"center"}})
+                , React.createElement('td',{style:{padding:"8px 10px"}})
+              )
           )
         )
       )
@@ -4081,10 +4119,10 @@ function TendenciasView({ equipo, info, R, RD }) {
   function getVal(v, mk, campo) {
     var nowKey=(function(){var n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");})();
     var h=(v.historial||{})[mk]||{};
-    var hDpsSum=(parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0);
+    var hDs=(parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0);
     if(mk===nowKey){
       if(campo==="uf") return parseFloat(v.uf)||0;
-      if(campo==="dps") return hDpsSum>0?hDpsSum:(parseInt(v.dps)||0);
+      if(campo==="dps") return hDs>0?hDs:(parseInt(v.dps)||0);
       if(campo==="dpsVenta") return parseInt(h.dpsVenta)||0;
       if(campo==="dpsSinVenta") return parseInt(h.dpsSinVenta)||0;
       if(campo==="dpsPendiente") return parseInt(h.dpsPendiente)||0;
@@ -4092,7 +4130,7 @@ function TendenciasView({ equipo, info, R, RD }) {
       return parseFloat(h[campo])||0;
     }
     if(campo==="uf") return parseFloat(h.uf)||parseFloat(h.ufDig)||0;
-    if(campo==="dps") return hDpsSum>0?hDpsSum:(parseInt(h.dps)||0);
+    if(campo==="dps") return hDs>0?hDs:(parseInt(h.dps)||0);
     return parseFloat(h[campo])||0;
   }
 
@@ -4225,14 +4263,14 @@ function PredictorView({ equipo, info, R, RD, metaUFSafe }) {
 // ── Correlación DPS → UF ─────────────────────────────────────────────────────
 function CorrelacionView({ equipo, info, R, RD }) {
   var _mck=(function(){var n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");})();
-  function _getDps(v){var h=(v.historial||{})[_mck]||{};var s=(parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0);return s>0?s:(parseInt(v.dps)||0);}
+  function _gd(v){var h=(v.historial||{})[_mck]||{};var s=(parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0);return s>0?s:(parseInt(v.dps)||0);}
   var datos = equipo
-    .map(function(v){var dps=_getDps(v);var uf=parseFloat(v.uf)||0;return {nombre:v.nombre.split(" ").slice(-2).join(" "),uf:uf,dps:dps,tasa:dps>0?parseFloat((uf/dps).toFixed(2)):0};})
+    .map(function(v){var d=_gd(v),u=parseFloat(v.uf)||0;return{nombre:v.nombre.split(" ").slice(-2).join(" "),uf:u,dps:d,tasa:d>0?parseFloat((u/d).toFixed(2)):0};})
     .filter(function(v){return v.dps>0;})
     .sort(function(a,b){return b.tasa-a.tasa;});
 
   var totUF  = equipo.reduce(function(s,v){return s+(parseFloat(v.uf)||0);},0);
-  var totDPS = equipo.reduce(function(s,v){return s+_getDps(v);},0);
+  var totDPS = equipo.reduce(function(s,v){return s+_gd(v);},0);
   var tasaEquipo = totDPS>0?parseFloat((totUF/totDPS).toFixed(2)):0;
   var maxTasa = Math.max(1,Math.max.apply(null,datos.map(function(d){return d.tasa;})));
 
