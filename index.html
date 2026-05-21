@@ -2706,11 +2706,13 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
 
           // Nombres EXACTOS del reporte de administración (Resumen Agentes, fila 4)
           // Col X=Total DPS mes actual, Col Y=DPS con venta, Z=sin venta, AA=pendientes, AB=rechazadas
-          var dpsConVenta  = parseInt(String(f["DPS con venta"]||f["DPS c/ venta"]||f["DPS c/venta"]||"0")) || 0;
-          var dpsSinVenta  = parseInt(String(f["DPS sin venta.1"]||f["DPS sin venta "]||f["DPS sin venta"]||"0")) || 0;
-          var dpsPendiente = parseInt(String(f["DPS Pendientes .1"]||f["DPS Pendientes "]||f["DPS Pendientes"]||f["DPS Pendiente"]||"0")) || 0;
-          var dpsRechazado = parseInt(String(f["Rechazadas.1"]||f["Rechazadas"]||f["Rechazada"]||"0")) || 0;
-          var dpsTotal     = parseInt(String(f["Total DPS "]||f["Total DPS"]||"0")) || 0;
+          // IMPORTANTE: usar null/undefined check (no ||) para respetar valores 0 reales
+          function _fv(k){return f[k]!==undefined&&f[k]!==null&&f[k]!==""?parseInt(String(f[k]))||0:null;}
+          var dpsConVenta  = (function(){var v=_fv("DPS con venta"); return v!==null?v:(_fv("DPS c/ venta")||_fv("DPS c/venta")||0);})();
+          var dpsSinVenta  = (function(){var v=_fv("DPS sin venta.1"); return v!==null?v:(_fv("DPS sin venta ")||_fv("DPS sin venta")||0);})();
+          var dpsPendiente = (function(){var v=_fv("DPS Pendientes .1"); return v!==null?v:(_fv("DPS Pendientes ")||_fv("DPS Pendientes")||_fv("DPS Pendiente")||0);})();
+          var dpsRechazado = (function(){var v=_fv("Rechazadas.1"); return v!==null?v:(_fv("Rechazadas")||_fv("Rechazada")||0);})();
+          var dpsTotal     = (function(){var v=_fv("Total DPS "); return v!==null?v:(_fv("Total DPS")||0);})();
           var uf = parseFloat(parseFloat(String(f["UF  DIG."]||f["UF DIG."]||f["UF Dif"]||f["UF"]||"0").replace(",",".")).toFixed(2)) || 0;
           var nBenef       = parseInt(String(f["N° Benef"]||f["N° Benef."]||f["N°Benef"]||"0")) || 0;
           var cttosDig     = parseInt(String(f["Cttos Dig"]||f["Cttos  Dig"]||f["CttoDig"]||"0")) || 0;
@@ -2775,7 +2777,7 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
       };
       hist[mesKey] = mes;
       var _mn=(function(){var n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");})();
-      var _dt=match.dpsTotal||(match.dpsConVenta+match.dpsSinVenta+match.dpsPendiente+match.dpsRechazado);
+      var _dt=match.dpsTotal>0?match.dpsTotal:(match.dpsConVenta+match.dpsSinVenta+match.dpsPendiente+match.dpsRechazado);
       return Object.assign({}, v, {historial:hist}, mesKey===_mn?{dps:_dt}:{});
     });
     if(window.skipSnapshotRef) window.skipSnapshotRef.current=true;
