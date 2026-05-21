@@ -4156,7 +4156,30 @@ function TendenciasView({ equipo, info, R, RD }) {
 
   // Datos del equipo
   var equipoData = meses.map(function(m){
-    return {nom:m.nom, val:equipo.reduce(function(s,v){return s+getVal(v,m.mk,selKPI);},0)};
+    var val;
+    if(selKPI==="pctF"||selKPI==="pctM"){
+      // % Mujer/Hombre: promedio ponderado por contratos, no suma
+      var totalCttos=equipo.reduce(function(s,v){
+        var h=(v.historial||{})[m.mk]||{};
+        return s+(parseInt(h.cttosDig)||0);
+      },0);
+      if(totalCttos===0){
+        // Fallback: promedio simple de quienes tienen datos
+        var conDatos=equipo.filter(function(v){return getVal(v,m.mk,selKPI)>0;});
+        val=conDatos.length>0?Math.round(conDatos.reduce(function(s,v){return s+getVal(v,m.mk,selKPI);},0)/conDatos.length):0;
+      } else {
+        var sumPond=equipo.reduce(function(s,v){
+          var h=(v.historial||{})[m.mk]||{};
+          var cttos=parseInt(h.cttosDig)||0;
+          var pct=getVal(v,m.mk,selKPI);
+          return s+(cttos*pct);
+        },0);
+        val=Math.round(sumPond/totalCttos);
+      }
+    } else {
+      val=equipo.reduce(function(s,v){return s+getVal(v,m.mk,selKPI);},0);
+    }
+    return {nom:m.nom, val:val};
   });
   // Datos ejecutivo seleccionado
   var ejData = selEjec ? meses.map(function(m){
