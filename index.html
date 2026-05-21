@@ -2705,11 +2705,14 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
           ).trim().toUpperCase();
 
           // Nombres EXACTOS del reporte de administración (Resumen Agentes, fila 4)
-          var dpsConVenta  = parseInt(String(f["DPS c/ venta"]||f["DPS c/venta"]||f["DPS con venta"]||"0")) || 0;
-          var dpsSinVenta  = parseInt(String(f["DPS sin venta"]||f["DPS sin venta "]||"0")) || 0;
-          var dpsPendiente = parseInt(String(f["DPS Pendientes"]||f["DPS Pendientes "]||f["DPS Pendiente"]||"0")) || 0;
-          var dpsRechazado = parseInt(String(f["Rechazadas"]||f["Rechazada"]||f["Rechaz"]||"0")) || 0;
-          var dpsTotal     = parseInt(String(f["Total DPS"]||f["Total DPS "]||"0")) || 0;
+          // Prioridad: columnas del MES ACTUAL (segunda tanda: X,Y,Z,AA,AB)
+          // "Total DPS " con espacio = col X = DPS del mes actual
+          // "Total DPS" sin espacio = col S = DPS históricas acumuladas (NO usar)
+          var dpsConVenta  = parseInt(String(f["DPS con venta"]||f["DPS c/ venta"]||f["DPS c/venta"]||"0")) || 0;
+          var dpsSinVenta  = parseInt(String(f["DPS sin venta.1"]||f["DPS sin venta "]||f["DPS sin venta"]||"0")) || 0;
+          var dpsPendiente = parseInt(String(f["DPS Pendientes .1"]||f["DPS Pendientes "]||f["DPS Pendientes"]||f["DPS Pendiente"]||"0")) || 0;
+          var dpsRechazado = parseInt(String(f["Rechazadas.1"]||f["Rechazadas"]||f["Rechazada"]||f["Rechaz"]||"0")) || 0;
+          var dpsTotal     = parseInt(String(f["Total DPS "]||f["Total DPS"]||"0")) || 0;
           var uf = parseFloat(parseFloat(String(f["UF  DIG."]||f["UF DIG."]||f["UF Dif"]||f["UF"]||"0").replace(",",".")).toFixed(2)) || 0;
           var nBenef       = parseInt(String(f["N° Benef"]||f["N° Benef."]||f["N°Benef"]||"0")) || 0;
           var cttosDig     = parseInt(String(f["Cttos Dig"]||f["Cttos  Dig"]||f["CttoDig"]||"0")) || 0;
@@ -2773,19 +2776,19 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
         ufDig:       match.uf>0 ? match.uf : (mesExistente.ufDig||0),
       };
       hist[mesKey] = mes;
-      return Object.assign({}, v, {historial:hist});
+      var _mn=(function(){var n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");})();
+      var _dt=dpsTotal||(match.dpsConVenta+match.dpsSinVenta+match.dpsPendiente+match.dpsRechazado);
+      return Object.assign({}, v, {historial:hist}, mesKey===_mn?{dps:_dt}:{});
     });
-    // Marcar skipSnapshot ANTES de guardar para evitar que onSnapshot sobreescriba con datos viejos
-    if(window.skipSnapshotRef) window.skipSnapshotRef.current = true;
+    if(window.skipSnapshotRef) window.skipSnapshotRef.current=true;
     setEquipo(nuevoEquipo);
     setPreview([]);
-    var nomMesCarga=mesesOpciones.find(function(m){return m.mk===mesKey;});
-    // Guardar en Firebase
+    var _nm=mesesOpciones.find(function(m){return m.mk===mesKey;});
     if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
       window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey),{equipo:nuevoEquipo})
-        .then(function(){ setMsg("✅ ¡Guardado! DPS actualizadas para "+(nomMesCarga?nomMesCarga.nom:mesKey)+"."); setTimeout(function(){if(window.skipSnapshotRef)window.skipSnapshotRef.current=false;},3000); })
-        .catch(function(e){ setMsg("⚠️ Actualizado localmente pero error en Firebase: "+e.message); if(window.skipSnapshotRef)window.skipSnapshotRef.current=false; });
-    else { setMsg("✅ Actualizado localmente. Reconecta Firebase para sincronizar."); if(window.skipSnapshotRef)window.skipSnapshotRef.current=false; }
+        .then(function(){ setMsg("✅ ¡Guardado! DPS de "+(_nm?_nm.nom:mesKey)+" actualizadas."); setTimeout(function(){if(window.skipSnapshotRef)window.skipSnapshotRef.current=false;},4000); })
+        .catch(function(e){ setMsg("⚠️ Error Firebase: "+e.message); if(window.skipSnapshotRef)window.skipSnapshotRef.current=false; });
+    else { setMsg("✅ Actualizado localmente."); if(window.skipSnapshotRef)window.skipSnapshotRef.current=false; }
   }
 
   return React.createElement('div', {style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(233,7,41,.09)"}}
@@ -4066,7 +4069,7 @@ function TendenciasView({ equipo, info, R, RD }) {
   ];
   var [selKPI, setSelKPI] = React.useState("uf");
   
-  // Generar últimos 6 meses — más reciente primero
+  // Generar últimos 6 meses
   var meses = [];
   for(var i=0;i<=5;i++){
     var d=new Date(new Date().getFullYear(),new Date().getMonth()-i,1);
@@ -4221,23 +4224,15 @@ function PredictorView({ equipo, info, R, RD, metaUFSafe }) {
 
 // ── Correlación DPS → UF ─────────────────────────────────────────────────────
 function CorrelacionView({ equipo, info, R, RD }) {
-  var mesKeyC=(function(){var n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");})();
-  function getDpsExec(v){
-    var h=(v.historial||{})[mesKeyC]||{};
-    var hd=(parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0);
-    return hd>0?hd:(parseInt(v.dps)||0);
-  }
+  var _mck=(function(){var n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");})();
+  function _getDps(v){var h=(v.historial||{})[_mck]||{};var s=(parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0);return s>0?s:(parseInt(v.dps)||0);}
   var datos = equipo
-    .map(function(v){
-      var dps=getDpsExec(v); var uf=parseFloat(v.uf)||0;
-      var tasa=dps>0?parseFloat((uf/dps).toFixed(2)):0;
-      return {nombre:v.nombre.split(" ").slice(-2).join(" "),uf:uf,dps:dps,tasa:tasa};
-    })
+    .map(function(v){var dps=_getDps(v);var uf=parseFloat(v.uf)||0;return {nombre:v.nombre.split(" ").slice(-2).join(" "),uf:uf,dps:dps,tasa:dps>0?parseFloat((uf/dps).toFixed(2)):0};})
     .filter(function(v){return v.dps>0;})
     .sort(function(a,b){return b.tasa-a.tasa;});
 
   var totUF  = equipo.reduce(function(s,v){return s+(parseFloat(v.uf)||0);},0);
-  var totDPS = equipo.reduce(function(s,v){return s+getDpsExec(v);},0);
+  var totDPS = equipo.reduce(function(s,v){return s+_getDps(v);},0);
   var tasaEquipo = totDPS>0?parseFloat((totUF/totDPS).toFixed(2)):0;
   var maxTasa = Math.max(1,Math.max.apply(null,datos.map(function(d){return d.tasa;})));
 
@@ -4817,7 +4812,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
   const [metaEquipo,  setMetaEquipo]  = useState(550);
   META_UF = metaEquipo; // Sobreescribir la variable global con el estado
   const skipSnapshot = React.useRef(false);
-  window.skipSnapshotRef = skipSnapshot; // exponer para confirmarCarga en MetricasReportView
+  window.skipSnapshotRef = skipSnapshot;
 
   useEffect(function() {
     const key = info.mesKey;
@@ -4876,15 +4871,12 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
             console.log("[LOAD] Firebase datos recibidos OK");
             merged = merged.map(function(x){
               var reps = x.rep || [];
-              // uf: desde reportes diarios (fuente de verdad para UF)
               var ufDesdeReps = parseFloat(reps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0).toFixed(2));
-              // dps: desde historial del mes (cargado vía Excel) — NO desde reps
               var mesKeyNow=(function(){var n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");})();
               var hNow=(x.historial||{})[mesKeyNow]||{};
-              var hDpsTotal=(parseInt(hNow.dpsVenta)||0)+(parseInt(hNow.dpsSinVenta)||0)+(parseInt(hNow.dpsPendiente)||0)+(parseInt(hNow.dpsRechazado)||0);
-              var dpsDesdeReps = reps.reduce(function(s,r){return s+(parseInt(r.dps)||0);},0);
-              // Prioridad: historial Excel > reps > valor guardado
-              var dpsFinal = hDpsTotal > 0 ? hDpsTotal : (reps.length > 0 ? dpsDesdeReps : (parseInt(x.dps)||0));
+              var hDpsTot=(parseInt(hNow.dpsVenta)||0)+(parseInt(hNow.dpsSinVenta)||0)+(parseInt(hNow.dpsPendiente)||0)+(parseInt(hNow.dpsRechazado)||0);
+              var dpsDesdeReps=reps.reduce(function(s,r){return s+(parseInt(r.dps)||0);},0);
+              var dpsFinal=hDpsTot>0?hDpsTot:(reps.length>0?dpsDesdeReps:(parseInt(x.dps)||0));
               return Object.assign({rep:[]}, x, {
                 uf:  reps.length > 0 ? ufDesdeReps : (parseFloat(x.uf)||0),
                 dps: dpsFinal,
@@ -8309,79 +8301,79 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
 }
 // ── Top 5 Lookup ─────────────────────────────────────────────────
 function ReconocidosEspeciales({ equipo, info, RD, R }) {
-  var hoy=new Date(), mesKey=info.mesKey;
-  function getDpsMes(v){var h=(v.historial||{})[mesKey]||{};var s=(parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0);return s>0?s:(parseInt(v.dps)||0);}
-  var statsMes=equipo.map(function(v){
-    return {id:v.id,nombre:v.nombre,fotoUrl:v.fotoUrl,
-      ufMes:parseFloat(v.uf)||0, dpsMes:getDpsMes(v),
-      cttosMes:parseInt(((v.historial||{})[mesKey]||{}).cttosDig)||0,
-      conectaMes:(v.rep||[]).reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0)};
+  // Calcular ganadores de esta semana
+  var hoy = new Date();
+  // Use last 7 days instead of calendar week to avoid timezone issues
+  var hace7 = new Date(hoy); hace7.setDate(hace7.getDate()-7);
+  var iniStr = hace7.getFullYear()+"-"+String(hace7.getMonth()+1).padStart(2,"0")+"-"+String(hace7.getDate()).padStart(2,"0");
+  var hace14 = new Date(hoy); hace14.setDate(hace14.getDate()-14);
+  var iniAntStr = hace14.getFullYear()+"-"+String(hace14.getMonth()+1).padStart(2,"0")+"-"+String(hace14.getDate()).padStart(2,"0");
+
+  var stats = equipo.map(function(v){
+    var reps = (v.rep||[]).filter(function(r){ return (r.fecha||"")>=iniStr; });
+    var ufSem = reps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0);
+    var dpsSem = reps.reduce(function(s,r){return s+(parseInt(r.dps)||0);},0);
+    var cttSem = reps.reduce(function(s,r){return s+(parseInt(r.cierres)||0);},0);
+    var conSem = reps.reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0);
+    var repsAnt = (v.rep||[]).filter(function(r){return (r.fecha||"")>=iniAntStr&&(r.fecha||"")<iniStr;});
+    var ufAnt = repsAnt.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0);
+    var crecUF = ufSem - ufAnt;
+    return {nombre:v.nombre, ufSem:ufSem, dpsSem:dpsSem, cttSem:cttSem, conSem:conSem, crecUF:crecUF};
   });
-  var hace7=new Date(hoy);hace7.setDate(hace7.getDate()-7);
-  var hace14=new Date(hoy);hace14.setDate(hace14.getDate()-14);
-  var iniStr=hace7.getFullYear()+"-"+String(hace7.getMonth()+1).padStart(2,"0")+"-"+String(hace7.getDate()).padStart(2,"0");
-  var iniAntStr=hace14.getFullYear()+"-"+String(hace14.getMonth()+1).padStart(2,"0")+"-"+String(hace14.getDate()).padStart(2,"0");
-  var statsSem=equipo.map(function(v){
-    var reps=(v.rep||[]).filter(function(r){return (r.fecha||"")>=iniStr;});
-    var repsAnt=(v.rep||[]).filter(function(r){return (r.fecha||"")>=iniAntStr&&(r.fecha||"")<iniStr;});
-    var ufSem=reps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0);
-    return {id:v.id,nombre:v.nombre,fotoUrl:v.fotoUrl,
-      ufSem:ufSem, dpsSem:reps.reduce(function(s,r){return s+(parseInt(r.dps)||0);},0),
-      cttosSem:reps.reduce(function(s,r){return s+(parseInt(r.cierres)||0);},0),
-      conectaSem:reps.reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0),
-      crecUF:parseFloat((ufSem-repsAnt.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0)).toFixed(2))};
-  });
-  var semHas=statsSem.some(function(s){return s.ufSem>0||s.dpsSem>0||s.cttosSem>0||s.conectaSem>0;});
-  if(!statsMes.some(function(s){return s.ufMes>0||s.dpsMes>0;})) return null;
-  function bM(f){return statsMes.slice().sort(function(a,b){return (b[f]||0)-(a[f]||0);})[0]||{nombre:"—"};}
-  function bS(sf,mf){if(!semHas)return bM(mf||sf);var s=statsSem.slice().sort(function(a,b){return (b[sf]||0)-(a[sf]||0);});return (s[0]&&(s[0][sf]||0)>0)?s[0]:bM(mf||sf);}
-  function fv(v,u){if(!v&&v!==0)return"Sin datos";var n=typeof v==="number"?v:parseFloat(v)||0;if(n<=0)return"Sin datos";return(u==="UF"?n.toFixed(2):Math.round(n))+" "+u;}
-  var tUM=bM("ufMes"),tDM=bM("dpsMes"),tCM=bM("cttosMes"),tCoM=bM("conectaMes");
-  var tUS=bS("ufSem","ufMes"),tDS=bS("dpsSem","dpsMes"),tCS=bS("cttosSem","cttosMes"),tCoS=bS("conectaSem","conectaMes");
-  var tCrS=(function(){if(semHas){var s=statsSem.slice().sort(function(a,b){return (b.crecUF||0)-(a.crecUF||0);});if(s[0]&&s[0].crecUF>0)return s[0];}return tUM;})();
-  var cM=[
-    {label:"💚 Mejor Vendedor Plan Conecta",sub:"del mes",nombre:tCoM.nombre,val:fv(tCoM.conectaMes,"planes"),color:"#059669",bg:"linear-gradient(135deg,#DCFCE7,#A7F3D0)",brd:"#6EE7B7"},
-    {label:"📈 Mayor Crecimiento UF",sub:"del mes",nombre:tUM.nombre,val:fv(tUM.ufMes,"UF"),color:"#D97706",bg:"linear-gradient(135deg,#FEF9C3,#FDE68A)",brd:"#FCD34D"},
-    {label:"🔵 Mayor Actividad DPS",sub:"del mes",nombre:tDM.nombre,val:fv(tDM.dpsMes,"DPS"),color:"#2563EB",bg:"linear-gradient(135deg,#EFF6FF,#BFDBFE)",brd:"#93C5FD"},
-    {label:"📋 Mayor Cantidad Contratos",sub:"del mes",nombre:tCM.nombre,val:fv(tCM.cttosMes,"contratos"),color:"#7C3AED",bg:"linear-gradient(135deg,#F5F3FF,#DDD6FE)",brd:"#C4B5FD"},
-    {label:"⭐ Mayor UF Total",sub:"del mes",nombre:tUM.nombre,val:fv(tUM.ufMes,"UF"),color:"#C9A84C",bg:"linear-gradient(135deg,#FFFBEB,#FEF3C7)",brd:"#FDE68A"},
+
+  var maxCrec = stats.reduce(function(m,v){return v.crecUF>m.crecUF?v:m;},{crecUF:-999,nombre:""});
+  var maxDPS  = stats.reduce(function(m,v){return v.dpsSem>m.dpsSem?v:m;},{dpsSem:-1,nombre:""});
+  var maxCtts = stats.reduce(function(m,v){return v.cttSem>m.cttSem?v:m;},{cttSem:-1,nombre:""});
+  var maxCon  = stats.reduce(function(m,v){return v.conSem>m.conSem?v:m;},{conSem:-1,nombre:""});
+
+  // Use UF leader as fallback for empty categories
+  var maxUF = stats.reduce(function(m,v){return v.ufSem>m.ufSem?v:m;},{ufSem:-1,nombre:""});
+  if(!maxCon.nombre||maxCon.conSem<=0)  maxCon  = Object.assign({},maxUF,{conSem:0});
+  if(!maxCrec.nombre||maxCrec.crecUF<0) maxCrec = Object.assign({},maxUF,{crecUF:maxUF.ufSem});
+  if(!maxDPS.nombre||maxDPS.dpsSem<=0)  maxDPS  = Object.assign({},maxUF,{dpsSem:0});
+  if(!maxCtts.nombre||maxCtts.cttSem<=0)maxCtts = Object.assign({},maxUF,{cttSem:0});
+
+  var categorias = [
+    {label:"💚 CRACK Plan Conecta",     sub:"Mayor venta Planes Conecta",    nombre:maxCon.nombre,  valor:maxCon.conSem+" contratos",  color:"#059669",bg:"linear-gradient(135deg,#DCFCE7,#A7F3D0)",brd:"#6EE7B7"},
+    {label:"📈 Mayor Crecimiento UF",    sub:"Mayor crecimiento UF esta semana",nombre:maxCrec.nombre,valor:maxCrec.crecUF>=0?"+"+maxCrec.crecUF.toFixed(2)+" UF":maxCrec.crecUF.toFixed(2)+" UF",color:"#D97706",bg:"linear-gradient(135deg,#FEF9C3,#FDE68A)",brd:"#FCD34D"},
+    {label:"🔵 Mayor Actividad DPS",     sub:"Mayor cantidad DPS esta semana", nombre:maxDPS.nombre,  valor:maxDPS.dpsSem+" DPS",        color:"#2563EB",bg:"linear-gradient(135deg,#EFF6FF,#BFDBFE)",brd:"#93C5FD"},
+    {label:"📋 Mayor Contratos",         sub:"Mayor contratos cerrados semana",nombre:maxCtts.nombre, valor:maxCtts.cttSem+" contratos",  color:"#7C3AED",bg:"linear-gradient(135deg,#F5F3FF,#DDD6FE)",brd:"#C4B5FD"},
   ];
-  var cS=[
-    {label:"💚 Mejor Vendedor Plan Conecta",sub:"esta semana",nombre:tCoS.nombre,val:semHas?fv(tCoS.conectaSem,"planes"):fv(tCoM.conectaMes,"planes"),color:"#059669",bg:"linear-gradient(135deg,#DCFCE7,#A7F3D0)",brd:"#6EE7B7"},
-    {label:"📈 Mayor Crecimiento UF",sub:"esta semana",nombre:tCrS.nombre,val:semHas?(tCrS.crecUF>=0?"+"+tCrS.crecUF.toFixed(2)+" UF":tCrS.crecUF.toFixed(2)+" UF"):fv(tUM.ufMes,"UF"),color:"#D97706",bg:"linear-gradient(135deg,#FEF9C3,#FDE68A)",brd:"#FCD34D"},
-    {label:"🔵 Mayor Actividad DPS",sub:"esta semana",nombre:tDS.nombre,val:semHas?fv(tDS.dpsSem,"DPS"):fv(tDM.dpsMes,"DPS"),color:"#2563EB",bg:"linear-gradient(135deg,#EFF6FF,#BFDBFE)",brd:"#93C5FD"},
-    {label:"📋 Mayor Cantidad Contratos",sub:"esta semana",nombre:tCS.nombre,val:semHas?fv(tCS.cttosSem,"contratos"):fv(tCM.cttosMes,"contratos"),color:"#7C3AED",bg:"linear-gradient(135deg,#F5F3FF,#DDD6FE)",brd:"#C4B5FD"},
-    {label:"⭐ Mayor UF Total",sub:"esta semana",nombre:tUS.nombre,val:semHas?fv(tUS.ufSem,"UF"):fv(tUM.ufMes,"UF"),color:"#C9A84C",bg:"linear-gradient(135deg,#FFFBEB,#FEF3C7)",brd:"#FDE68A"},
-  ];
-  function Card(cat){
-    var vF=equipo.find(function(e){return e.nombre===cat.nombre;});
-    var ini=(cat.nombre||"").split(" ").slice(-2).map(function(w){return (w||"")[0]||"";}).join("");
-    return React.createElement("div",{key:cat.label,style:{background:cat.bg,borderRadius:14,padding:"14px 12px",textAlign:"center",border:"2px solid "+cat.brd}}
-      ,React.createElement("div",{style:{width:50,height:50,borderRadius:"50%",overflow:"hidden",border:"3px solid "+cat.brd,margin:"0 auto 8px",background:vF&&vF.fotoUrl?"#000":"rgba(255,255,255,.5)",display:"flex",alignItems:"center",justifyContent:"center"}}
-        ,vF&&vF.fotoUrl?React.createElement("img",{src:vF.fotoUrl,style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement("span",{style:{fontSize:16,fontWeight:900,color:cat.color}},ini))
-      ,React.createElement("div",{style:{fontSize:10,fontWeight:900,color:cat.color,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:2}},cat.label)
-      ,React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",marginBottom:4}},cat.sub)
-      ,React.createElement("div",{style:{fontSize:13,fontWeight:900,color:"#1F2937",lineHeight:1.3,marginBottom:4}},(cat.nombre||"").split(" ").slice(-2).join(" "))
-      ,React.createElement("div",{style:{background:"rgba(255,255,255,.6)",borderRadius:99,padding:"2px 10px",display:"inline-block",fontSize:11,fontWeight:700,color:cat.color}},cat.val)
-    );
+
+  // Si no hay actividad semanal, usar datos del mes completo
+  var sinActividad = stats.every(function(s){return s.ufSem===0&&s.dpsSem===0;});
+  if(sinActividad) {
+    stats = equipo.map(function(v){
+      var reps = v.rep||[];
+      var ufSem = v.uf||0;
+      var dpsSem = v.dps||0;
+      var cttSem = reps.reduce(function(s,r){return s+(parseInt(r.cierres)||0);},0);
+      var conSem = reps.reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0);
+      return {nombre:v.nombre, ufSem:ufSem, dpsSem:dpsSem, cttSem:cttSem, conSem:conSem, crecUF:ufSem};
+    });
   }
-  var mL=(new Date()).toLocaleString("es-CL",{month:"long",year:"numeric"}).replace(/^./,function(c){return c.toUpperCase();});
+  if(equipo.every(function(v){return (v.uf||0)===0&&(v.dps||0)===0;})) return null;
+
   return React.createElement("div",{style:{background:"#fff",borderRadius:20,padding:"24px 22px",boxShadow:"0 4px 24px rgba(233,7,41,.09)",border:"1px solid rgba(233,7,41,.1)",marginBottom:16}}
-    ,React.createElement("div",{style:{fontSize:20,fontWeight:900,color:RD,marginBottom:4}},"⭐ Reconocimientos Especiales")
-    ,React.createElement("div",{style:{fontSize:13,color:"#6B7280",marginBottom:22}},"Celebramos a los mejores en cada categoría — ¡el equipo los reconoce!")
-    ,React.createElement("div",{style:{marginBottom:20}}
-      ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}},React.createElement("div",{style:{width:4,height:20,background:RD,borderRadius:99}}),React.createElement("div",{style:{fontSize:14,fontWeight:900,color:RD}},"🏆 Estrellas del Mes"),React.createElement("div",{style:{flex:1,height:1,background:"#F3F4F6"}}),React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",fontWeight:700}},mL.toUpperCase()))
-      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:8}},cM.slice(0,3).map(Card))
-      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}},cM.slice(3,5).map(Card))
-    )
-    ,React.createElement("div",null
-      ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}},React.createElement("div",{style:{width:4,height:20,background:"#2563EB",borderRadius:99}}),React.createElement("div",{style:{fontSize:14,fontWeight:900,color:"#2563EB"}},"⚡ Estrellas de la Semana"),React.createElement("div",{style:{flex:1,height:1,background:"#F3F4F6"}}),React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",fontWeight:700}},semHas?"ÚLTIMOS 7 DÍAS":"BASADO EN MES ACTUAL"))
-      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:8}},cS.slice(0,3).map(Card))
-      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}},cS.slice(3,5).map(Card))
+    ,React.createElement("div",{style:{fontSize:10,letterSpacing:"0.18em",textTransform:"uppercase",color:"#9CA3AF",marginBottom:6}},sinActividad?"Reconocidos este mes":"Reconocidos últimos 7 días")
+    ,React.createElement("div",{style:{fontSize:20,fontWeight:900,color:RD,marginBottom:4}},"⭐ Reconocidos Especiales")
+    ,React.createElement("div",{style:{fontSize:13,color:"#6B7280",marginBottom:18}},"Los mejores de la semana en cada categoría")
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}
+      ,categorias.map(function(cat){
+          var vFoto = equipo.find(function(e){return e.nombre===cat.nombre;});
+          var ini = cat.nombre.split(" ").slice(-2).map(function(w){return w[0]||"";}).join("");
+          return React.createElement("div",{key:cat.label,style:{background:cat.bg,borderRadius:14,padding:"16px",textAlign:"center",border:"2px solid "+cat.brd}}
+            ,React.createElement("div",{style:{width:54,height:54,borderRadius:"50%",overflow:"hidden",border:"3px solid "+cat.brd,margin:"0 auto 8px",background:vFoto&&vFoto.fotoUrl?"#000":"rgba(255,255,255,.5)",display:"flex",alignItems:"center",justifyContent:"center"}}
+              ,vFoto&&vFoto.fotoUrl?React.createElement("img",{src:vFoto.fotoUrl,style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement("span",{style:{fontSize:17,fontWeight:900,color:cat.color}},ini)
+            )
+            ,React.createElement("div",{style:{fontSize:11,fontWeight:900,color:cat.color,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:4}},cat.label)
+            ,React.createElement("div",{style:{fontSize:14,fontWeight:900,color:"#1F2937",lineHeight:1.3,marginBottom:4}},cat.nombre.split(" ").slice(-2).join(" "))
+            ,React.createElement("div",{style:{background:"rgba(255,255,255,.6)",borderRadius:99,padding:"3px 12px",display:"inline-block",fontSize:11,fontWeight:700,color:cat.color}},cat.valor)
+          );
+        })
     )
   );
 }
-
 
 function Top5Lookup({ equipo }) {
   const [top5Name, setTop5Name] = React.useState("");
