@@ -1818,8 +1818,8 @@ function TarjetaBadge({ entry, badge, equipo }) {
   );
   const p = entry.nombre.split(" ");
   const corto = p.length >= 2 ? p[p.length-2] + " " + p[p.length-1] : entry.nombre;
-  // Find photo from equipo
-  var vFoto = equipo ? equipo.find(function(e){return e.nombre===entry.nombre;}) : null;
+  // Find photo from equipo using word matching (names may be in different order)
+  var vFoto = equipo ? equipo.find(function(e){return nombreCoincide(e.nombre, entry.nombre);}) : null;
   var ini = corto.split(" ").slice(0,2).map(function(w){return w[0]||"";}).join("");
   return (
     React.createElement('div', { style: { background:badge.bg, borderRadius:16, padding:"22px 16px", textAlign:"center", border:"2px solid "+badge.brd, boxShadow:"0 8px 24px rgba(0,0,0,.12)", position:"relative", overflow:"hidden" } }
@@ -2744,30 +2744,31 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
       var nombreVUp = v.nombre.toUpperCase().trim();
       var match = preview.find(function(p){
         var nombrePUp = (p.nombre||"").toUpperCase().trim();
-        // Coincidencia exacta primero
         if(nombreVUp === nombrePUp) return true;
-        // Coincidencia por palabras: mínimo 2 palabras coincidentes (no solo 1 inicial)
         var palabrasV = nombreVUp.split(/\s+/).filter(function(w){return w.length>2;});
         var palabrasP = nombrePUp.split(/\s+/).filter(function(w){return w.length>2;});
         if(!palabrasV.length || !palabrasP.length) return false;
         var hits = palabrasP.filter(function(w){ return nombreVUp.indexOf(w)>=0; }).length;
-        // Necesita al menos 2 palabras coincidentes O el 70% si tiene menos de 3 palabras
         var minHits = palabrasP.length >= 3 ? 2 : Math.ceil(palabrasP.length*0.7);
         return hits >= minHits;
       });
       if (!match) return v;
       var hist = Object.assign({}, v.historial||{});
-      var mes = Object.assign({uf:0,dps:0,dpsVenta:0,dpsSinVenta:0,dpsPendiente:0,dpsRechazado:0}, hist[mesKey]||{});
-      mes.dpsVenta     = match.dpsConVenta;
-      mes.dpsSinVenta  = match.dpsSinVenta;
-      mes.dpsPendiente = match.dpsPendiente;
-      mes.dpsRechazado = match.dpsRechazado;
-      mes.dps = match.dpsTotal || (match.dpsConVenta + match.dpsSinVenta + match.dpsPendiente + match.dpsRechazado);
-      if (match.nBenef > 0)   mes.nBenef   = match.nBenef;
-      if (match.cttosDig > 0) mes.cttosDig = match.cttosDig;
-      if (match.pctF > 0)     mes.pctF     = match.pctF;
-      if (match.pctM > 0)     mes.pctM     = match.pctM;
-      if (match.uf > 0)       mes.ufDig    = match.uf; // UF digitadas — separado de uf (UF cerradas)
+      // SIEMPRE sobreescribir completamente los campos DPS del mes — nunca acumular
+      var mesExistente = hist[mesKey]||{};
+      var mes = {
+        uf:          mesExistente.uf||0,
+        dps:         match.dpsTotal || (match.dpsConVenta + match.dpsSinVenta + match.dpsPendiente + match.dpsRechazado),
+        dpsVenta:    match.dpsConVenta,
+        dpsSinVenta: match.dpsSinVenta,
+        dpsPendiente:match.dpsPendiente,
+        dpsRechazado:match.dpsRechazado,
+        nBenef:      match.nBenef>0 ? match.nBenef : (mesExistente.nBenef||0),
+        cttosDig:    match.cttosDig>0 ? match.cttosDig : (mesExistente.cttosDig||0),
+        pctF:        match.pctF>0 ? match.pctF : (mesExistente.pctF||0),
+        pctM:        match.pctM>0 ? match.pctM : (mesExistente.pctM||0),
+        ufDig:       match.uf>0 ? match.uf : (mesExistente.ufDig||0),
+      };
       hist[mesKey] = mes;
       return Object.assign({}, v, {historial:hist});
     });
@@ -2925,12 +2926,13 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
     }
     return {
       id: v.id, nombre: v.nombre,
-      uf:          parseFloat(h.ufDig)||parseFloat(h.uf)||0,
+      uf:          esMesAct ? (parseFloat(v.uf)||0) : (parseFloat(h.ufDig)||parseFloat(h.uf)||0),
       dpsConVenta:  parseInt(h.dpsVenta)||0,
       dpsSinVenta:  parseInt(h.dpsSinVenta)||0,
       dpsPendiente: parseInt(h.dpsPendiente)||0,
       dpsRechazado: parseInt(h.dpsRechazado)||0,
-      dpsTotal: (parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0),
+      // Para mes actual: si no hay datos del Excel, usar v.dps como total
+      dpsTotal: (parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0) || (esMesAct?(parseInt(v.dps)||0):0),
       nBenef:   parseInt(h.nBenef)||0,
       cttosDig: parseInt(h.cttosDig)||0,
       pctF: esMesAct?pctH:pctF, pctM: pctM, conecta: conecta,
@@ -6398,8 +6400,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
 
         /* ===== MI REPORTE ===== */
         , tab==="formulario" && (
-          React.createElement('div', { style: {maxWidth:600,margin:"0 auto"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3190}}
-            , React.createElement('div', { style: {background:"linear-gradient(135deg,"+RD+","+R+")",borderRadius:16,padding:"18px 22px",color:"#fff",marginBottom:20} }
+          React.createElement('div', { style: {maxWidth:600,margin:"0 auto"} }
+            , pinFormOk && React.createElement('div', { style: {background:"linear-gradient(135deg,"+RD+","+R+")",borderRadius:16,padding:"18px 22px",color:"#fff",marginBottom:20} }
               , (function(){
                   var vEjec = pinFormOk ? equipo.find(function(e){return e.id===Number(form.vid);}) : null;
                   var ufPersonal = vEjec ? (parseFloat(vEjec.uf)||0) : 0;
@@ -6626,7 +6628,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
               )
             )
 
-            , form.vid !== "" && (function(){
+            , form.vid !== "" && pinFormOk && (function(){
               var v = equipo.find(function(t){return t.id===Number(form.vid);});
               if (!v || (v.rep||[]).length === 0) return null;
               var tot = {
@@ -6653,7 +6655,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                         {l:"Contactos efectivos",  v:tot.contactos, c:"#3B82F6", bg:"#EFF6FF", bm:null},
                         {l:"Cotizaciones enviadas", v:tot.cot,       c:"#F59E0B", bg:"#FFFBEB", bm:null},
                         {l:"Contratos cerrados",   v:tot.cierres,   c:"#16A34A", bg:"#F0FDF4", bm:null},
-                        {l:"DPS realizadas",       v:tot.dps,       c:"#8B5CF6", bg:"#F5F3FF", bm:bmProp?bmProp.dps:null},
+                        {l:"DPS reportadas (diario)",v:tot.dps,     c:"#8B5CF6", bg:"#F5F3FF", bm:bmProp?bmProp.dps:null},
                       ].map(function(k){
                         var diff = k.bm ? bmDiff(k.v, k.bm) : null;
                         return (
@@ -7413,8 +7415,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                   , acceso&&React.createElement('button', { onClick: function(){setDraft({label:mesAnt.label,top:mesAnt.top.map(function(t){return Object.assign({},t);})});setEditMes(true);}, style: {background:BG,color:R,border:"1.5px solid "+R,borderRadius:10,padding:"7px 14px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3646}}, "Editar")
                 )
               )
-              , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3649}}, [1,0,2].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: mesAnt.top[i], badge: BADGES[i], __self: this, __source: {fileName: _jsxFileName, lineNumber: 3649}} );}))
-              , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3650}}, [3,4].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: mesAnt.top[i], badge: BADGES[i], __self: this, __source: {fileName: _jsxFileName, lineNumber: 3650}} );}))
+              , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14} }, [1,0,2].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: mesAnt.top[i], badge: BADGES[i], equipo: equipo } );}))
+              , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:14} }, [3,4].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: mesAnt.top[i], badge: BADGES[i], equipo: equipo } );}))
               , React.createElement('div', { style: {marginTop:16,background:BG,borderRadius:10,padding:"10px 16px",fontSize:12,color:"#9CA3AF",textAlign:"center"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3651}}, "Solo nombres y posicion. Sin cifras de produccion individual."        )
             )
           )
@@ -8265,9 +8267,11 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
 function ReconocidosEspeciales({ equipo, info, RD, R }) {
   // Calcular ganadores de esta semana
   var hoy = new Date();
-  var inicioSemana = new Date(hoy);
-  inicioSemana.setDate(hoy.getDate() - hoy.getDay() + 1); // lunes
-  var iniStr = inicioSemana.toISOString().split("T")[0];
+  // Use last 7 days instead of calendar week to avoid timezone issues
+  var hace7 = new Date(hoy); hace7.setDate(hace7.getDate()-7);
+  var iniStr = hace7.getFullYear()+"-"+String(hace7.getMonth()+1).padStart(2,"0")+"-"+String(hace7.getDate()).padStart(2,"0");
+  var hace14 = new Date(hoy); hace14.setDate(hace14.getDate()-14);
+  var iniAntStr = hace14.getFullYear()+"-"+String(hace14.getMonth()+1).padStart(2,"0")+"-"+String(hace14.getDate()).padStart(2,"0");
 
   var stats = equipo.map(function(v){
     var reps = (v.rep||[]).filter(function(r){ return (r.fecha||"")>=iniStr; });
@@ -8275,12 +8279,7 @@ function ReconocidosEspeciales({ equipo, info, RD, R }) {
     var dpsSem = reps.reduce(function(s,r){return s+(parseInt(r.dps)||0);},0);
     var cttSem = reps.reduce(function(s,r){return s+(parseInt(r.cierres)||0);},0);
     var conSem = reps.reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0);
-    // Crecimiento UF vs semana anterior
-    var inicioAnt = new Date(inicioSemana); inicioAnt.setDate(inicioAnt.getDate()-7);
-    var finAnt = new Date(inicioSemana); finAnt.setDate(finAnt.getDate()-1);
-    var iniAntStr = inicioAnt.toISOString().split("T")[0];
-    var finAntStr = finAnt.toISOString().split("T")[0];
-    var repsAnt = (v.rep||[]).filter(function(r){return (r.fecha||"")>=iniAntStr&&(r.fecha||"")<=finAntStr;});
+    var repsAnt = (v.rep||[]).filter(function(r){return (r.fecha||"")>=iniAntStr&&(r.fecha||"")<iniStr;});
     var ufAnt = repsAnt.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0);
     var crecUF = ufSem - ufAnt;
     return {nombre:v.nombre, ufSem:ufSem, dpsSem:dpsSem, cttSem:cttSem, conSem:conSem, crecUF:crecUF};
@@ -8298,11 +8297,22 @@ function ReconocidosEspeciales({ equipo, info, RD, R }) {
     {label:"📋 Mayor Contratos",         sub:"Mayor contratos cerrados semana",nombre:maxCtts.nombre, valor:maxCtts.cttSem+" contratos",  color:"#7C3AED",bg:"linear-gradient(135deg,#F5F3FF,#DDD6FE)",brd:"#C4B5FD"},
   ];
 
-  // Solo mostrar si hay actividad esta semana
-  if(stats.every(function(s){return s.ufSem===0&&s.dpsSem===0;})) return null;
+  // Si no hay actividad semanal, usar datos del mes completo
+  var sinActividad = stats.every(function(s){return s.ufSem===0&&s.dpsSem===0;});
+  if(sinActividad) {
+    stats = equipo.map(function(v){
+      var reps = v.rep||[];
+      var ufSem = v.uf||0;
+      var dpsSem = v.dps||0;
+      var cttSem = reps.reduce(function(s,r){return s+(parseInt(r.cierres)||0);},0);
+      var conSem = reps.reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0);
+      return {nombre:v.nombre, ufSem:ufSem, dpsSem:dpsSem, cttSem:cttSem, conSem:conSem, crecUF:ufSem};
+    });
+  }
+  if(equipo.every(function(v){return (v.uf||0)===0&&(v.dps||0)===0;})) return null;
 
   return React.createElement("div",{style:{background:"#fff",borderRadius:20,padding:"24px 22px",boxShadow:"0 4px 24px rgba(233,7,41,.09)",border:"1px solid rgba(233,7,41,.1)",marginBottom:16}}
-    ,React.createElement("div",{style:{fontSize:10,letterSpacing:"0.18em",textTransform:"uppercase",color:"#9CA3AF",marginBottom:6}},"Reconocidos esta semana")
+    ,React.createElement("div",{style:{fontSize:10,letterSpacing:"0.18em",textTransform:"uppercase",color:"#9CA3AF",marginBottom:6}},sinActividad?"Reconocidos este mes":"Reconocidos últimos 7 días")
     ,React.createElement("div",{style:{fontSize:20,fontWeight:900,color:RD,marginBottom:4}},"⭐ Reconocidos Especiales")
     ,React.createElement("div",{style:{fontSize:13,color:"#6B7280",marginBottom:18}},"Los mejores de la semana en cada categoría")
     ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}
