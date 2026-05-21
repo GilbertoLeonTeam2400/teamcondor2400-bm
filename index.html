@@ -2759,10 +2759,9 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
       var hist = Object.assign({}, v.historial||{});
       // SIEMPRE sobreescribir completamente los campos DPS del mes — nunca acumular
       var mesExistente = hist[mesKey]||{};
-      var dpsTotal = match.dpsTotal || (match.dpsConVenta + match.dpsSinVenta + match.dpsPendiente + match.dpsRechazado);
       var mes = {
         uf:          mesExistente.uf||0,
-        dps:         dpsTotal,
+        dps:         match.dpsTotal || (match.dpsConVenta + match.dpsSinVenta + match.dpsPendiente + match.dpsRechazado),
         dpsVenta:    match.dpsConVenta,
         dpsSinVenta: match.dpsSinVenta,
         dpsPendiente:match.dpsPendiente,
@@ -2774,17 +2773,19 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
         ufDig:       match.uf>0 ? match.uf : (mesExistente.ufDig||0),
       };
       hist[mesKey] = mes;
-      var mesKeyNowC=(function(){var n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");})();
-      return Object.assign({}, v, {historial:hist}, mesKey===mesKeyNowC ? {dps: dpsTotal} : {});
+      return Object.assign({}, v, {historial:hist});
     });
+    // Marcar skipSnapshot ANTES de guardar para evitar que onSnapshot sobreescriba con datos viejos
+    if(window.skipSnapshotRef) window.skipSnapshotRef.current = true;
     setEquipo(nuevoEquipo);
     setPreview([]);
+    var nomMesCarga=mesesOpciones.find(function(m){return m.mk===mesKey;});
     // Guardar en Firebase
     if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
       window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey),{equipo:nuevoEquipo})
-        .then(function(){ var nomMes=mesesOpciones.find(function(m){return m.mk===mesKey;}); setMsg("✅ ¡Guardado! DPS actualizadas para "+(nomMes?nomMes.nom:mesKey)+"."); })
-        .catch(function(e){ setMsg("⚠️ Actualizado localmente pero error en Firebase: "+e.message); });
-    else setMsg("✅ Actualizado localmente. Reconecta Firebase para sincronizar.");
+        .then(function(){ setMsg("✅ ¡Guardado! DPS actualizadas para "+(nomMesCarga?nomMesCarga.nom:mesKey)+"."); setTimeout(function(){if(window.skipSnapshotRef)window.skipSnapshotRef.current=false;},3000); })
+        .catch(function(e){ setMsg("⚠️ Actualizado localmente pero error en Firebase: "+e.message); if(window.skipSnapshotRef)window.skipSnapshotRef.current=false; });
+    else { setMsg("✅ Actualizado localmente. Reconecta Firebase para sincronizar."); if(window.skipSnapshotRef)window.skipSnapshotRef.current=false; }
   }
 
   return React.createElement('div', {style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(233,7,41,.09)"}}
@@ -4221,24 +4222,22 @@ function PredictorView({ equipo, info, R, RD, metaUFSafe }) {
 // ── Correlación DPS → UF ─────────────────────────────────────────────────────
 function CorrelacionView({ equipo, info, R, RD }) {
   var mesKeyC=(function(){var n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");})();
+  function getDpsExec(v){
+    var h=(v.historial||{})[mesKeyC]||{};
+    var hd=(parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0);
+    return hd>0?hd:(parseInt(v.dps)||0);
+  }
   var datos = equipo
     .map(function(v){
-      var h=(v.historial||{})[mesKeyC]||{};
-      var hDps=(parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0);
-      var dps = hDps>0 ? hDps : (parseInt(v.dps)||0);
-      var uf = parseFloat(v.uf)||0;
-      var tasa = dps>0?parseFloat((uf/dps).toFixed(2)):0;
-      return {nombre:v.nombre.split(" ").slice(-2).join(" "), uf:uf, dps:dps, tasa:tasa};
+      var dps=getDpsExec(v); var uf=parseFloat(v.uf)||0;
+      var tasa=dps>0?parseFloat((uf/dps).toFixed(2)):0;
+      return {nombre:v.nombre.split(" ").slice(-2).join(" "),uf:uf,dps:dps,tasa:tasa};
     })
     .filter(function(v){return v.dps>0;})
     .sort(function(a,b){return b.tasa-a.tasa;});
 
-  var totUF  = equipo.reduce(function(s,v){return s+(v.uf||0);},0);
-  var totDPS = equipo.reduce(function(s,v){
-    var h2=(v.historial||{})[mesKeyC]||{};
-    var hd=(parseInt(h2.dpsVenta)||0)+(parseInt(h2.dpsSinVenta)||0)+(parseInt(h2.dpsPendiente)||0)+(parseInt(h2.dpsRechazado)||0);
-    return s+(hd>0?hd:(parseInt(v.dps)||0));
-  },0);
+  var totUF  = equipo.reduce(function(s,v){return s+(parseFloat(v.uf)||0);},0);
+  var totDPS = equipo.reduce(function(s,v){return s+getDpsExec(v);},0);
   var tasaEquipo = totDPS>0?parseFloat((totUF/totDPS).toFixed(2)):0;
   var maxTasa = Math.max(1,Math.max.apply(null,datos.map(function(d){return d.tasa;})));
 
@@ -4818,6 +4817,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
   const [metaEquipo,  setMetaEquipo]  = useState(550);
   META_UF = metaEquipo; // Sobreescribir la variable global con el estado
   const skipSnapshot = React.useRef(false);
+  window.skipSnapshotRef = skipSnapshot; // exponer para confirmarCarga en MetricasReportView
 
   useEffect(function() {
     const key = info.mesKey;
@@ -4876,14 +4876,14 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
             console.log("[LOAD] Firebase datos recibidos OK");
             merged = merged.map(function(x){
               var reps = x.rep || [];
-              // Recalcular v.uf desde rep[] — fuente única de verdad
+              // uf: desde reportes diarios (fuente de verdad para UF)
               var ufDesdeReps = parseFloat(reps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0).toFixed(2));
-              var dpsDesdeReps = reps.reduce(function(s,r){return s+(parseInt(r.dps)||0);},0);
-              // Si tiene reportes, usar suma de reps; si no, usar el valor guardado
-              // DPS raíz: usar reps solo si NO hay historial del mes cargado via Excel
+              // dps: desde historial del mes (cargado vía Excel) — NO desde reps
               var mesKeyNow=(function(){var n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");})();
               var hNow=(x.historial||{})[mesKeyNow]||{};
               var hDpsTotal=(parseInt(hNow.dpsVenta)||0)+(parseInt(hNow.dpsSinVenta)||0)+(parseInt(hNow.dpsPendiente)||0)+(parseInt(hNow.dpsRechazado)||0);
+              var dpsDesdeReps = reps.reduce(function(s,r){return s+(parseInt(r.dps)||0);},0);
+              // Prioridad: historial Excel > reps > valor guardado
               var dpsFinal = hDpsTotal > 0 ? hDpsTotal : (reps.length > 0 ? dpsDesdeReps : (parseInt(x.dps)||0));
               return Object.assign({rep:[]}, x, {
                 uf:  reps.length > 0 ? ufDesdeReps : (parseFloat(x.uf)||0),
@@ -8309,116 +8309,75 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
 }
 // ── Top 5 Lookup ─────────────────────────────────────────────────
 function ReconocidosEspeciales({ equipo, info, RD, R }) {
-  var hoy = new Date();
-  var mesKey = info.mesKey;
-
-  var statsMes = equipo.map(function(v){
-    var h=(v.historial||{})[mesKey]||{};
-    var ufMes=parseFloat(v.uf)||0;
-    var hDps=(parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0);
-    var dpsMes=hDps>0?hDps:(parseInt(v.dps)||0);
-    var cttosMes=parseInt(h.cttosDig)||0;
-    var conectaMes=(v.rep||[]).reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0);
-    return {id:v.id,nombre:v.nombre,fotoUrl:v.fotoUrl,ufMes:ufMes,dpsMes:dpsMes,cttosMes:cttosMes,conectaMes:conectaMes};
+  var hoy=new Date(), mesKey=info.mesKey;
+  function getDpsMes(v){var h=(v.historial||{})[mesKey]||{};var s=(parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0);return s>0?s:(parseInt(v.dps)||0);}
+  var statsMes=equipo.map(function(v){
+    return {id:v.id,nombre:v.nombre,fotoUrl:v.fotoUrl,
+      ufMes:parseFloat(v.uf)||0, dpsMes:getDpsMes(v),
+      cttosMes:parseInt(((v.historial||{})[mesKey]||{}).cttosDig)||0,
+      conectaMes:(v.rep||[]).reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0)};
   });
-
   var hace7=new Date(hoy);hace7.setDate(hace7.getDate()-7);
   var hace14=new Date(hoy);hace14.setDate(hace14.getDate()-14);
   var iniStr=hace7.getFullYear()+"-"+String(hace7.getMonth()+1).padStart(2,"0")+"-"+String(hace7.getDate()).padStart(2,"0");
   var iniAntStr=hace14.getFullYear()+"-"+String(hace14.getMonth()+1).padStart(2,"0")+"-"+String(hace14.getDate()).padStart(2,"0");
-
   var statsSem=equipo.map(function(v){
     var reps=(v.rep||[]).filter(function(r){return (r.fecha||"")>=iniStr;});
     var repsAnt=(v.rep||[]).filter(function(r){return (r.fecha||"")>=iniAntStr&&(r.fecha||"")<iniStr;});
     var ufSem=reps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0);
-    var ufAnt=repsAnt.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0);
-    var dpsSem=reps.reduce(function(s,r){return s+(parseInt(r.dps)||0);},0);
-    var cttosSem=reps.reduce(function(s,r){return s+(parseInt(r.cierres)||0);},0);
-    var conectaSem=reps.reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0);
-    return {id:v.id,nombre:v.nombre,fotoUrl:v.fotoUrl,ufSem:ufSem,dpsSem:dpsSem,cttosSem:cttosSem,conectaSem:conectaSem,crecUF:parseFloat((ufSem-ufAnt).toFixed(2))};
+    return {id:v.id,nombre:v.nombre,fotoUrl:v.fotoUrl,
+      ufSem:ufSem, dpsSem:reps.reduce(function(s,r){return s+(parseInt(r.dps)||0);},0),
+      cttosSem:reps.reduce(function(s,r){return s+(parseInt(r.cierres)||0);},0),
+      conectaSem:reps.reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0),
+      crecUF:parseFloat((ufSem-repsAnt.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0)).toFixed(2))};
   });
-
-  var semHasData=statsSem.some(function(s){return s.ufSem>0||s.dpsSem>0||s.cttosSem>0||s.conectaSem>0;});
-  var mesHasData=statsMes.some(function(s){return s.ufMes>0||s.dpsMes>0;});
-  if(!mesHasData) return null;
-
-  function bestMes(field){
-    return statsMes.slice().sort(function(a,b){return (b[field]||0)-(a[field]||0);})[0]||{nombre:"—"};
-  }
-  function bestSem(field,fallbackField){
-    if(!semHasData) return bestMes(fallbackField||field);
-    var sorted=statsSem.slice().sort(function(a,b){return (b[field]||0)-(a[field]||0);});
-    var top=sorted[0]||{};
-    return (top[field]||0)>0?top:bestMes(fallbackField||field);
-  }
-
-  function fmtV(v,unit){
-    if(!v&&v!==0) return "Sin datos";
-    var num=typeof v==="number"?v:parseFloat(v)||0;
-    if(num<=0) return "Sin datos";
-    return (unit==="UF"?num.toFixed(2):Math.round(num))+" "+unit;
-  }
-
-  var topConMes=bestMes("conectaMes"),topUfMes=bestMes("ufMes"),topDpsMes=bestMes("dpsMes"),topCttMes=bestMes("cttosMes");
-  var topConSem=bestSem("conectaSem","conectaMes"),topUfSem=bestSem("ufSem","ufMes"),topDpsSem=bestSem("dpsSem","dpsMes"),topCttSem=bestSem("cttosSem","cttosMes");
-  var topCrecSem=(function(){
-    if(semHasData){var s=statsSem.slice().sort(function(a,b){return (b.crecUF||0)-(a.crecUF||0);});if(s[0]&&s[0].crecUF>0)return s[0];}
-    return bestMes("ufMes");
-  })();
-
-  var catsMes=[
-    {label:"💚 Mejor Vendedor Plan Conecta",sub:"del mes",nombre:topConMes.nombre,val:fmtV(topConMes.conectaMes,"planes"),color:"#059669",bg:"linear-gradient(135deg,#DCFCE7,#A7F3D0)",brd:"#6EE7B7"},
-    {label:"📈 Mayor Crecimiento UF",sub:"del mes",nombre:topUfMes.nombre,val:fmtV(topUfMes.ufMes,"UF"),color:"#D97706",bg:"linear-gradient(135deg,#FEF9C3,#FDE68A)",brd:"#FCD34D"},
-    {label:"🔵 Mayor Actividad DPS",sub:"del mes",nombre:topDpsMes.nombre,val:fmtV(topDpsMes.dpsMes,"DPS"),color:"#2563EB",bg:"linear-gradient(135deg,#EFF6FF,#BFDBFE)",brd:"#93C5FD"},
-    {label:"📋 Mayor Cantidad Contratos",sub:"del mes",nombre:topCttMes.nombre,val:fmtV(topCttMes.cttosMes,"contratos"),color:"#7C3AED",bg:"linear-gradient(135deg,#F5F3FF,#DDD6FE)",brd:"#C4B5FD"},
-    {label:"⭐ Mayor UF Total",sub:"del mes",nombre:topUfMes.nombre,val:fmtV(topUfMes.ufMes,"UF"),color:"#C9A84C",bg:"linear-gradient(135deg,#FFFBEB,#FEF3C7)",brd:"#FDE68A"},
+  var semHas=statsSem.some(function(s){return s.ufSem>0||s.dpsSem>0||s.cttosSem>0||s.conectaSem>0;});
+  if(!statsMes.some(function(s){return s.ufMes>0||s.dpsMes>0;})) return null;
+  function bM(f){return statsMes.slice().sort(function(a,b){return (b[f]||0)-(a[f]||0);})[0]||{nombre:"—"};}
+  function bS(sf,mf){if(!semHas)return bM(mf||sf);var s=statsSem.slice().sort(function(a,b){return (b[sf]||0)-(a[sf]||0);});return (s[0]&&(s[0][sf]||0)>0)?s[0]:bM(mf||sf);}
+  function fv(v,u){if(!v&&v!==0)return"Sin datos";var n=typeof v==="number"?v:parseFloat(v)||0;if(n<=0)return"Sin datos";return(u==="UF"?n.toFixed(2):Math.round(n))+" "+u;}
+  var tUM=bM("ufMes"),tDM=bM("dpsMes"),tCM=bM("cttosMes"),tCoM=bM("conectaMes");
+  var tUS=bS("ufSem","ufMes"),tDS=bS("dpsSem","dpsMes"),tCS=bS("cttosSem","cttosMes"),tCoS=bS("conectaSem","conectaMes");
+  var tCrS=(function(){if(semHas){var s=statsSem.slice().sort(function(a,b){return (b.crecUF||0)-(a.crecUF||0);});if(s[0]&&s[0].crecUF>0)return s[0];}return tUM;})();
+  var cM=[
+    {label:"💚 Mejor Vendedor Plan Conecta",sub:"del mes",nombre:tCoM.nombre,val:fv(tCoM.conectaMes,"planes"),color:"#059669",bg:"linear-gradient(135deg,#DCFCE7,#A7F3D0)",brd:"#6EE7B7"},
+    {label:"📈 Mayor Crecimiento UF",sub:"del mes",nombre:tUM.nombre,val:fv(tUM.ufMes,"UF"),color:"#D97706",bg:"linear-gradient(135deg,#FEF9C3,#FDE68A)",brd:"#FCD34D"},
+    {label:"🔵 Mayor Actividad DPS",sub:"del mes",nombre:tDM.nombre,val:fv(tDM.dpsMes,"DPS"),color:"#2563EB",bg:"linear-gradient(135deg,#EFF6FF,#BFDBFE)",brd:"#93C5FD"},
+    {label:"📋 Mayor Cantidad Contratos",sub:"del mes",nombre:tCM.nombre,val:fv(tCM.cttosMes,"contratos"),color:"#7C3AED",bg:"linear-gradient(135deg,#F5F3FF,#DDD6FE)",brd:"#C4B5FD"},
+    {label:"⭐ Mayor UF Total",sub:"del mes",nombre:tUM.nombre,val:fv(tUM.ufMes,"UF"),color:"#C9A84C",bg:"linear-gradient(135deg,#FFFBEB,#FEF3C7)",brd:"#FDE68A"},
   ];
-  var catsSem=[
-    {label:"💚 Mejor Vendedor Plan Conecta",sub:"esta semana",nombre:topConSem.nombre,val:semHasData?fmtV(topConSem.conectaSem,"planes"):fmtV(topConMes.conectaMes,"planes"),color:"#059669",bg:"linear-gradient(135deg,#DCFCE7,#A7F3D0)",brd:"#6EE7B7"},
-    {label:"📈 Mayor Crecimiento UF",sub:"esta semana",nombre:topCrecSem.nombre,val:semHasData?(topCrecSem.crecUF>=0?"+"+topCrecSem.crecUF.toFixed(2)+" UF":topCrecSem.crecUF.toFixed(2)+" UF"):fmtV(topUfMes.ufMes,"UF"),color:"#D97706",bg:"linear-gradient(135deg,#FEF9C3,#FDE68A)",brd:"#FCD34D"},
-    {label:"🔵 Mayor Actividad DPS",sub:"esta semana",nombre:topDpsSem.nombre,val:semHasData?fmtV(topDpsSem.dpsSem,"DPS"):fmtV(topDpsMes.dpsMes,"DPS"),color:"#2563EB",bg:"linear-gradient(135deg,#EFF6FF,#BFDBFE)",brd:"#93C5FD"},
-    {label:"📋 Mayor Cantidad Contratos",sub:"esta semana",nombre:topCttSem.nombre,val:semHasData?fmtV(topCttSem.cttosSem,"contratos"):fmtV(topCttMes.cttosMes,"contratos"),color:"#7C3AED",bg:"linear-gradient(135deg,#F5F3FF,#DDD6FE)",brd:"#C4B5FD"},
-    {label:"⭐ Mayor UF Total",sub:"esta semana",nombre:topUfSem.nombre,val:semHasData?fmtV(topUfSem.ufSem,"UF"):fmtV(topUfMes.ufMes,"UF"),color:"#C9A84C",bg:"linear-gradient(135deg,#FFFBEB,#FEF3C7)",brd:"#FDE68A"},
+  var cS=[
+    {label:"💚 Mejor Vendedor Plan Conecta",sub:"esta semana",nombre:tCoS.nombre,val:semHas?fv(tCoS.conectaSem,"planes"):fv(tCoM.conectaMes,"planes"),color:"#059669",bg:"linear-gradient(135deg,#DCFCE7,#A7F3D0)",brd:"#6EE7B7"},
+    {label:"📈 Mayor Crecimiento UF",sub:"esta semana",nombre:tCrS.nombre,val:semHas?(tCrS.crecUF>=0?"+"+tCrS.crecUF.toFixed(2)+" UF":tCrS.crecUF.toFixed(2)+" UF"):fv(tUM.ufMes,"UF"),color:"#D97706",bg:"linear-gradient(135deg,#FEF9C3,#FDE68A)",brd:"#FCD34D"},
+    {label:"🔵 Mayor Actividad DPS",sub:"esta semana",nombre:tDS.nombre,val:semHas?fv(tDS.dpsSem,"DPS"):fv(tDM.dpsMes,"DPS"),color:"#2563EB",bg:"linear-gradient(135deg,#EFF6FF,#BFDBFE)",brd:"#93C5FD"},
+    {label:"📋 Mayor Cantidad Contratos",sub:"esta semana",nombre:tCS.nombre,val:semHas?fv(tCS.cttosSem,"contratos"):fv(tCM.cttosMes,"contratos"),color:"#7C3AED",bg:"linear-gradient(135deg,#F5F3FF,#DDD6FE)",brd:"#C4B5FD"},
+    {label:"⭐ Mayor UF Total",sub:"esta semana",nombre:tUS.nombre,val:semHas?fv(tUS.ufSem,"UF"):fv(tUM.ufMes,"UF"),color:"#C9A84C",bg:"linear-gradient(135deg,#FFFBEB,#FEF3C7)",brd:"#FDE68A"},
   ];
-
-  function CatCard(cat){
-    var vFoto=equipo.find(function(e){return e.nombre===cat.nombre;});
+  function Card(cat){
+    var vF=equipo.find(function(e){return e.nombre===cat.nombre;});
     var ini=(cat.nombre||"").split(" ").slice(-2).map(function(w){return (w||"")[0]||"";}).join("");
-    var nombreDisplay=(cat.nombre||"").split(" ").slice(-2).join(" ");
     return React.createElement("div",{key:cat.label,style:{background:cat.bg,borderRadius:14,padding:"14px 12px",textAlign:"center",border:"2px solid "+cat.brd}}
-      ,React.createElement("div",{style:{width:50,height:50,borderRadius:"50%",overflow:"hidden",border:"3px solid "+cat.brd,margin:"0 auto 8px",background:vFoto&&vFoto.fotoUrl?"#000":"rgba(255,255,255,.5)",display:"flex",alignItems:"center",justifyContent:"center"}}
-        ,vFoto&&vFoto.fotoUrl?React.createElement("img",{src:vFoto.fotoUrl,style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement("span",{style:{fontSize:16,fontWeight:900,color:cat.color}},ini)
-      )
+      ,React.createElement("div",{style:{width:50,height:50,borderRadius:"50%",overflow:"hidden",border:"3px solid "+cat.brd,margin:"0 auto 8px",background:vF&&vF.fotoUrl?"#000":"rgba(255,255,255,.5)",display:"flex",alignItems:"center",justifyContent:"center"}}
+        ,vF&&vF.fotoUrl?React.createElement("img",{src:vF.fotoUrl,style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement("span",{style:{fontSize:16,fontWeight:900,color:cat.color}},ini))
       ,React.createElement("div",{style:{fontSize:10,fontWeight:900,color:cat.color,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:2}},cat.label)
       ,React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",marginBottom:4}},cat.sub)
-      ,React.createElement("div",{style:{fontSize:13,fontWeight:900,color:"#1F2937",lineHeight:1.3,marginBottom:4}},nombreDisplay)
+      ,React.createElement("div",{style:{fontSize:13,fontWeight:900,color:"#1F2937",lineHeight:1.3,marginBottom:4}},(cat.nombre||"").split(" ").slice(-2).join(" "))
       ,React.createElement("div",{style:{background:"rgba(255,255,255,.6)",borderRadius:99,padding:"2px 10px",display:"inline-block",fontSize:11,fontWeight:700,color:cat.color}},cat.val)
     );
   }
-
-  var mesLabel=(new Date()).toLocaleString("es-CL",{month:"long",year:"numeric"}).replace(/^./,function(c){return c.toUpperCase();});
+  var mL=(new Date()).toLocaleString("es-CL",{month:"long",year:"numeric"}).replace(/^./,function(c){return c.toUpperCase();});
   return React.createElement("div",{style:{background:"#fff",borderRadius:20,padding:"24px 22px",boxShadow:"0 4px 24px rgba(233,7,41,.09)",border:"1px solid rgba(233,7,41,.1)",marginBottom:16}}
     ,React.createElement("div",{style:{fontSize:20,fontWeight:900,color:RD,marginBottom:4}},"⭐ Reconocimientos Especiales")
     ,React.createElement("div",{style:{fontSize:13,color:"#6B7280",marginBottom:22}},"Celebramos a los mejores en cada categoría — ¡el equipo los reconoce!")
     ,React.createElement("div",{style:{marginBottom:20}}
-      ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}}
-        ,React.createElement("div",{style:{width:4,height:20,background:RD,borderRadius:99}})
-        ,React.createElement("div",{style:{fontSize:14,fontWeight:900,color:RD}},"🏆 Estrellas del Mes")
-        ,React.createElement("div",{style:{flex:1,height:1,background:"#F3F4F6"}})
-        ,React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",fontWeight:700}},mesLabel.toUpperCase())
-      )
-      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:8}},catsMes.slice(0,3).map(CatCard))
-      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}},catsMes.slice(3,5).map(CatCard))
+      ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}},React.createElement("div",{style:{width:4,height:20,background:RD,borderRadius:99}}),React.createElement("div",{style:{fontSize:14,fontWeight:900,color:RD}},"🏆 Estrellas del Mes"),React.createElement("div",{style:{flex:1,height:1,background:"#F3F4F6"}}),React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",fontWeight:700}},mL.toUpperCase()))
+      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:8}},cM.slice(0,3).map(Card))
+      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}},cM.slice(3,5).map(Card))
     )
     ,React.createElement("div",null
-      ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}}
-        ,React.createElement("div",{style:{width:4,height:20,background:"#2563EB",borderRadius:99}})
-        ,React.createElement("div",{style:{fontSize:14,fontWeight:900,color:"#2563EB"}},"⚡ Estrellas de la Semana")
-        ,React.createElement("div",{style:{flex:1,height:1,background:"#F3F4F6"}})
-        ,React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",fontWeight:700}},semHasData?"ÚLTIMOS 7 DÍAS":"BASADO EN MES ACTUAL")
-      )
-      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:8}},catsSem.slice(0,3).map(CatCard))
-      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}},catsSem.slice(3,5).map(CatCard))
+      ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}},React.createElement("div",{style:{width:4,height:20,background:"#2563EB",borderRadius:99}}),React.createElement("div",{style:{fontSize:14,fontWeight:900,color:"#2563EB"}},"⚡ Estrellas de la Semana"),React.createElement("div",{style:{flex:1,height:1,background:"#F3F4F6"}}),React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",fontWeight:700}},semHas?"ÚLTIMOS 7 DÍAS":"BASADO EN MES ACTUAL"))
+      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:8}},cS.slice(0,3).map(Card))
+      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}},cS.slice(3,5).map(Card))
     )
   );
 }
