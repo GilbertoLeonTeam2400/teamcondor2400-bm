@@ -1714,13 +1714,10 @@ function fmtUF(n) {
 }
 // ── Formateador UF 2 dec: truncado (sin redondeo), sin ceros finales, coma ──
 function fmtUF2(n) {
+  // Dashboard: max 2 decimales, truncado (sin redondeo)
   if (n === null || n === undefined || isNaN(n)) return "0";
-  var t = Math.floor(Math.abs(n) * 1000) / 1000 * (n < 0 ? -1 : 1);
-  var s = t.toFixed(3);
-  if (s.slice(-1) === "0") s = s.slice(0, -1);
-  var parts = s.split(".");
-  if (!parts[1] || parts[1].length < 2) s = t.toFixed(2);
-  return s.replace(".", ",");
+  var t = Math.floor(Math.abs(n) * 100) / 100 * (n < 0 ? -1 : 1);
+  return t.toFixed(2).replace(".", ",");
 }
 
 function hoyStr() { return new Date().toLocaleDateString("es-CL"); }
@@ -9207,12 +9204,8 @@ function UFLinealesView({ equipo, info }) {
 
   function fmtUF2(n) {
     if(!n&&n!==0) return "0";
-    var t=Math.floor(Math.abs(n)*1000)/1000*(n<0?-1:1);
-    var s=t.toFixed(3);
-    if(s.slice(-1)==="0") s=s.slice(0,-1);
-    var parts=s.split(".");
-    if(!parts[1]||parts[1].length<2) s=t.toFixed(2);
-    return s.replace(".",",");
+    var t=Math.floor(Math.abs(n)*100)/100*(n<0?-1:1);
+    return t.toFixed(2).replace(".",",");
   }
   function primerNombreApellido(nombre) {
     var p = nombre.trim().split(/\s+/);
