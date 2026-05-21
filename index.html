@@ -26,6 +26,8 @@
       /* Center last 2 cards in a 3-col grid by making them span 1.5 each — use subgrid trick */
       .agv-resumen-grid .agv-card-trend { grid-column: 1 / span 2 !important; }
       .agv-resumen-grid .agv-card-actual { grid-column: 2 / span 2 !important; }
+      /* Pipeline funnel: sin margin lateral en celular para que no se salga */
+      .pipeline-step { margin-left: 0 !important; margin-right: 0 !important; }
     }
   </style>
 </head>
@@ -2247,7 +2249,7 @@ function FunnelConversion({ equipo }) {
                   )
                 )
               )
-              , React.createElement('div', { style: {background:p.bg,borderRadius:12,padding:"14px 18px",border:"1px solid "+p.color+"33",position:"relative",overflow:"hidden",marginLeft:String(i*5)+"%",marginRight:String(i*5)+"%",transition:"margin .3s"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2466}}
+              , React.createElement('div', { className:"pipeline-step", style: {background:p.bg,borderRadius:12,padding:"14px 18px",border:"1px solid "+p.color+"33",position:"relative",overflow:"hidden",marginLeft:String(i*3)+"%",marginRight:String(i*3)+"%",transition:"margin .3s",boxSizing:"border-box"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2466}}
                 , React.createElement('div', { style: {position:"absolute",top:0,left:0,bottom:0,width:width+"%",background:p.color+"18",borderRadius:12,transition:"width .7s ease"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2467}} )
                 , React.createElement('div', { style: {position:"relative",display:"flex",justifyContent:"space-between",alignItems:"center"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2468}}
                   , React.createElement('span', { style: {fontWeight:700,color:"#374151",fontSize:14}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2469}}, p.label)
@@ -2777,12 +2779,16 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
     });
     setEquipo(nuevoEquipo);
     setPreview([]);
-    // Guardar en Firebase
-    if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey),{equipo:nuevoEquipo})
-        .then(function(){ var nomMes=mesesOpciones.find(function(m){return m.mk===mesKey;}); setMsg("✅ ¡Guardado! DPS actualizadas para "+(nomMes?nomMes.nom:mesKey)+"."); })
-        .catch(function(e){ setMsg("⚠️ Actualizado localmente pero error en Firebase: "+e.message); });
-    else setMsg("✅ Actualizado localmente. Reconecta Firebase para sincronizar.");
+    // El useEffect principal se encarga de guardar en Firebase automáticamente
+    var nomMes=mesesOpciones.find(function(m){return m.mk===mesKey;});
+    setMsg("✅ ¡Datos actualizados! Las métricas de "+(nomMes?nomMes.nom:mesKey)+" se reflejarán en segundos.");
+    // Forzar también guardado directo para este mes (puede ser un mes diferente al actual)
+    if (mesKey !== info.mesKey && window.__fbDb&&window.__fbDoc&&window.__fbSetDoc) {
+      var nuevoEquipoConHistFull = nuevoEquipo;
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey),{equipo:nuevoEquipoConHistFull,_ts:Date.now()})
+        .then(function(){ setMsg("✅ ¡Guardado en Firebase! DPS de "+(nomMes?nomMes.nom:mesKey)+" actualizadas."); })
+        .catch(function(e){ setMsg("⚠️ Local OK, pero error en Firebase: "+e.message); });
+    }
   }
 
   return React.createElement('div', {style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(233,7,41,.09)"}}
@@ -5130,7 +5136,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
   // Map group -> sub-tabs
   const SUP_GRUPOS = {
     dashboard: [["dashboard","📊 Dashboard"],["calEjec","📅 Calendario Ejecutivos"]],
-    equipo:    [["gestion","👥 Gestionar Equipo"],["carga","📥 Cargar UF/DPS"],["editar","✏️ Editar Estadísticas"]],
+    equipo:    [["gestion","👥 Gestionar Equipo"],["editar","✏️ Editar Estadísticas"]],
     metas:     [["meta","🎯 Meta del Equipo"],["uflineales","📈 UF's Lineales"]],
     contenido: [["gestPremios","🏆 Gestionar Premios"],["gestDocs","📂 Gestionar Docs"]],
     analisis:  [["clasificacion","📊 Clasificación AGV"],["agentes0","🚨 Agentes en 0"],["dpsanalisis","📊 Análisis Reporte Diario de Métricas"],["historialMetricas","📋 Ver Historial Métricas por Ejecutivo"],["tendencias","📈 Tendencias y Gráficos"],["predictor","🎯 Predictor Cierre de Mes"],["correlacion","🔗 Correlación DPS→UF"],["alertas","🚨 Alertas del Equipo"],["planagv","📋 Plan de Trabajo AGV"]],
@@ -6557,7 +6563,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                       );
                     })()
                   /* ── Sección 1: Cierres del día ── */
-                  , React.createElement('div', { style: {display:"flex",alignItems:"center",gap:10,marginBottom:10} }
+                  , form.vid !== "" && pinFormOk && React.createElement('div', { style: {display:"flex",alignItems:"center",gap:10,marginBottom:10} }
                     , (function(){
                         var vF=equipo.find(function(e){return String(e.id)===String(form.vid);});
                         if(!vF) return null;
@@ -6568,7 +6574,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                       })()
                     , React.createElement('div', { style: {fontSize:13,fontWeight:800,color:RD,textTransform:"uppercase",letterSpacing:"0.1em"} }, "1. Cierres del día")
                   )
-                  , React.createElement('div', { style: {background:"#ffffff",borderRadius:12,padding:"16px",border:"1px solid rgba(233,7,41,.15)",marginBottom:16}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3265}}
+                  , form.vid !== "" && pinFormOk && React.createElement('div', { style: {background:"#ffffff",borderRadius:12,padding:"16px",border:"1px solid rgba(233,7,41,.15)",marginBottom:16}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3265}}
                     , React.createElement('div', { style: {fontSize:12,color:"#6B7280",marginBottom:12}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3266}}, "Registra cada contrato cerrado hoy. Cada cierre está asociado a una DPS con venta."
 
                     )
@@ -7184,7 +7190,30 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                       if (!window.confirm("¿Eliminar este evento?")) return;
                       var nuevos = eventosMan.filter(function(e){ return e.id !== evId; });
                       try { localStorage.setItem(calKey, JSON.stringify(nuevos)); } catch(e){}
-                      // Actualizar en Firebase
+                      if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
+                        window.__fbSetDoc(window.__fbDoc(window.__fbDb,"calendarios",crmVid+"_"+anioHoy+"-"+String(mesHoy+1).padStart(2,"0")),
+                          {eventos:nuevos, ejecutivoId:crmVid, mes:anioHoy+"-"+String(mesHoy+1).padStart(2,"0"), actualizado:Date.now()}
+                        ).catch(function(){});
+                      }
+                      setCrmData(crmData.slice());
+                    }
+
+                    function editarEvento(evId) {
+                      var ev = eventosMan.find(function(e){ return e.id === evId; });
+                      if (!ev) return;
+                      var tipos_str = TIPOS_EVENTO.map(function(t,i){ return (i+1)+". "+t.l; }).join("\n");
+                      var tipoActualIdx = TIPOS_EVENTO.findIndex(function(t){ return t.k === ev.tipo; });
+                      var selIdx = parseInt(window.prompt("Cambiar tipo de evento:\n"+tipos_str+"\n\nEscribe el número (actual: "+(tipoActualIdx+1)+"):", String(tipoActualIdx+1)))-1;
+                      if (isNaN(selIdx) || selIdx<0 || selIdx>=TIPOS_EVENTO.length) return;
+                      var nuevoTipo = TIPOS_EVENTO[selIdx];
+                      var nuevaDesc = window.prompt("Descripción / nombre del cliente:", ev.desc||"");
+                      if (nuevaDesc === null) return; // cancelado
+                      if (!nuevaDesc.trim()) nuevaDesc = ev.desc;
+                      var nuevos = eventosMan.map(function(e){
+                        if (e.id !== evId) return e;
+                        return Object.assign({}, e, { tipo: nuevoTipo.k, desc: nuevaDesc.trim() });
+                      });
+                      try { localStorage.setItem(calKey, JSON.stringify(nuevos)); } catch(e){}
                       if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
                         window.__fbSetDoc(window.__fbDoc(window.__fbDb,"calendarios",crmVid+"_"+anioHoy+"-"+String(mesHoy+1).padStart(2,"0")),
                           {eventos:nuevos, ejecutivoId:crmVid, mes:anioHoy+"-"+String(mesHoy+1).padStart(2,"0"), actualizado:Date.now()}
@@ -7260,10 +7289,16 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                                       React.createElement("div",{style:{fontSize:12,fontWeight:700,color:"#374151"}}, esManual ? ev.data.desc : ev.data.nombre),
                                       React.createElement("div",{style:{fontSize:10,color:col,fontWeight:600,marginTop:1}}, etiqueta)
                                     ),
-                                    esManual && React.createElement("button",{
-                                      onClick:function(e){ e.stopPropagation(); eliminarEvento(ev.data.id); },
-                                      style:{background:"#FEE2E2",color:"#B91C1C",border:"none",borderRadius:6,padding:"3px 8px",fontSize:11,cursor:"pointer",fontWeight:700}
-                                    },"✕")
+                                    esManual && React.createElement("div",{style:{display:"flex",gap:4}},
+                                      React.createElement("button",{
+                                        onClick:function(e){ e.stopPropagation(); editarEvento(ev.data.id); },
+                                        style:{background:"#EFF6FF",color:"#1D4ED8",border:"none",borderRadius:6,padding:"3px 8px",fontSize:11,cursor:"pointer",fontWeight:700}
+                                      },"✎"),
+                                      React.createElement("button",{
+                                        onClick:function(e){ e.stopPropagation(); eliminarEvento(ev.data.id); },
+                                        style:{background:"#FEE2E2",color:"#B91C1C",border:"none",borderRadius:6,padding:"3px 8px",fontSize:11,cursor:"pointer",fontWeight:700}
+                                      },"✕")
+                                    )
                                   );
                                 })
                               );
@@ -8289,76 +8324,131 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
 }
 // ── Top 5 Lookup ─────────────────────────────────────────────────
 function ReconocidosEspeciales({ equipo, info, RD, R }) {
-  // Calcular ganadores de esta semana
   var hoy = new Date();
-  // Use last 7 days instead of calendar week to avoid timezone issues
-  var hace7 = new Date(hoy); hace7.setDate(hace7.getDate()-7);
-  var iniStr = hace7.getFullYear()+"-"+String(hace7.getMonth()+1).padStart(2,"0")+"-"+String(hace7.getDate()).padStart(2,"0");
-  var hace14 = new Date(hoy); hace14.setDate(hace14.getDate()-14);
-  var iniAntStr = hace14.getFullYear()+"-"+String(hace14.getMonth()+1).padStart(2,"0")+"-"+String(hace14.getDate()).padStart(2,"0");
+  var mesKey = info.mesKey;
 
-  var stats = equipo.map(function(v){
-    var reps = (v.rep||[]).filter(function(r){ return (r.fecha||"")>=iniStr; });
-    var ufSem = reps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0);
-    var dpsSem = reps.reduce(function(s,r){return s+(parseInt(r.dps)||0);},0);
-    var cttSem = reps.reduce(function(s,r){return s+(parseInt(r.cierres)||0);},0);
-    var conSem = reps.reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0);
-    var repsAnt = (v.rep||[]).filter(function(r){return (r.fecha||"")>=iniAntStr&&(r.fecha||"")<iniStr;});
-    var ufAnt = repsAnt.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0);
-    var crecUF = ufSem - ufAnt;
-    return {nombre:v.nombre, ufSem:ufSem, dpsSem:dpsSem, cttSem:cttSem, conSem:conSem, crecUF:crecUF};
+  // ── Datos del mes completo (de historial igual que DpsAnalisisView) ──
+  var statsMes = equipo.map(function(v){
+    var h = (v.historial||{})[mesKey]||{};
+    var ufMes = parseFloat(v.uf)||0; // mes actual live
+    var dpsTotalMes = (parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0)||(parseInt(v.dps)||0);
+    var cttosMes = parseInt(h.cttosDig)||0;
+    var conectaMes = (v.rep||[]).reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0);
+    return {id:v.id, nombre:v.nombre, fotoUrl:v.fotoUrl,
+      ufMes:ufMes, dpsMes:dpsTotalMes, cttosMes:cttosMes, conectaMes:conectaMes};
   });
 
-  var maxCrec = stats.reduce(function(m,v){return v.crecUF>m.crecUF?v:m;},{crecUF:-999,nombre:""});
-  var maxDPS  = stats.reduce(function(m,v){return v.dpsSem>m.dpsSem?v:m;},{dpsSem:-1,nombre:""});
-  var maxCtts = stats.reduce(function(m,v){return v.cttSem>m.cttSem?v:m;},{cttSem:-1,nombre:""});
-  var maxCon  = stats.reduce(function(m,v){return v.conSem>m.conSem?v:m;},{conSem:-1,nombre:""});
+  // ── Datos de la semana en curso (desde v.rep, últimos 7 días) ──
+  var hace7 = new Date(hoy); hace7.setDate(hace7.getDate()-7);
+  var hace14 = new Date(hoy); hace14.setDate(hace14.getDate()-14);
+  var iniStr = hace7.getFullYear()+"-"+String(hace7.getMonth()+1).padStart(2,"0")+"-"+String(hace7.getDate()).padStart(2,"0");
+  var iniAntStr = hace14.getFullYear()+"-"+String(hace14.getMonth()+1).padStart(2,"0")+"-"+String(hace14.getDate()).padStart(2,"0");
 
-  // Use UF leader as fallback for empty categories
-  var maxUF = stats.reduce(function(m,v){return v.ufSem>m.ufSem?v:m;},{ufSem:-1,nombre:""});
-  if(!maxCon.nombre||maxCon.conSem<=0)  maxCon  = Object.assign({},maxUF,{conSem:0});
-  if(!maxCrec.nombre||maxCrec.crecUF<0) maxCrec = Object.assign({},maxUF,{crecUF:maxUF.ufSem});
-  if(!maxDPS.nombre||maxDPS.dpsSem<=0)  maxDPS  = Object.assign({},maxUF,{dpsSem:0});
-  if(!maxCtts.nombre||maxCtts.cttSem<=0)maxCtts = Object.assign({},maxUF,{cttSem:0});
+  var statsSem = equipo.map(function(v){
+    var reps = (v.rep||[]).filter(function(r){ return (r.fecha||"")>=iniStr; });
+    var repsAnt = (v.rep||[]).filter(function(r){ return (r.fecha||"")>=iniAntStr&&(r.fecha||"")<iniStr; });
+    var ufSem = reps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0);
+    var ufAnt = repsAnt.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0);
+    var dpsSem = reps.reduce(function(s,r){return s+(parseInt(r.dps)||0);},0);
+    var cttosSem = reps.reduce(function(s,r){return s+(parseInt(r.cierres)||0);},0);
+    var conectaSem = reps.reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0);
+    var crecUF = parseFloat((ufSem - ufAnt).toFixed(2));
+    return {id:v.id, nombre:v.nombre, fotoUrl:v.fotoUrl,
+      ufSem:ufSem, dpsSem:dpsSem, cttosSem:cttosSem, conectaSem:conectaSem, crecUF:crecUF};
+  });
 
-  var categorias = [
-    {label:"💚 CRACK Plan Conecta",     sub:"Mayor venta Planes Conecta",    nombre:maxCon.nombre,  valor:maxCon.conSem+" contratos",  color:"#059669",bg:"linear-gradient(135deg,#DCFCE7,#A7F3D0)",brd:"#6EE7B7"},
-    {label:"📈 Mayor Crecimiento UF",    sub:"Mayor crecimiento UF esta semana",nombre:maxCrec.nombre,valor:maxCrec.crecUF>=0?"+"+maxCrec.crecUF.toFixed(2)+" UF":maxCrec.crecUF.toFixed(2)+" UF",color:"#D97706",bg:"linear-gradient(135deg,#FEF9C3,#FDE68A)",brd:"#FCD34D"},
-    {label:"🔵 Mayor Actividad DPS",     sub:"Mayor cantidad DPS esta semana", nombre:maxDPS.nombre,  valor:maxDPS.dpsSem+" DPS",        color:"#2563EB",bg:"linear-gradient(135deg,#EFF6FF,#BFDBFE)",brd:"#93C5FD"},
-    {label:"📋 Mayor Contratos",         sub:"Mayor contratos cerrados semana",nombre:maxCtts.nombre, valor:maxCtts.cttSem+" contratos",  color:"#7C3AED",bg:"linear-gradient(135deg,#F5F3FF,#DDD6FE)",brd:"#C4B5FD"},
+  function best(arr, field, fallback) {
+    var top = arr.reduce(function(m,v){ return v[field]>m[field]?v:m; }, arr[0]||{});
+    if(!top||!top.nombre||(top[field]||0)<=0) return fallback||{nombre:"—",val:"Sin datos"};
+    return top;
+  }
+
+  // Fallback: si alguien domina la semana, usar datos del mes como fallback para 0s
+  var semHasData = statsSem.some(function(s){return s.ufSem>0||s.dpsSem>0||s.cttosSem>0||s.conectaSem>0;});
+  var mesHasData = statsMes.some(function(s){return s.ufMes>0||s.dpsMes>0||s.cttosMes>0||s.conectaMes>0;});
+  if(!mesHasData) return null;
+
+  // ── 5 categorías mes ──
+  var topConectaMes  = best(statsMes,"conectaMes");
+  var topDpsMes      = best(statsMes,"dpsMes");
+  var topCttosMes    = best(statsMes,"cttosMes");
+  var topUfMes       = best(statsMes,"ufMes");
+  // Mejor conecta semana
+  var topConectaSem  = semHasData ? best(statsSem,"conectaSem") : topConectaMes;
+  var crecSem        = statsSem.reduce(function(m,v){return v.crecUF>m.crecUF?v:m;},{crecUF:-999,nombre:""});
+  if(!crecSem.nombre||(crecSem.crecUF||0)<=0) crecSem = best(statsSem,"ufSem");
+  var topCrecSem     = crecSem;
+  var topDpsSem      = semHasData ? best(statsSem,"dpsSem") : topDpsMes;
+  var topCttosSem    = semHasData ? best(statsSem,"cttosSem") : topCttosMes;
+  var topUfSem       = semHasData ? best(statsSem,"ufSem") : topUfMes;
+
+  function fmtVal(v, unit) { return v!==undefined&&v!==null&&(v>0||(typeof v==="string"&&v!=="—")) ? (typeof v==="number"?v.toFixed(unit==="UF"?2:0):v)+" "+unit : "Sin datos"; }
+
+  var catsMes = [
+    {label:"💚 Mejor Vendedor Plan Conecta", sub:"del mes",   nombre:topConectaMes.nombre,  val:fmtVal(topConectaMes.conectaMes,"planes"),   color:"#059669",bg:"linear-gradient(135deg,#DCFCE7,#A7F3D0)",brd:"#6EE7B7"},
+    {label:"📈 Mayor Crecimiento UF",        sub:"del mes",   nombre:topUfMes.nombre,        val:fmtVal(topUfMes.ufMes,"UF"),                 color:"#D97706",bg:"linear-gradient(135deg,#FEF9C3,#FDE68A)",brd:"#FCD34D"},
+    {label:"🔵 Mayor Actividad DPS",         sub:"del mes",   nombre:topDpsMes.nombre,       val:fmtVal(topDpsMes.dpsMes,"DPS"),              color:"#2563EB",bg:"linear-gradient(135deg,#EFF6FF,#BFDBFE)",brd:"#93C5FD"},
+    {label:"📋 Mayor Cantidad Contratos",    sub:"del mes",   nombre:topCttosMes.nombre,     val:fmtVal(topCttosMes.cttosMes,"contratos"),    color:"#7C3AED",bg:"linear-gradient(135deg,#F5F3FF,#DDD6FE)",brd:"#C4B5FD"},
+    {label:"⭐ Mayor UF Total",              sub:"del mes",   nombre:topUfMes.nombre,        val:fmtVal(topUfMes.ufMes,"UF"),                 color:"#C9A84C",bg:"linear-gradient(135deg,#FFFBEB,#FEF3C7)",brd:"#FDE68A"},
   ];
 
-  // Si no hay actividad semanal, usar datos del mes completo
-  var sinActividad = stats.every(function(s){return s.ufSem===0&&s.dpsSem===0;});
-  if(sinActividad) {
-    stats = equipo.map(function(v){
-      var reps = v.rep||[];
-      var ufSem = v.uf||0;
-      var dpsSem = v.dps||0;
-      var cttSem = reps.reduce(function(s,r){return s+(parseInt(r.cierres)||0);},0);
-      var conSem = reps.reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0);
-      return {nombre:v.nombre, ufSem:ufSem, dpsSem:dpsSem, cttSem:cttSem, conSem:conSem, crecUF:ufSem};
-    });
+  var catsSem = [
+    {label:"💚 Mejor Vendedor Plan Conecta", sub:"esta semana", nombre:topConectaSem.nombre,  val:fmtVal(topConectaSem.conectaSem,"planes"),   color:"#059669",bg:"linear-gradient(135deg,#DCFCE7,#A7F3D0)",brd:"#6EE7B7"},
+    {label:"📈 Mayor Crecimiento UF",        sub:"esta semana", nombre:topCrecSem.nombre,     val:topCrecSem.crecUF>=0?"+"+topCrecSem.crecUF.toFixed(2)+" UF":(topCrecSem.crecUF||0).toFixed(2)+" UF", color:"#D97706",bg:"linear-gradient(135deg,#FEF9C3,#FDE68A)",brd:"#FCD34D"},
+    {label:"🔵 Mayor Actividad DPS",         sub:"esta semana", nombre:topDpsSem.nombre,      val:fmtVal(topDpsSem.dpsSem,"DPS"),              color:"#2563EB",bg:"linear-gradient(135deg,#EFF6FF,#BFDBFE)",brd:"#93C5FD"},
+    {label:"📋 Mayor Cantidad Contratos",    sub:"esta semana", nombre:topCttosSem.nombre,    val:fmtVal(topCttosSem.cttosSem,"contratos"),    color:"#7C3AED",bg:"linear-gradient(135deg,#F5F3FF,#DDD6FE)",brd:"#C4B5FD"},
+    {label:"⭐ Mayor UF Total",              sub:"esta semana", nombre:topUfSem.nombre,       val:fmtVal(topUfSem.ufSem,"UF"),                 color:"#C9A84C",bg:"linear-gradient(135deg,#FFFBEB,#FEF3C7)",brd:"#FDE68A"},
+  ];
+
+  function CatCard(cat, allEquipo) {
+    var vFoto = allEquipo.find(function(e){return e.nombre===cat.nombre;});
+    var ini = (cat.nombre||"").split(" ").slice(-2).map(function(w){return w[0]||"";}).join("");
+    var nombreDisplay = (cat.nombre||"").split(" ").slice(-2).join(" ");
+    return React.createElement("div",{key:cat.label,style:{background:cat.bg,borderRadius:14,padding:"14px 12px",textAlign:"center",border:"2px solid "+cat.brd}}
+      ,React.createElement("div",{style:{width:50,height:50,borderRadius:"50%",overflow:"hidden",border:"3px solid "+cat.brd,margin:"0 auto 8px",background:vFoto&&vFoto.fotoUrl?"#000":"rgba(255,255,255,.5)",display:"flex",alignItems:"center",justifyContent:"center"}}
+        ,vFoto&&vFoto.fotoUrl?React.createElement("img",{src:vFoto.fotoUrl,style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement("span",{style:{fontSize:16,fontWeight:900,color:cat.color}},ini)
+      )
+      ,React.createElement("div",{style:{fontSize:10,fontWeight:900,color:cat.color,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:2}},cat.label)
+      ,React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",marginBottom:4}},cat.sub)
+      ,React.createElement("div",{style:{fontSize:13,fontWeight:900,color:"#1F2937",lineHeight:1.3,marginBottom:4}},nombreDisplay)
+      ,React.createElement("div",{style:{background:"rgba(255,255,255,.6)",borderRadius:99,padding:"2px 10px",display:"inline-block",fontSize:11,fontWeight:700,color:cat.color}},cat.val)
+    );
   }
-  if(equipo.every(function(v){return (v.uf||0)===0&&(v.dps||0)===0;})) return null;
 
   return React.createElement("div",{style:{background:"#fff",borderRadius:20,padding:"24px 22px",boxShadow:"0 4px 24px rgba(233,7,41,.09)",border:"1px solid rgba(233,7,41,.1)",marginBottom:16}}
-    ,React.createElement("div",{style:{fontSize:10,letterSpacing:"0.18em",textTransform:"uppercase",color:"#9CA3AF",marginBottom:6}},sinActividad?"Reconocidos este mes":"Reconocidos últimos 7 días")
-    ,React.createElement("div",{style:{fontSize:20,fontWeight:900,color:RD,marginBottom:4}},"⭐ Reconocidos Especiales")
-    ,React.createElement("div",{style:{fontSize:13,color:"#6B7280",marginBottom:18}},"Los mejores de la semana en cada categoría")
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}
-      ,categorias.map(function(cat){
-          var vFoto = equipo.find(function(e){return e.nombre===cat.nombre;});
-          var ini = cat.nombre.split(" ").slice(-2).map(function(w){return w[0]||"";}).join("");
-          return React.createElement("div",{key:cat.label,style:{background:cat.bg,borderRadius:14,padding:"16px",textAlign:"center",border:"2px solid "+cat.brd}}
-            ,React.createElement("div",{style:{width:54,height:54,borderRadius:"50%",overflow:"hidden",border:"3px solid "+cat.brd,margin:"0 auto 8px",background:vFoto&&vFoto.fotoUrl?"#000":"rgba(255,255,255,.5)",display:"flex",alignItems:"center",justifyContent:"center"}}
-              ,vFoto&&vFoto.fotoUrl?React.createElement("img",{src:vFoto.fotoUrl,style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement("span",{style:{fontSize:17,fontWeight:900,color:cat.color}},ini)
-            )
-            ,React.createElement("div",{style:{fontSize:11,fontWeight:900,color:cat.color,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:4}},cat.label)
-            ,React.createElement("div",{style:{fontSize:14,fontWeight:900,color:"#1F2937",lineHeight:1.3,marginBottom:4}},cat.nombre.split(" ").slice(-2).join(" "))
-            ,React.createElement("div",{style:{background:"rgba(255,255,255,.6)",borderRadius:99,padding:"3px 12px",display:"inline-block",fontSize:11,fontWeight:700,color:cat.color}},cat.valor)
-          );
-        })
+    ,React.createElement("div",{style:{fontSize:20,fontWeight:900,color:RD,marginBottom:4}},"⭐ Reconocimientos Especiales")
+    ,React.createElement("div",{style:{fontSize:13,color:"#6B7280",marginBottom:22}},"Celebramos a los mejores en cada categoría — ¡el equipo los reconoce!")
+
+    // ── Bloque Estrellas del Mes ──
+    ,React.createElement("div",{style:{marginBottom:20}}
+      ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}}
+        ,React.createElement("div",{style:{width:4,height:20,background:RD,borderRadius:99}})
+        ,React.createElement("div",{style:{fontSize:14,fontWeight:900,color:RD}},"🏆 Estrellas del Mes")
+        ,React.createElement("div",{style:{flex:1,height:1,background:"#F3F4F6"}})
+        ,React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",fontWeight:700}},"MAYO 2026")
+      )
+      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:8}}
+        ,catsMes.slice(0,3).map(function(cat){return CatCard(cat,equipo);})
+      )
+      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}
+        ,catsMes.slice(3,5).map(function(cat){return CatCard(cat,equipo);})
+      )
+    )
+
+    // ── Bloque Estrellas de la Semana ──
+    ,React.createElement("div",null
+      ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}}
+        ,React.createElement("div",{style:{width:4,height:20,background:"#2563EB",borderRadius:99}})
+        ,React.createElement("div",{style:{fontSize:14,fontWeight:900,color:"#2563EB"}},"⚡ Estrellas de la Semana")
+        ,React.createElement("div",{style:{flex:1,height:1,background:"#F3F4F6"}})
+        ,React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",fontWeight:700}},semHasData?"ÚLTIMOS 7 DÍAS":"USANDO DATOS DEL MES")
+      )
+      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:8}}
+        ,catsSem.slice(0,3).map(function(cat){return CatCard(cat,equipo);})
+      )
+      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}
+        ,catsSem.slice(3,5).map(function(cat){return CatCard(cat,equipo);})
+      )
     )
   );
 }
