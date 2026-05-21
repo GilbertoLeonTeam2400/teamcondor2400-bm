@@ -1817,9 +1817,12 @@ function TarjetaBadge({ entry, badge, equipo }) {
     )
   );
   const p = entry.nombre.split(" ");
-  const corto = p.length >= 2 ? p[p.length-2] + " " + p[p.length-1] : entry.nombre;
+  // Try to match with equipo to get the canonical name
+  var vFotoMatch = equipo ? equipo.find(function(e){return nombreCoincide(e.nombre, entry.nombre);}) : null;
+  var displayName = vFotoMatch ? vFotoMatch.nombre.split(" ").slice(0,2).join(" ") : (p.length >= 2 ? p[p.length-2] + " " + p[p.length-1] : entry.nombre);
+  var corto = displayName;
   // Find photo from equipo using word matching (names may be in different order)
-  var vFoto = equipo ? equipo.find(function(e){return nombreCoincide(e.nombre, entry.nombre);}) : null;
+  var vFoto = vFotoMatch || (equipo ? equipo.find(function(e){return nombreCoincide(e.nombre, entry.nombre);}) : null);
   var ini = corto.split(" ").slice(0,2).map(function(w){return w[0]||"";}).join("");
   return (
     React.createElement('div', { style: { background:badge.bg, borderRadius:16, padding:"22px 16px", textAlign:"center", border:"2px solid "+badge.brd, boxShadow:"0 8px 24px rgba(0,0,0,.12)", position:"relative", overflow:"hidden" } }
@@ -3074,11 +3077,12 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
           ,React.createElement("tr",{style:{background:"#F8FAFC",borderBottom:"2px solid #E5E7EB"}}
             ,thSort("nombre","Ejecutivo")
             ,thSort("uf","💰 UF Dig.")
-            ,thSort("dpsConVenta","✅ Con Venta")
-            ,thSort("dpsSinVenta","🔵 Sin Venta")
-            ,thSort("dpsPendiente","🟡 Pendientes")
-            ,thSort("dpsRechazado","🔴 Rechazadas")
-            ,React.createElement("th",{style:{padding:"10px 12px",textAlign:"center",fontSize:11,color:"#6B7280",fontWeight:700}},"Tasa")
+            ,thSort("dpsTotal","🔵 Total DPS")
+            ,thSort("dpsConVenta","✅ DPS Con Venta")
+            ,thSort("dpsSinVenta","🔵 DPS Sin Venta")
+            ,thSort("dpsPendiente","🟡 DPS Pendientes")
+            ,thSort("dpsRechazado","🔴 DPS Rechazadas")
+            ,React.createElement("th",{style:{padding:"10px 12px",textAlign:"center",fontSize:11,color:"#6B7280",fontWeight:700}},"Tasa de Cierre")
             ,thSort("nBenef","👥 Benef")
             ,thSort("cttosDig","📋 Cttos")
             ,thSort("conecta","💚 Conecta")
@@ -3092,7 +3096,8 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
               return React.createElement("tr",{key:d.id,style:{borderTop:"1px solid #F3F4F6",background:i%2===0?"#fff":"#FAFBFF"}}
                 ,React.createElement("td",{style:{padding:"10px 12px",fontWeight:700,color:RD,fontSize:12}},d.nombre)
                 ,React.createElement(EditableCell,{vid:d.id,campo:"uf",valor:d.uf,color:"#C9A84C"})
-                ,React.createElement(EditableCell,{vid:d.id,campo:"dpsConVenta",valor:d.dpsConVenta,color:"#16A34A"})
+                ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#374151",fontWeight:700}},d.dpsTotal>0?d.dpsTotal:"—")
+                ,React.createElement(EditableCell,{vid:d.id,campo:"dpsVenta",valor:d.dpsConVenta,color:"#16A34A"})
                 ,React.createElement(EditableCell,{vid:d.id,campo:"dpsSinVenta",valor:d.dpsSinVenta,color:"#2563EB"})
                 ,React.createElement(EditableCell,{vid:d.id,campo:"dpsPendiente",valor:d.dpsPendiente,color:"#D97706"})
                 ,React.createElement(EditableCell,{vid:d.id,campo:"dpsRechazado",valor:d.dpsRechazado,color:"#DC2626"})
@@ -3109,6 +3114,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
           ,React.createElement("tr",{style:{borderTop:"3px solid #E5E7EB",background:"#F8FAFC",fontWeight:900}}
             ,React.createElement("td",{style:{padding:"10px 12px",color:RD,fontSize:12}},"TOTAL")
             ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#C9A84C"}},totUF.toFixed(2))
+            ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#374151",fontWeight:900}},totTotal)
             ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#16A34A"}},totConVenta)
             ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#2563EB"}},totSinVenta)
             ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#D97706"}},totPendiente)
@@ -3300,6 +3306,10 @@ function PlanEjecutivoView({ v, info, R, RD }) {
   }
   function toggleActividad(idx) { var nc=calendario.map(function(c,i){return i===idx?Object.assign({},c,{done:!c.done}):c;}); savePlanField({calendario:nc}); }
   function removeActividad(idx) { var nc=calendario.filter(function(_,i){return i!==idx;}); savePlanField({calendario:nc}); }
+  function setEstadoActividad(idx, estado) {
+    var nc=calendario.map(function(c,i){return i===idx?Object.assign({},c,{estado:estado,done:estado==="completada"}):c;});
+    savePlanField({calendario:nc});
+  }
 
   function renderAccion(acc, isCustom, idx) {
     var done = isCustom ? acc.done : accionesChecked.indexOf(acc)>=0;
@@ -3431,13 +3441,24 @@ function PlanEjecutivoView({ v, info, R, RD }) {
       ,calendario.length===0
         ? React.createElement("div",{style:{textAlign:"center",padding:24,color:"#9CA3AF",fontSize:12,fontStyle:"italic"}},"Aún no tienes actividades agendadas. ¡Empieza a planificar!")
         : calendario.map(function(act,i){
-            return React.createElement("div",{key:i,style:{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,marginBottom:6,background:act.done?"#F0FDF4":"#fff",border:"1.5px solid "+(act.done?"#86EFAC":"#E5E7EB")}}
-              ,React.createElement("div",{onClick:function(){toggleActividad(i);},style:{width:20,height:20,borderRadius:"50%",border:"2px solid "+(act.done?"#16A34A":"#D1D5DB"),background:act.done?"#16A34A":"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,cursor:"pointer"}}
-                ,act.done&&React.createElement("span",{style:{color:"#fff",fontSize:11,fontWeight:900}},"✓")
+            var estadoColor = act.estado==="completada"?"#16A34A":act.estado==="en_curso"?"#D97706":act.estado==="cancelada"?"#DC2626":"#6B7280";
+            var estadoBg = act.estado==="completada"?"#F0FDF4":act.estado==="en_curso"?"#FFFBEB":act.estado==="cancelada"?"#FFF1F2":"#F8FAFC";
+            return React.createElement("div",{key:i,style:{borderRadius:10,marginBottom:6,background:estadoBg,border:"1.5px solid "+(act.estado==="completada"?"#86EFAC":act.estado==="en_curso"?"#FCD34D":act.estado==="cancelada"?"#FCA5A5":"#E5E7EB"),overflow:"hidden"}}
+              ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10,padding:"10px 12px"}}
+                ,act.fecha&&React.createElement("span",{style:{fontSize:11,fontWeight:700,color:estadoColor,flexShrink:0,background:"rgba(255,255,255,.6)",borderRadius:6,padding:"2px 7px"}},act.fecha)
+                ,React.createElement("span",{style:{fontSize:13,color:"#374151",textDecoration:act.estado==="completada"?"line-through":"none",flex:1}},act.txt)
+                ,React.createElement("select",{
+                    value:act.estado||"pendiente",
+                    onChange:function(e){setEstadoActividad(i,e.target.value);},
+                    style:{fontSize:10,fontWeight:700,color:estadoColor,background:"rgba(255,255,255,.8)",border:"1px solid "+estadoColor,borderRadius:6,padding:"3px 6px",cursor:"pointer",fontFamily:"inherit"}
+                  }
+                  ,React.createElement("option",{value:"pendiente"},"⏳ Pendiente")
+                  ,React.createElement("option",{value:"en_curso"},"🔄 En curso")
+                  ,React.createElement("option",{value:"completada"},"✅ Completada")
+                  ,React.createElement("option",{value:"cancelada"},"❌ Cancelada")
+                )
+                ,React.createElement("button",{onClick:function(){removeActividad(i);},style:{background:"none",border:"none",cursor:"pointer",color:"#DC2626",fontSize:14,opacity:.5,flexShrink:0}},"✕")
               )
-              ,act.fecha&&React.createElement("span",{style:{fontSize:11,fontWeight:700,color:act.done?"#16A34A":"#7C3AED",flexShrink:0,background:act.done?"#DCFCE7":"#EDE9FE",borderRadius:6,padding:"2px 7px"}},act.fecha)
-              ,React.createElement("span",{style:{fontSize:13,color:act.done?"#166534":"#374151",textDecoration:act.done?"line-through":"none",flex:1}},act.txt)
-              ,React.createElement("button",{onClick:function(){removeActividad(i);},style:{background:"none",border:"none",cursor:"pointer",color:"#DC2626",fontSize:14,opacity:.5}},"✕")
             );
           })
     )
@@ -5820,6 +5841,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                 if(tab==="formulario" && t.k!=="formulario" && pinFormOk) {
                   setPinFormOk(false); setPinFormulario(""); setPinFormErr(false);
                   setForm({vid:"",contactos:"",cot:"",cierres:"",uf:"",dps:"0",nota:"",hombres:"0",mujeres:"0",conecta:"0"});
+                  setEnviado(false);
                 }
                 // Auto-logout cuando sale de historial
                 if(tab==="historial" && t.k!=="historial" && histAcc) {
@@ -6083,7 +6105,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
               /* ── DPS PIPELINE KPIs ── */
               , totDpsTotal > 0 && React.createElement('div', { style:{background:"rgba(255,255,255,.04)",borderRadius:14,padding:"16px 18px",marginBottom:16,border:"1px solid rgba(99,179,237,.2)"} }
                 , React.createElement('div', { style:{fontSize:9,color:"rgba(99,179,237,.8)",textTransform:"uppercase",letterSpacing:"0.18em",marginBottom:12,fontWeight:700} }, "🔵 PIPELINE DPS — ESTADO ACTUAL")
-                , React.createElement('div', { style:{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8} }
+                , React.createElement('div', { style:{overflowX:"auto"} }
+                  , React.createElement('div', { style:{display:"grid",gridTemplateColumns:"repeat(5,minmax(70px,1fr))",gap:8,minWidth:350} }
                   , [
                       {label:"Total DPS", val:totDpsTotal, color:"#E2E8F0", bg:"rgba(255,255,255,.12)"},
                       {label:"DPS Con Venta", val:totDpsConVenta, color:"#4ADE80", bg:"rgba(74,222,128,.12)"},
@@ -6096,6 +6119,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                         , React.createElement('div', { style:{fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",marginTop:3} }, kpi.label)
                       );
                     })
+                  )
                 )
                 , React.createElement('div', { style:{display:"flex",justifyContent:"flex-end",alignItems:"center",marginTop:10,paddingTop:8,borderTop:"1px solid rgba(99,179,237,.15)"} }
                   , React.createElement('div', { style:{fontSize:12,fontWeight:800,color:tasaCierreDPS>=50?"#4ADE80":tasaCierreDPS>=30?"#FBBF24":"#F87171"} },
@@ -6550,7 +6574,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                     )
                     , React.createElement('div', { style: {background:"#ECFDF5",borderRadius:12,padding:"12px 14px",marginBottom:12,border:"1px solid #6EE7B7"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3269}}
                       , React.createElement('label', { style: {fontSize:11,fontWeight:700,color:"#059669",display:"block",marginBottom:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3270}}, "✅ DPS con venta hoy"    )
-                      , React.createElement('input', { type: "number", min: "0", value: form.dpsVenta||"0", onChange: function(e){setForm(Object.assign({},form,{dpsVenta:e.target.value}));}, style: Object.assign({},INP), placeholder: "0", __self: this, __source: {fileName: _jsxFileName, lineNumber: 3271}} )
+                      , React.createElement('input', { type: "number", min: "0", value: form.dpsVenta||"0", onChange: function(e){setForm(Object.assign({},form,{dpsVenta:e.target.value}));}, onFocus: function(e){if(e.target.value==="0"){setForm(Object.assign({},form,{dpsVenta:""}));e.target.select();}}, onClick: function(e){if(e.target.value==="0"){setForm(Object.assign({},form,{dpsVenta:""}));e.target.select();}}, onBlur: function(e){if(!e.target.value)setForm(Object.assign({},form,{dpsVenta:"0"}));}, style: Object.assign({},INP), placeholder: "0", __self: this, __source: {fileName: _jsxFileName, lineNumber: 3271}} )
                       , React.createElement('div', { style: {fontSize:10,color:"#059669",marginTop:3}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3272}}, "Total DPS que terminaron en venta (incluye cierres de hoy)"         )
                     )
 
@@ -6606,7 +6630,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
 
                     , React.createElement('div', { style: {background:"#F0FDF4",borderRadius:12,padding:"12px 14px",border:"2px solid rgba(22,163,74,.25)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3254}}
                       , React.createElement('label', { style: Object.assign({},LBL,{color:"#16A34A",fontSize:11,marginBottom:4}), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3255}}, "💚 DPS realizadas hoy *"   )
-                      , React.createElement('input', { type: "number", min: "0", value: form.dps, onChange: function(e){setForm(Object.assign({},form,{dps:e.target.value}));}, onFocus: function(e){if(e.target.value==="0")setForm(Object.assign({},form,{dps:""}));}, onBlur: function(e){if(e.target.value===""||e.target.value==="0")setForm(Object.assign({},form,{dps:"0"}));}, style: Object.assign({},INP,{fontWeight:900,fontSize:22,color:"#16A34A"}), placeholder: "0", __self: this, __source: {fileName: _jsxFileName, lineNumber: 3256}} )
+                      , React.createElement('input', { type: "number", min: "0", value: form.dps, onChange: function(e){setForm(Object.assign({},form,{dps:e.target.value}));}, onFocus: function(e){if(e.target.value==="0"){setForm(Object.assign({},form,{dps:""}));e.target.select();}}, onClick: function(e){if(e.target.value==="0"){setForm(Object.assign({},form,{dps:""}));e.target.select();}}, onBlur: function(e){if(e.target.value===""||e.target.value==="0")setForm(Object.assign({},form,{dps:"0"}));}, style: Object.assign({},INP,{fontWeight:900,fontSize:22,color:"#16A34A"}), placeholder: "0", __self: this, __source: {fileName: _jsxFileName, lineNumber: 3256}} )
                       , React.createElement('div', { style: {fontSize:10,color:"#16A34A",marginTop:3}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3257}}, "Número de DPS tomadas hoy — campo obligatorio"   )
                     )
 
@@ -8290,6 +8314,13 @@ function ReconocidosEspeciales({ equipo, info, RD, R }) {
   var maxCtts = stats.reduce(function(m,v){return v.cttSem>m.cttSem?v:m;},{cttSem:-1,nombre:""});
   var maxCon  = stats.reduce(function(m,v){return v.conSem>m.conSem?v:m;},{conSem:-1,nombre:""});
 
+  // Use UF leader as fallback for empty categories
+  var maxUF = stats.reduce(function(m,v){return v.ufSem>m.ufSem?v:m;},{ufSem:-1,nombre:""});
+  if(!maxCon.nombre||maxCon.conSem<=0)  maxCon  = Object.assign({},maxUF,{conSem:0});
+  if(!maxCrec.nombre||maxCrec.crecUF<0) maxCrec = Object.assign({},maxUF,{crecUF:maxUF.ufSem});
+  if(!maxDPS.nombre||maxDPS.dpsSem<=0)  maxDPS  = Object.assign({},maxUF,{dpsSem:0});
+  if(!maxCtts.nombre||maxCtts.cttSem<=0)maxCtts = Object.assign({},maxUF,{cttSem:0});
+
   var categorias = [
     {label:"💚 CRACK Plan Conecta",     sub:"Mayor venta Planes Conecta",    nombre:maxCon.nombre,  valor:maxCon.conSem+" contratos",  color:"#059669",bg:"linear-gradient(135deg,#DCFCE7,#A7F3D0)",brd:"#6EE7B7"},
     {label:"📈 Mayor Crecimiento UF",    sub:"Mayor crecimiento UF esta semana",nombre:maxCrec.nombre,valor:maxCrec.crecUF>=0?"+"+maxCrec.crecUF.toFixed(2)+" UF":maxCrec.crecUF.toFixed(2)+" UF",color:"#D97706",bg:"linear-gradient(135deg,#FEF9C3,#FDE68A)",brd:"#FCD34D"},
@@ -9773,10 +9804,10 @@ function ExcelDataView({ equipo, setEquipo, info }) {
             var umbral = Math.max(1, Math.floor(palabrasExcel.length * 0.5));
             if (matches >= umbral || v.nombre.toUpperCase().indexOf(nombre) >= 0 || nombre.indexOf(v.nombre.toUpperCase()) >= 0) {
               var hist = v.historial;
-              var mes = Object.assign({uf:0,dps:0,dpsVenta:0,conecta:0,hombres:0,mujeres:0}, hist[mesKey2]||{});
+              var mes = Object.assign({uf:0,dps:0,conecta:0,hombres:0,mujeres:0}, hist[mesKey2]||{});
               if (uf > 0) mes.uf = uf;
               if (dps > 0) mes.dps = dps;
-              if (dpsVenta > 0) mes.dpsVenta = dpsVenta;
+              // NO escribir dpsVenta aqui - eso viene solo del reporte de administración (MetricasReportView)
               hist[mesKey2] = mes;
               cambios++;
             }
