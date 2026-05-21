@@ -2618,6 +2618,18 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
   var [msg, setMsg] = React.useState("");
   var [preview, setPreview] = React.useState([]);
   var [cargando, setCargando] = React.useState(false);
+  // Selector de mes — por defecto mes actual, permite elegir hasta 12 meses atrás
+  var mesesOpciones = (function(){
+    var opts = [];
+    for(var i=0; i<=11; i++){
+      var d=new Date(new Date().getFullYear(),new Date().getMonth()-i,1);
+      var mk=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+      var nom=d.toLocaleString("es-CL",{month:"long",year:"numeric"}).replace(/^./,function(c){return c.toUpperCase();});
+      opts.push({mk:mk,nom:nom});
+    }
+    return opts;
+  })();
+  var [mesCarga, setMesCarga] = React.useState(info.mesKey);
 
   function handleFile(e) {
     var file = e.target.files[0]; if(!file) return;
@@ -2712,7 +2724,7 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
 
   function confirmarCarga() {
     if (!preview.length) return;
-    var mesKey = info.mesKey;
+    var mesKey = mesCarga;
     var nuevoEquipo = equipo.map(function(v){
       var palabrasV = v.nombre.toUpperCase().split(/\s+/);
       var match = preview.find(function(p){
@@ -2739,7 +2751,7 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
     // Guardar en Firebase
     if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
       window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey),{equipo:nuevoEquipo})
-        .then(function(){ setMsg("✅ ¡Guardado en Firebase! DPS actualizadas para "+info.mes+"."); })
+        .then(function(){ var nomMes=mesesOpciones.find(function(m){return m.mk===mesKey;}); setMsg("✅ ¡Guardado! DPS actualizadas para "+(nomMes?nomMes.nom:mesKey)+"."); })
         .catch(function(e){ setMsg("⚠️ Actualizado localmente pero error en Firebase: "+e.message); });
     else setMsg("✅ Actualizado localmente. Reconecta Firebase para sincronizar.");
   }
@@ -2751,7 +2763,19 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
     // Aviso columnas esperadas
     , React.createElement('div', {style:{background:"#EFF6FF",borderRadius:10,padding:"12px 16px",marginBottom:16,fontSize:12,color:"#1D4ED8"}}
       , React.createElement('div', {style:{fontWeight:700,marginBottom:4}}, "📋 Columnas que se leen del reporte:")
-      , React.createElement('div', null, "CC · NOMBRE EJECUTIVO · DPS c/venta · DPS sin venta · DPS Pendiente · Rechaz · Total DP · UF Dif")
+      , React.createElement('div', null, "CC · NOMBRE EJECUTIVO · DPS c/venta · DPS sin venta · DPS Pendiente · Rechaz · Total DP · UF Dig · N° Benef · Cttos Dig")
+    )
+    // Selector de mes
+    , React.createElement('div', {style:{marginBottom:16}}
+      , React.createElement('div', {style:{fontSize:13,fontWeight:700,color:"#374151",marginBottom:6}}, "📅 ¿A qué mes corresponde este reporte?")
+      , React.createElement('select', {
+          value:mesCarga, onChange:function(e){setMesCarga(e.target.value);setPreview([]);setMsg("");},
+          style:{width:"100%",padding:"10px 14px",borderRadius:10,border:"1.5px solid #E5E7EB",fontSize:14,fontFamily:"inherit",fontWeight:600,color:"#374151"}
+        }
+        , mesesOpciones.map(function(m){
+            return React.createElement('option',{key:m.mk,value:m.mk}, m.nom+(m.mk===info.mesKey?" (mes actual)":""));
+          })
+      )
     )
     // Subir archivo
     , React.createElement('label', {style:{display:"inline-flex",alignItems:"center",gap:8,background:R,color:"#fff",borderRadius:10,padding:"12px 22px",cursor:"pointer",fontWeight:700,fontSize:14,marginBottom:16}}
@@ -2939,15 +2963,14 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD }) {
     )
 
     // KPIs resumen
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16}}
-      ,[{l:"Total DPS",v:totTotal,c:"#374151",bg:"#F9FAFB"},{l:"DPS Con Venta",v:totConVenta,c:"#16A34A",bg:"#F0FDF4"},{l:"DPS Sin Venta",v:totSinVenta,c:"#2563EB",bg:"#EFF6FF"},{l:"DPS Pendientes",v:totPendiente,c:"#D97706",bg:"#FFFBEB"},{l:"DPS Rechazadas",v:totRechazado,c:"#DC2626",bg:"#FFF1F2"}]
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:12,marginBottom:16}}
+      ,[{l:"Total DPS",v:totTotal,c:"#374151",bg:"#F9FAFB"},{l:"DPS Con Venta",v:totConVenta,c:"#16A34A",bg:"#F0FDF4"},{l:"DPS Sin Venta",v:totSinVenta,c:"#2563EB",bg:"#EFF6FF"},{l:"DPS Pendientes",v:totPendiente,c:"#D97706",bg:"#FFFBEB"},{l:"DPS Rechazadas",v:totRechazado,c:"#DC2626",bg:"#FFF1F2"},{l:"Tasa Cierre DPS",v:tasaCierre+"%",c:tasaCierre>=50?"#16A34A":tasaCierre>=30?"#D97706":"#DC2626",bg:tasaCierre>=50?"#F0FDF4":tasaCierre>=30?"#FFFBEB":"#FFF1F2"}]
         .map(function(k){return React.createElement("div",{key:k.l,style:{background:k.bg,borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #E5E7EB"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:k.c}},k.v) ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},k.l));})
     )
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:20}}
       ,React.createElement("div",{style:{background:"#FFF8E7",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #FCD34D"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:"#C9A84C"}},totUF.toFixed(2)+" UF") ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"Total UF"))
       ,React.createElement("div",{style:{background:"#F0FDFA",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #A7F3D0"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:"#0891B2"}},totBenef) ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"N° Beneficiarios"))
       ,React.createElement("div",{style:{background:"#F0FDF4",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #86EFAC"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:"#059669"}},totCttos) ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"Contratos Digitados"))
-      ,React.createElement("div",{style:{background:"#F8FAFC",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #E5E7EB"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:tasaCierre>=50?"#16A34A":tasaCierre>=30?"#D97706":"#DC2626"}},tasaCierre+"%") ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"Tasa Cierre DPS"))
     )
 
     // Tabla editable
@@ -5585,10 +5608,10 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                 , React.createElement('div', { style:{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8} }
                   , [
                       {label:"Total DPS", val:totDpsTotal, color:"#E2E8F0", bg:"rgba(255,255,255,.12)"},
-                      {label:"Con Venta", val:totDpsConVenta, color:"#4ADE80", bg:"rgba(74,222,128,.12)"},
-                      {label:"Sin Venta", val:totDpsSinVenta, color:"#60A5FA", bg:"rgba(96,165,250,.12)"},
-                      {label:"Pendientes", val:totDpsPendiente, color:"#FBBF24", bg:"rgba(251,191,36,.12)"},
-                      {label:"Rechazadas", val:totDpsRechazado, color:"#F87171", bg:"rgba(248,113,113,.12)"},
+                      {label:"DPS Con Venta", val:totDpsConVenta, color:"#4ADE80", bg:"rgba(74,222,128,.12)"},
+                      {label:"DPS Sin Venta", val:totDpsSinVenta, color:"#60A5FA", bg:"rgba(96,165,250,.12)"},
+                      {label:"DPS Pendientes", val:totDpsPendiente, color:"#FBBF24", bg:"rgba(251,191,36,.12)"},
+                      {label:"DPS Rechazadas", val:totDpsRechazado, color:"#F87171", bg:"rgba(248,113,113,.12)"},
                     ].map(function(kpi){
                       return React.createElement('div', { key:kpi.label, style:{background:kpi.bg,borderRadius:10,padding:"10px 8px",textAlign:"center",border:"1px solid "+kpi.color.replace(")",", .3)")} }
                         , React.createElement('div', { style:{fontSize:"clamp(18px,4vw,26px)",fontWeight:900,color:kpi.color,lineHeight:1} }, kpi.val)
