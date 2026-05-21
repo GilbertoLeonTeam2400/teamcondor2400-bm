@@ -1809,23 +1809,32 @@ const BADGES = [
   { pos:5, medal:"strong", label:"Fuerza del Equipo",   cal:"ELITE",     bg:"linear-gradient(135deg,#EDE9FE,#7C3AED)", brd:"#6D28D9", tx:"#4C1D95" },
 ];
 
-function TarjetaBadge({ entry, badge }) {
+function TarjetaBadge({ entry, badge, equipo }) {
   if (!entry) return (
-    React.createElement('div', { style: { background:"#F9FAFB", borderRadius:16, padding:"24px 16px", textAlign:"center", border:"2px dashed #E5E7EB" }, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2115}}
-      , React.createElement(Medal, { type: badge.medal, size: 44, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2116}} )
-      , React.createElement('div', { style: { fontSize:13, color:"#9CA3AF", marginTop:10 }, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2117}}, "Puesto " , badge.pos)
+    React.createElement('div', { style: { background:"#F9FAFB", borderRadius:16, padding:"24px 16px", textAlign:"center", border:"2px dashed #E5E7EB" } }
+      , React.createElement(Medal, { type: badge.medal, size: 44 } )
+      , React.createElement('div', { style: { fontSize:13, color:"#9CA3AF", marginTop:10 } }, "Puesto " , badge.pos)
     )
   );
   const p = entry.nombre.split(" ");
   const corto = p.length >= 2 ? p[p.length-2] + " " + p[p.length-1] : entry.nombre;
+  // Find photo from equipo
+  var vFoto = equipo ? equipo.find(function(e){return e.nombre===entry.nombre;}) : null;
+  var ini = corto.split(" ").slice(0,2).map(function(w){return w[0]||"";}).join("");
   return (
-    React.createElement('div', { style: { background:badge.bg, borderRadius:16, padding:"22px 16px", textAlign:"center", border:"2px solid "+badge.brd, boxShadow:"0 8px 24px rgba(0,0,0,.12)", position:"relative", overflow:"hidden" }, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2123}}
-      , React.createElement('div', { style: { position:"absolute", top:-20, right:-20, width:56, height:56, background:"rgba(255,255,255,.18)", borderRadius:"50%" }, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2124}} )
-      , React.createElement(Medal, { type: badge.medal, size: 48, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2125}} )
-      , React.createElement('div', { style: { fontSize:10, fontWeight:900, color:badge.tx, letterSpacing:"0.14em", textTransform:"uppercase", marginTop:10, marginBottom:4, opacity:0.7 }, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2126}}, badge.cal)
-      , React.createElement('div', { style: { fontSize:12, fontWeight:700, color:badge.tx, opacity:0.8, marginBottom:6 }, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2127}}, badge.label)
-      , React.createElement('div', { style: { fontSize:15, fontWeight:900, color:badge.tx, lineHeight:1.3 }, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2128}}, corto)
-      , React.createElement('div', { style: { marginTop:10, background:"rgba(255,255,255,.35)", borderRadius:99, padding:"4px 14px", display:"inline-block", fontSize:12, fontWeight:800, color:badge.tx }, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2129}}, "#"+badge.pos+" del mes")
+    React.createElement('div', { style: { background:badge.bg, borderRadius:16, padding:"22px 16px", textAlign:"center", border:"2px solid "+badge.brd, boxShadow:"0 8px 24px rgba(0,0,0,.12)", position:"relative", overflow:"hidden" } }
+      , React.createElement('div', { style: { position:"absolute", top:-20, right:-20, width:56, height:56, background:"rgba(255,255,255,.18)", borderRadius:"50%" } } )
+      , React.createElement(Medal, { type: badge.medal, size: 48 } )
+      // Foto del ejecutivo
+      , React.createElement('div', { style: {width:52,height:52,borderRadius:"50%",overflow:"hidden",border:"3px solid "+badge.brd,margin:"8px auto",background:vFoto&&vFoto.fotoUrl?"#000":"rgba(255,255,255,.3)",display:"flex",alignItems:"center",justifyContent:"center"} }
+        , vFoto&&vFoto.fotoUrl
+          ? React.createElement('img',{src:vFoto.fotoUrl,style:{width:"100%",height:"100%",objectFit:"cover"}})
+          : React.createElement('span',{style:{fontSize:16,fontWeight:900,color:badge.tx}},ini)
+      )
+      , React.createElement('div', { style: { fontSize:10, fontWeight:900, color:badge.tx, letterSpacing:"0.14em", textTransform:"uppercase", marginBottom:4, opacity:0.7 } }, badge.cal)
+      , React.createElement('div', { style: { fontSize:12, fontWeight:700, color:badge.tx, opacity:0.8, marginBottom:6 } }, badge.label)
+      , React.createElement('div', { style: { fontSize:15, fontWeight:900, color:badge.tx, lineHeight:1.3 } }, corto)
+      , React.createElement('div', { style: { marginTop:10, background:"rgba(255,255,255,.35)", borderRadius:99, padding:"4px 14px", display:"inline-block", fontSize:12, fontWeight:800, color:badge.tx } }, "#"+badge.pos+" del mes")
     )
   );
 }
@@ -2701,8 +2710,14 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
           var uf = parseFloat(parseFloat(String(f["UF  DIG."]||f["UF DIG."]||f["UF Dif"]||f["UF"]||"0").replace(",",".")).toFixed(2)) || 0;
           var nBenef       = parseInt(String(f["N° Benef"]||f["N° Benef."]||f["N°Benef"]||"0")) || 0;
           var cttosDig     = parseInt(String(f["Cttos Dig"]||f["Cttos  Dig"]||f["CttoDig"]||"0")) || 0;
+          // Sexo % contratos
+          var pctF = parseFloat(String(f["Sexo % Cttos F"]||f["% F"]||f["F"]||f["Fem"]||"0").replace(",",".").replace("%","")) || 0;
+          var pctM = parseFloat(String(f["Sexo % Cttos M"]||f["% M"]||f["M"]||f["Mas"]||"0").replace(",",".").replace("%","")) || 0;
+          // Si vienen como decimales (0.6 en vez de 60%), convertir
+          if(pctF > 0 && pctF <= 1) pctF = Math.round(pctF*100);
+          if(pctM > 0 && pctM <= 1) pctM = Math.round(pctM*100);
 
-          return { nombre:nombre, dpsConVenta:dpsConVenta, dpsSinVenta:dpsSinVenta, dpsPendiente:dpsPendiente, dpsRechazado:dpsRechazado, dpsTotal:dpsTotal, uf:uf, nBenef:nBenef, cttosDig:cttosDig };
+          return { nombre:nombre, dpsConVenta:dpsConVenta, dpsSinVenta:dpsSinVenta, dpsPendiente:dpsPendiente, dpsRechazado:dpsRechazado, dpsTotal:dpsTotal, uf:uf, nBenef:nBenef, cttosDig:cttosDig, pctF:pctF, pctM:pctM };
         }).filter(function(f){ return f.nombre.length > 0; });
 
         setPreview(mapeados);
@@ -2750,6 +2765,8 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
       mes.dps = match.dpsTotal || (match.dpsConVenta + match.dpsSinVenta + match.dpsPendiente + match.dpsRechazado);
       if (match.nBenef > 0)   mes.nBenef   = match.nBenef;
       if (match.cttosDig > 0) mes.cttosDig = match.cttosDig;
+      if (match.pctF > 0)     mes.pctF     = match.pctF;
+      if (match.pctM > 0)     mes.pctM     = match.pctM;
       if (match.uf > 0)       mes.ufDig    = match.uf; // UF digitadas — separado de uf (UF cerradas)
       hist[mesKey] = mes;
       return Object.assign({}, v, {historial:hist});
@@ -2798,7 +2815,7 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
         , React.createElement('table', {style:{width:"100%",borderCollapse:"collapse",fontSize:12}}
           , React.createElement('thead', null
             , React.createElement('tr', {style:{background:"#F8FAFC"}}
-              , ["Nombre","DPS c/venta","DPS sin venta","Pendientes","Rechazadas","Total DPS","UF Dig.","N° Benef","Cttos Dig",""].map(function(h){
+              , ["Nombre","DPS c/venta","DPS sin venta","Pendientes","Rechazadas","Total DPS","UF Dig.","N° Benef","Cttos Dig","% F","% M",""].map(function(h){
                   return React.createElement('th',{key:h,style:{padding:"8px 10px",textAlign:"left",fontWeight:700,color:"#6B7280",fontSize:11}},h);
                 })
             )
@@ -2815,6 +2832,8 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
                   , React.createElement('td',{style:{padding:"6px 10px",color:"#7C3AED",fontWeight:800,textAlign:"center"}},p.uf||"—")
                   , React.createElement('td',{style:{padding:"6px 10px",color:"#0891B2",fontWeight:800,textAlign:"center"}},p.nBenef||"—")
                   , React.createElement('td',{style:{padding:"6px 10px",color:"#059669",fontWeight:800,textAlign:"center"}},p.cttosDig||"—")
+                  , React.createElement('td',{style:{padding:"6px 10px",color:"#EC4899",fontWeight:800,textAlign:"center"}},p.pctF>0?p.pctF+"%":"—")
+                  , React.createElement('td',{style:{padding:"6px 10px",color:"#3B82F6",fontWeight:800,textAlign:"center"}},p.pctM>0?p.pctM+"%":"—")
                   , React.createElement('td',{style:{padding:"6px 10px",textAlign:"center"}}
                     , React.createElement('button',{onClick:function(){ setPreview(preview.filter(function(x){return x!==p;})); },
                         style:{background:"#FEE2E2",color:"#B91C1C",border:"none",borderRadius:8,padding:"4px 10px",fontSize:11,cursor:"pointer",fontWeight:700}
@@ -2888,6 +2907,22 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
   // Build datos incluyendo todos los ejecutivos del equipo (editables aunque estén en 0)
   var datos = equipo.map(function(v){
     var h=(v.historial||{})[mesKey]||{};
+    var esMesAct = mesKey===info.mesKey;
+    // Para mes actual, calcular sexo y conecta desde reportes del ejecutivo
+    var pctF=0, pctM=0, conecta=0;
+    if(esMesAct){
+      var reps=v.rep||[];
+      var totH=reps.reduce(function(s,r){return s+(parseInt(r.hombres)||0);},0);
+      var totMu=reps.reduce(function(s,r){return s+(parseInt(r.mujeres)||0);},0);
+      var totSex=totH+totMu;
+      pctM=totSex>0?Math.round((totMu/totSex)*100):0;
+      pctH=totSex>0?Math.round((totH/totSex)*100):0;
+      conecta=reps.reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0);
+    } else {
+      pctF=parseInt(h.pctF)||0; pctM=parseInt(h.pctM)||0;
+      pctH=pctM>0&&pctF===0?100-pctM:pctF;
+      conecta=parseInt(h.conecta)||0;
+    }
     return {
       id: v.id, nombre: v.nombre,
       uf:          parseFloat(h.ufDig)||parseFloat(h.uf)||0,
@@ -2898,6 +2933,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
       dpsTotal: (parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0),
       nBenef:   parseInt(h.nBenef)||0,
       cttosDig: parseInt(h.cttosDig)||0,
+      pctF: esMesAct?pctH:pctF, pctM: pctM, conecta: conecta,
     };
   });
 
@@ -2911,6 +2947,10 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
   var tasaCierre=totTotal>0?Math.round((totConVenta/totTotal)*100):0;
   var totBenef=datos.reduce(function(s,d){return s+d.nBenef;},0);
   var totCttos=datos.reduce(function(s,d){return s+d.cttosDig;},0);
+  var totConecta=datos.reduce(function(s,d){return s+d.conecta;},0);
+  // Promedio % sexo ponderado por cttos
+  var totPctF=totCttos>0?Math.round(datos.reduce(function(s,d){return s+(d.pctF*(d.cttosDig||0));},0)/totCttos):0;
+  var totPctM=totCttos>0?Math.round(datos.reduce(function(s,d){return s+(d.pctM*(d.cttosDig||0));},0)/totCttos):0;
   var totUF=datos.reduce(function(s,d){return s+d.uf;},0);
 
   // Guardar edición en Firebase
@@ -3039,6 +3079,9 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
             ,React.createElement("th",{style:{padding:"10px 12px",textAlign:"center",fontSize:11,color:"#6B7280",fontWeight:700}},"Tasa")
             ,thSort("nBenef","👥 Benef")
             ,thSort("cttosDig","📋 Cttos")
+            ,thSort("conecta","💚 Conecta")
+            ,React.createElement("th",{style:{padding:"10px 12px",textAlign:"center",fontSize:11,color:"#EC4899",fontWeight:700}},"👩 % F")
+            ,React.createElement("th",{style:{padding:"10px 12px",textAlign:"center",fontSize:11,color:"#3B82F6",fontWeight:700}},"👨 % M")
           )
         )
         ,React.createElement("tbody",null
@@ -3056,6 +3099,9 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
                 )
                 ,React.createElement(EditableCell,{vid:d.id,campo:"nBenef",valor:d.nBenef,color:"#0891B2"})
                 ,React.createElement(EditableCell,{vid:d.id,campo:"cttosDig",valor:d.cttosDig,color:"#059669"})
+                ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#059669",fontWeight:700}},d.conecta>0?d.conecta:"—")
+                ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#EC4899",fontWeight:700}},d.pctF>0?d.pctF+"%":"—")
+                ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#3B82F6",fontWeight:700}},d.pctM>0?d.pctM+"%":"—")
               );
             })
           ,React.createElement("tr",{style:{borderTop:"3px solid #E5E7EB",background:"#F8FAFC",fontWeight:900}}
@@ -3068,6 +3114,9 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
             ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center"}} ,React.createElement("span",{style:{background:tasaCierre>=50?"#DCFCE7":tasaCierre>=30?"#FEF9C3":"#FEE2E2",color:tasaCierre>=50?"#16A34A":tasaCierre>=30?"#92400E":"#DC2626",borderRadius:99,padding:"3px 10px",fontSize:12,fontWeight:900}},tasaCierre+"%"))
             ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#0891B2"}},totBenef)
             ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#059669"}},totCttos)
+            ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#059669"}},totConecta>0?totConecta:"—")
+            ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#EC4899"}},totPctF>0?totPctF+"%":"—")
+            ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#3B82F6"}},totPctM>0?totPctM+"%":"—")
           )
         )
       )
@@ -3087,6 +3136,63 @@ var ACCIONES_BASE_DEFAULT = [
 ];
 
 // ── Vista Plan de Trabajo para el Ejecutivo ───────────────────────────────────
+// ── Rachas y Consistencia ────────────────────────────────────────────────────
+function RachasView({ v, info }) {
+  var reps = v.rep||[];
+  var hoy = new Date(); hoy.setHours(0,0,0,0);
+
+  // Racha de días consecutivos reportando
+  var fechasRep = reps.map(function(r){return r.fecha||"";}).filter(Boolean).sort().reverse();
+  var rachaActual = 0;
+  var d = new Date(hoy);
+  for(var i=0;i<30;i++){
+    var ds=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+    if(fechasRep.indexOf(ds)>=0){ rachaActual++; d.setDate(d.getDate()-1); }
+    else if(i===0){ d.setDate(d.getDate()-1); } // hoy puede no haber reportado aún
+    else break;
+  }
+
+  // Racha máxima del mes
+  var fechasMes = reps.filter(function(r){return (r.fecha||"").startsWith(info.mesKey);}).map(function(r){return r.fecha;}).sort();
+  var maxRacha=0, cur=0, prevD=null;
+  fechasMes.forEach(function(f){
+    var fd=new Date(f);
+    if(prevD){ var diff=(fd-prevD)/(24*3600*1000); cur=diff===1?cur+1:1; }else{ cur=1; }
+    if(cur>maxRacha) maxRacha=cur;
+    prevD=fd;
+  });
+
+  // Días reportados este mes
+  var diasReportados = fechasMes.length;
+  var diasHabilesTranscurridos = info.elapsed||1;
+  var pctConsistencia = diasHabilesTranscurridos>0?Math.min(100,Math.round((diasReportados/diasHabilesTranscurridos)*100)):0;
+
+  // Logro de acciones del plan (desde Firebase plan)
+  var motivRacha = rachaActual>=10?"🔥 ¡Racha épica! "+rachaActual+" días seguidos":
+    rachaActual>=5?"💪 ¡"+rachaActual+" días seguidos! Sigue así":
+    rachaActual>=2?"⚡ "+rachaActual+" días consecutivos — ¡construye el hábito!":
+    rachaActual===1?"🌱 Hoy reportaste — ¡mañana también!":"📋 Aún no has reportado hoy";
+
+  return React.createElement("div",{style:{background:"#fff",borderRadius:16,padding:"20px",marginBottom:16,boxShadow:"0 2px 12px rgba(0,0,0,.06)"}}
+    ,React.createElement("div",{style:{fontSize:14,fontWeight:900,color:"#1F2937",marginBottom:14}},"🔥 Mi Consistencia")
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}
+      ,React.createElement("div",{style:{background:"linear-gradient(135deg,#FEF9C3,#FEF08A)",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #FCD34D"}}
+        ,React.createElement("div",{style:{fontSize:28,fontWeight:900,color:"#92400E"}},rachaActual)
+        ,React.createElement("div",{style:{fontSize:10,color:"#78350F",textTransform:"uppercase",marginTop:3}},"🔥 Racha actual (días)")
+      )
+      ,React.createElement("div",{style:{background:"linear-gradient(135deg,#DCFCE7,#BBF7D0)",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #86EFAC"}}
+        ,React.createElement("div",{style:{fontSize:28,fontWeight:900,color:"#166534"}},diasReportados)
+        ,React.createElement("div",{style:{fontSize:10,color:"#15803D",textTransform:"uppercase",marginTop:3}},"📋 Días reportados")
+      )
+      ,React.createElement("div",{style:{background:"linear-gradient(135deg,#EFF6FF,#DBEAFE)",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #BFDBFE"}}
+        ,React.createElement("div",{style:{fontSize:28,fontWeight:900,color:"#1D4ED8"}},pctConsistencia+"%")
+        ,React.createElement("div",{style:{fontSize:10,color:"#1E40AF",textTransform:"uppercase",marginTop:3}},"⚡ Consistencia")
+      )
+    )
+    ,React.createElement("div",{style:{background:"#F8FAFC",borderRadius:10,padding:"10px 14px",fontSize:12,color:"#374151",fontWeight:600}},motivRacha)
+  );
+}
+
 function PlanEjecutivoView({ v, info, R, RD }) {
   var [plan, setPlan] = React.useState(null);
   var [calInput, setCalInput] = React.useState("");
@@ -3337,6 +3443,49 @@ function PlanEjecutivoView({ v, info, R, RD }) {
 }
 
 // Sub-componente para comentario semanal (evita re-render)
+// ── Semáforo CRM: alerta de clientes vencidos ─────────────────────────────────
+function SemaforoCRM({ vid, crmData }) {
+  var [crmLocal, setCrmLocal] = React.useState(null);
+  React.useEffect(function(){
+    if(!vid) return;
+    // Intentar cargar desde Firebase
+    if(window.__fbDb&&window.__fbDoc&&window.__fbGetDoc){
+      window.__fbGetDoc(window.__fbDoc(window.__fbDb,"crm","vid_"+vid))
+        .then(function(snap){ if(snap.exists&&snap.data()) setCrmLocal(snap.data().contactos||[]); })
+        .catch(function(){});
+    }
+    // Fallback: storageGet
+    if(typeof storageGet==="function") storageGet("crm_"+vid).then(function(d){ if(d&&!crmLocal) setCrmLocal(d); });
+  },[vid]);
+
+  var datos = crmLocal || crmData || [];
+  var hoy = Date.now();
+  var vencidos = datos.filter(function(c){
+    if(c.proxAct==="cerrado"||c.proxAct==="perdido") return false;
+    if(!c.proxFecha) return true;
+    var p=c.proxFecha.split("-"); var d=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+    return (hoy-d.getTime())>14*24*3600*1000;
+  });
+  var urgentes = datos.filter(function(c){
+    if(c.proxAct==="cerrado"||c.proxAct==="perdido") return false;
+    if(!c.proxFecha) return false;
+    var p=c.proxFecha.split("-"); var d=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+    var dias=(hoy-d.getTime())/(24*3600*1000);
+    return dias>7&&dias<=14;
+  });
+  if(!vencidos.length&&!urgentes.length) return null;
+  return React.createElement("div",{style:{background:vencidos.length?"#FEF2F2":"#FFFBEB",border:"2px solid "+(vencidos.length?"#FCA5A5":"#FCD34D"),borderRadius:12,padding:"10px 16px",marginBottom:12,display:"flex",alignItems:"center",gap:10}}
+    ,React.createElement("div",{style:{fontSize:20}},vencidos.length?"🔴":"🟡")
+    ,React.createElement("div",null
+      ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:vencidos.length?"#DC2626":"#D97706"}}
+        ,vencidos.length?"⚠️ Tienes "+vencidos.length+" cliente"+(vencidos.length>1?"s":"")+" sin contacto hace más de 14 días"
+        :"⏰ Tienes "+urgentes.length+" cliente"+(urgentes.length>1?"s":"")+" próximos a vencer seguimiento"
+      )
+      ,React.createElement("div",{style:{fontSize:11,color:"#6B7280",marginTop:2}},"Ve a 📒 Mi Agenda para gestionarlos antes de perder la oportunidad")
+    )
+  );
+}
+
 function SemComentario({ accKey, sem, com, onSave }) {
   var [txt, setTxt] = React.useState(com);
   var [editando, setEditando] = React.useState(false);
@@ -3874,6 +4023,276 @@ function BenchmarkView({ benchmark, setBenchmark, equipo, info, R, RD }) {
           style:{background:"#16A34A",color:"#fff",border:"none",borderRadius:10,padding:"10px 24px",fontSize:14,fontWeight:900,cursor:"pointer",fontFamily:"inherit"}}
         ,"💾 Guardar como benchmark")
     )
+  );
+}
+
+
+
+// ── Tendencias y Gráficos ─────────────────────────────────────────────────────
+function TendenciasView({ equipo, info, R, RD }) {
+  var [selEjec, setSelEjec] = React.useState("");
+  var KPIS = [
+    {k:"uf",l:"UF",c:"#C9A84C"},{k:"dps",l:"DPS Total",c:"#374151"},
+    {k:"dpsVenta",l:"DPS c/Venta",c:"#16A34A"},{k:"dpsSinVenta",l:"DPS s/Venta",c:"#2563EB"},
+    {k:"dpsPendiente",l:"Pendientes",c:"#D97706"},{k:"dpsRechazado",l:"Rechazadas",c:"#DC2626"},
+    {k:"nBenef",l:"Beneficiarios",c:"#0891B2"},{k:"cttosDig",l:"Contratos",c:"#059669"},
+    {k:"pctF",l:"% Mujer",c:"#EC4899"},{k:"pctM",l:"% Hombre",c:"#3B82F6"},
+  ];
+  var [selKPI, setSelKPI] = React.useState("uf");
+  
+  // Generar últimos 6 meses
+  var meses = [];
+  for(var i=5;i>=0;i--){
+    var d=new Date(new Date().getFullYear(),new Date().getMonth()-i,1);
+    var mk=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+    var nom=d.toLocaleString("es-CL",{month:"short"}).replace(/^./,function(c){return c.toUpperCase();});
+    meses.push({mk:mk,nom:nom});
+  }
+
+  function getVal(v, mk, campo) {
+    var nowKey=(function(){var n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");})();
+    if(mk===nowKey){
+      if(campo==="uf") return parseFloat(v.uf)||0;
+      if(campo==="dps") return parseInt(v.dps)||0;
+      var h=(v.historial||{})[mk]||{};
+      return parseFloat(h[campo])||parseFloat(h[campo==="dpsVenta"?"dpsVenta":campo])||0;
+    }
+    var h=(v.historial||{})[mk]||{};
+    if(campo==="uf") return parseFloat(h.uf)||0;
+    if(campo==="dps") return parseInt(h.dps)||0;
+    return parseFloat(h[campo])||0;
+  }
+
+  // Datos del equipo
+  var equipoData = meses.map(function(m){
+    return {nom:m.nom, val:equipo.reduce(function(s,v){return s+getVal(v,m.mk,selKPI);},0)};
+  });
+  // Datos ejecutivo seleccionado
+  var ejData = selEjec ? meses.map(function(m){
+    var v=equipo.find(function(e){return String(e.id)===String(selEjec);});
+    return {nom:m.nom, val:v?getVal(v,m.mk,selKPI):0};
+  }) : [];
+
+  var maxVal = Math.max(1, Math.max.apply(null, equipoData.map(function(d){return d.val;})));
+  var maxEj  = selEjec ? Math.max(1, Math.max.apply(null, ejData.map(function(d){return d.val;}))) : 1;
+  var kpiInfo = KPIS.find(function(k){return k.k===selKPI;})||KPIS[0];
+
+  function MiniBar(props) {
+    var pct = Math.min(100, Math.round((props.val/props.max)*100));
+    return React.createElement("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",flex:1,gap:4}}
+      ,React.createElement("div",{style:{fontSize:10,fontWeight:700,color:props.color}},
+        selKPI==="uf"||selKPI==="pctF"||selKPI==="pctM"?props.val.toFixed(selKPI==="uf"?2:0)+(selKPI.startsWith("pct")?"%":""):Math.round(props.val))
+      ,React.createElement("div",{style:{width:"100%",background:"#F3F4F6",borderRadius:6,height:80,display:"flex",alignItems:"flex-end",overflow:"hidden"}}
+        ,React.createElement("div",{style:{width:"100%",height:pct+"%",background:props.color,borderRadius:"4px 4px 0 0",transition:"height .4s",minHeight:pct>0?4:0}})
+      )
+      ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",textAlign:"center"}},props.nom)
+    );
+  }
+
+  return React.createElement("div",{style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}
+    ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:RD,marginBottom:4}},"📈 Tendencias y Gráficos")
+    ,React.createElement("div",{style:{fontSize:12,color:"#6B7280",marginBottom:16}},"Evolución de los últimos 6 meses por KPI")
+    // Selector KPI
+    ,React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16}}
+      ,KPIS.map(function(k){
+          return React.createElement("button",{key:k.k,onClick:function(){setSelKPI(k.k);},
+              style:{padding:"5px 12px",borderRadius:20,border:"1.5px solid "+(selKPI===k.k?k.c:"#E5E7EB"),
+                background:selKPI===k.k?k.c:"#fff",color:selKPI===k.k?"#fff":k.c,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}
+            ,k.l);
+        })
+    )
+    // Gráfico equipo
+    ,React.createElement("div",{style:{marginBottom:20}}
+      ,React.createElement("div",{style:{fontSize:12,fontWeight:700,color:"#374151",marginBottom:8}},"📊 Equipo completo — "+kpiInfo.l)
+      ,React.createElement("div",{style:{display:"flex",gap:8,alignItems:"flex-end",height:120,padding:"0 4px"}}
+        ,equipoData.map(function(d){return React.createElement(MiniBar,{key:d.nom,val:d.val,max:maxVal,nom:d.nom,color:kpiInfo.c});})
+      )
+    )
+    // Selector ejecutivo
+    ,React.createElement("div",{style:{marginBottom:12}}
+      ,React.createElement("div",{style:{fontSize:12,fontWeight:700,color:"#374151",marginBottom:6}},"👤 Ver por ejecutivo:")
+      ,React.createElement("select",{value:selEjec,onChange:function(e){setSelEjec(e.target.value);},
+          style:{width:"100%",padding:"8px 12px",borderRadius:8,border:"1.5px solid #E5E7EB",fontSize:13,fontFamily:"inherit"}}
+        ,React.createElement("option",{value:""},"Selecciona un ejecutivo...")
+        ,equipo.map(function(v){return React.createElement("option",{key:v.id,value:v.id},v.nombre);})
+      )
+    )
+    // Gráfico ejecutivo
+    ,selEjec&&React.createElement("div",null
+      ,React.createElement("div",{style:{fontSize:12,fontWeight:700,color:"#374151",marginBottom:8}}
+        ,equipo.find(function(v){return String(v.id)===String(selEjec);})?equipo.find(function(v){return String(v.id)===String(selEjec);}).nombre.split(" ").slice(0,2).join(" ")+" — "+kpiInfo.l:"Ejecutivo — "+kpiInfo.l)
+      ,React.createElement("div",{style:{display:"flex",gap:8,alignItems:"flex-end",height:120,padding:"0 4px"}}
+        ,ejData.map(function(d){return React.createElement(MiniBar,{key:d.nom,val:d.val,max:maxEj,nom:d.nom,color:kpiInfo.c});})
+      )
+    )
+  );
+}
+
+// ── Predictor Cierre de Mes ──────────────────────────────────────────────────
+function PredictorView({ equipo, info, R, RD, metaUFSafe }) {
+  var diaHoy = new Date().getDate();
+  var diasMes = new Date(new Date().getFullYear(), new Date().getMonth()+1, 0).getDate();
+  var diasRestantes = diasMes - diaHoy;
+  var totUF = equipo.reduce(function(s,v){return s+(parseFloat(v.uf)||0);},0);
+  var ritmo = diaHoy>0?totUF/diaHoy:0;
+  var proyRealista = parseFloat((totUF + ritmo*diasRestantes).toFixed(2));
+  var proyOptimista = parseFloat((totUF + ritmo*diasRestantes*1.3).toFixed(2));
+  var proyConservador = parseFloat((totUF + ritmo*diasRestantes*0.7).toFixed(2));
+  var meta = metaUFSafe;
+  var faltaMeta = Math.max(0, meta-totUF);
+  var ritmoNecesario = diasRestantes>0?parseFloat((faltaMeta/diasRestantes).toFixed(2)):0;
+  var llegaRealista = proyRealista>=meta;
+
+  function ScenCard(props) {
+    var pct=Math.min(100,Math.round((props.val/meta)*100));
+    return React.createElement("div",{style:{background:props.val>=meta?"#F0FDF4":props.bg||"#F8FAFC",borderRadius:14,padding:"16px",border:"1.5px solid "+(props.val>=meta?"#86EFAC":props.brd||"#E5E7EB"),textAlign:"center"}}
+      ,React.createElement("div",{style:{fontSize:11,fontWeight:700,color:props.c||"#374151",marginBottom:4}},props.label)
+      ,React.createElement("div",{style:{fontSize:24,fontWeight:900,color:props.val>=meta?"#16A34A":props.c||"#374151"}},props.val+" UF")
+      ,React.createElement("div",{style:{background:"#E5E7EB",borderRadius:99,height:6,margin:"8px 0",overflow:"hidden"}}
+        ,React.createElement("div",{style:{width:pct+"%",height:"100%",background:props.val>=meta?"#16A34A":props.c||"#374151",borderRadius:99}})
+      )
+      ,React.createElement("div",{style:{fontSize:10,color:"#6B7280"}},pct+"% de la meta · "+(props.val>=meta?"✅ Llega":"⚠️ No llega"))
+    );
+  }
+
+  return React.createElement("div",{style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}
+    ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:RD,marginBottom:4}},"🎯 Predictor Cierre de Mes")
+    ,React.createElement("div",{style:{fontSize:12,color:"#6B7280",marginBottom:20}},"Basado en el ritmo actual del equipo — "+diaHoy+" días transcurridos, "+diasRestantes+" restantes")
+    // Estado actual
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:20}}
+      ,React.createElement("div",{style:{background:"#FFF8E7",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #FCD34D"}}
+        ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:"#C9A84C"}},totUF.toFixed(2)+" UF")
+        ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",marginTop:3,textTransform:"uppercase"}},"Actual")
+      )
+      ,React.createElement("div",{style:{background:"#EFF6FF",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #BFDBFE"}}
+        ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:"#2563EB"}},ritmo.toFixed(2)+" UF")
+        ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",marginTop:3,textTransform:"uppercase"}},"Ritmo por día")
+      )
+      ,React.createElement("div",{style:{background:llegaRealista?"#F0FDF4":"#FFF1F2",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid "+(llegaRealista?"#86EFAC":"#FCA5A5")}}
+        ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:llegaRealista?"#16A34A":"#DC2626"}},ritmoNecesario+" UF/día")
+        ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",marginTop:3,textTransform:"uppercase"}},"Necesario para meta")
+      )
+    )
+    // Escenarios
+    ,React.createElement("div",{style:{fontSize:13,fontWeight:700,color:"#374151",marginBottom:10}},"Escenarios de cierre:")
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:16}}
+      ,React.createElement(ScenCard,{label:"🚀 Optimista (+30%)",val:proyOptimista,c:"#16A34A",bg:"#F0FDF4",brd:"#86EFAC"})
+      ,React.createElement(ScenCard,{label:"📊 Realista",val:proyRealista,c:llegaRealista?"#16A34A":"#D97706",bg:llegaRealista?"#F0FDF4":"#FFFBEB",brd:llegaRealista?"#86EFAC":"#FCD34D"})
+      ,React.createElement(ScenCard,{label:"📉 Conservador (-30%)",val:proyConservador,c:"#DC2626",bg:"#FFF1F2",brd:"#FCA5A5"})
+    )
+    // Mensaje
+    ,React.createElement("div",{style:{background:llegaRealista?"#F0FDF4":"#FEF9C3",borderRadius:12,padding:"14px 16px",border:"1.5px solid "+(llegaRealista?"#86EFAC":"#FCD34D"),fontSize:13,fontWeight:700,color:llegaRealista?"#166534":"#92400E"}}
+      ,llegaRealista
+        ? "✅ Al ritmo actual el equipo LLEGARÁ a la meta. ¡Mantén el impulso!"
+        : "⚠️ Al ritmo actual el equipo NO llega. Se necesitan "+ritmoNecesario+" UF/día — el ritmo actual es "+ritmo.toFixed(2)+" UF/día."
+    )
+  );
+}
+
+// ── Correlación DPS → UF ─────────────────────────────────────────────────────
+function CorrelacionView({ equipo, info, R, RD }) {
+  var datos = equipo
+    .filter(function(v){return (v.dps||0)>0;})
+    .map(function(v){
+      var tasa = v.dps>0?parseFloat((v.uf/v.dps).toFixed(2)):0;
+      return {nombre:v.nombre.split(" ").slice(-2).join(" "), uf:v.uf||0, dps:v.dps||0, tasa:tasa};
+    })
+    .sort(function(a,b){return b.tasa-a.tasa;});
+
+  var totUF  = equipo.reduce(function(s,v){return s+(v.uf||0);},0);
+  var totDPS = equipo.reduce(function(s,v){return s+(v.dps||0);},0);
+  var tasaEquipo = totDPS>0?parseFloat((totUF/totDPS).toFixed(2)):0;
+  var maxTasa = Math.max(1,Math.max.apply(null,datos.map(function(d){return d.tasa;})));
+
+  return React.createElement("div",{style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}
+    ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:RD,marginBottom:4}},"🔗 Correlación DPS → UF")
+    ,React.createElement("div",{style:{fontSize:12,color:"#6B7280",marginBottom:16}},"¿Cuántas UF cierra cada ejecutivo por cada DPS tomada?")
+    // KPI equipo
+    ,React.createElement("div",{style:{background:"linear-gradient(135deg,#1E3A5F,#1D4ED8)",borderRadius:14,padding:"16px 20px",color:"#fff",marginBottom:20,display:"flex",justifyContent:"space-around",textAlign:"center"}}
+      ,React.createElement("div",null,React.createElement("div",{style:{fontSize:28,fontWeight:900}},tasaEquipo),React.createElement("div",{style:{fontSize:10,color:"rgba(255,255,255,.6)",textTransform:"uppercase",marginTop:2}},"UF/DPS Equipo"))
+      ,React.createElement("div",null,React.createElement("div",{style:{fontSize:28,fontWeight:900}},totDPS),React.createElement("div",{style:{fontSize:10,color:"rgba(255,255,255,.6)",textTransform:"uppercase",marginTop:2}},"DPS Total"))
+      ,React.createElement("div",null,React.createElement("div",{style:{fontSize:28,fontWeight:900}},totUF.toFixed(2)),React.createElement("div",{style:{fontSize:10,color:"rgba(255,255,255,.6)",textTransform:"uppercase",marginTop:2}},"UF Total"))
+    )
+    // Ranking por conversión
+    ,React.createElement("div",{style:{fontSize:12,fontWeight:700,color:"#374151",marginBottom:10}},"Ranking de conversión individual:")
+    ,datos.map(function(d,i){
+        var pct=Math.min(100,Math.round((d.tasa/maxTasa)*100));
+        var mejor=d.tasa>=tasaEquipo;
+        return React.createElement("div",{key:i,style:{display:"flex",alignItems:"center",gap:10,marginBottom:8,padding:"8px 10px",borderRadius:10,background:mejor?"#F0FDF4":"#F8FAFC",border:"1px solid "+(mejor?"#86EFAC":"#E5E7EB")}}
+          ,React.createElement("div",{style:{width:22,height:22,borderRadius:"50%",background:mejor?"#16A34A":"#E5E7EB",color:mejor?"#fff":"#6B7280",fontSize:10,fontWeight:900,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}},i+1)
+          ,React.createElement("div",{style:{flex:1}}
+            ,React.createElement("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:3}}
+              ,React.createElement("span",{style:{fontSize:11,fontWeight:700,color:"#374151"}},d.nombre)
+              ,React.createElement("span",{style:{fontSize:11,fontWeight:900,color:mejor?"#16A34A":"#D97706"}},d.tasa+" UF/DPS")
+            )
+            ,React.createElement("div",{style:{background:"#E5E7EB",borderRadius:99,height:5,overflow:"hidden"}}
+              ,React.createElement("div",{style:{width:pct+"%",height:"100%",background:mejor?"#16A34A":"#D97706",borderRadius:99}})
+            )
+            ,React.createElement("div",{style:{fontSize:9,color:"#9CA3AF",marginTop:2}},d.uf.toFixed(2)+" UF / "+d.dps+" DPS")
+          )
+        );
+      })
+  );
+}
+
+// ── Alertas del Equipo ───────────────────────────────────────────────────────
+function AlertasView({ equipo, info, R, RD }) {
+  var hoy = new Date().toISOString().split("T")[0];
+  var TODAY = hoy;
+
+  // Alertas: sin reporte 2+ días
+  var sinReporte2 = equipo.filter(function(v){
+    var reps=v.rep||[];
+    if(!reps.length) return false;
+    var ultima=reps.map(function(r){return r.fecha||"";}).sort().reverse()[0]||"";
+    if(!ultima) return true;
+    var d=new Date(ultima); var h=new Date(); h.setHours(0,0,0,0);
+    return (h-d)>2*24*3600*1000;
+  });
+
+  // Tasa cierre DPS bajo 30%
+  var bajaTasa = equipo.filter(function(v){
+    var h=(v.historial||{})[info.mesKey]||{};
+    var cv=parseInt(h.dpsVenta)||0;
+    var tot=(parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0);
+    return tot>=5&&tot>0&&Math.round((cv/tot)*100)<30;
+  });
+
+  // DPS pendientes sin movimiento (+5)
+  var muchasPendientes = equipo.filter(function(v){
+    var h=(v.historial||{})[info.mesKey]||{};
+    return (parseInt(h.dpsPendiente)||0)>=5;
+  });
+
+  // En 0 UF
+  var enCero = equipo.filter(function(v){return (v.uf||0)===0&&(v.metaUF||0)>0;});
+
+  var grupos = [
+    {titulo:"💤 Sin reporte 2+ días",color:"#D97706",bg:"#FFFBEB",brd:"#FCD34D",lista:sinReporte2},
+    {titulo:"🔴 Tasa de cierre DPS bajo 30%",color:"#DC2626",bg:"#FFF1F2",brd:"#FCA5A5",lista:bajaTasa},
+    {titulo:"🟡 5+ DPS pendientes sin mover",color:"#D97706",bg:"#FFFBEB",brd:"#FCD34D",lista:muchasPendientes},
+    {titulo:"⚪ 0 UF cerradas este mes",color:"#6B7280",bg:"#F8FAFC",brd:"#E5E7EB",lista:enCero},
+  ];
+
+  var hayAlertas = grupos.some(function(g){return g.lista.length>0;});
+
+  return React.createElement("div",{style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}
+    ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:RD,marginBottom:4}},"🚨 Alertas del Equipo")
+    ,React.createElement("div",{style:{fontSize:12,color:"#6B7280",marginBottom:20}},"Situaciones que requieren atención inmediata — "+info.mes)
+    ,!hayAlertas&&React.createElement("div",{style:{textAlign:"center",padding:32,color:"#16A34A",fontWeight:700,fontSize:14}},"✅ ¡Sin alertas! El equipo está funcionando bien.")
+    ,grupos.map(function(g){
+        if(!g.lista.length) return null;
+        return React.createElement("div",{key:g.titulo,style:{background:g.bg,borderRadius:14,padding:"16px",marginBottom:12,border:"1.5px solid "+g.brd}}
+          ,React.createElement("div",{style:{fontSize:13,fontWeight:800,color:g.color,marginBottom:10}},g.titulo+" ("+g.lista.length+")")
+          ,React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:6}}
+            ,g.lista.map(function(v){
+                return React.createElement("div",{key:v.id,style:{background:"rgba(255,255,255,.7)",borderRadius:99,padding:"4px 12px",fontSize:11,fontWeight:700,color:g.color}}
+                  ,v.nombre.split(" ").slice(-2).join(" ")
+                );
+              })
+          )
+        );
+      })
   );
 }
 
@@ -4691,7 +5110,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
     equipo:    [["gestion","👥 Gestionar Equipo"],["carga","📥 Cargar UF/DPS"],["editar","✏️ Editar Estadísticas"]],
     metas:     [["meta","🎯 Meta del Equipo"],["uflineales","📈 UF's Lineales"]],
     contenido: [["gestPremios","🏆 Gestionar Premios"],["gestDocs","📂 Gestionar Docs"]],
-    analisis:  [["clasificacion","📊 Clasificación AGV"],["agentes0","🚨 Agentes en 0"],["dpsanalisis","📊 Análisis Reporte Diario de Métricas"],["historialMetricas","📋 Ver Historial Métricas"],["planagv","📋 Plan de Trabajo AGV"]],
+    analisis:  [["clasificacion","📊 Clasificación AGV"],["agentes0","🚨 Agentes en 0"],["dpsanalisis","📊 Análisis Reporte Diario de Métricas"],["historialMetricas","📋 Ver Historial Métricas por Ejecutivo"],["tendencias","📈 Tendencias y Gráficos"],["predictor","🎯 Predictor Cierre de Mes"],["correlacion","🔗 Correlación DPS→UF"],["alertas","🚨 Alertas del Equipo"],["planagv","📋 Plan de Trabajo AGV"]],
   };
   const [bulk,     setBulk]     = useState({});
   const [bulkOk,   setBulkOk]   = useState(false);
@@ -5980,27 +6399,65 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
         /* ===== MI REPORTE ===== */
         , tab==="formulario" && (
           React.createElement('div', { style: {maxWidth:600,margin:"0 auto"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3190}}
-            , React.createElement('div', { style: {background:"linear-gradient(135deg,"+RD+","+R+")",borderRadius:16,padding:"18px 22px",color:"#fff",marginBottom:20,display:"flex",alignItems:"center",gap:18} }
+            , React.createElement('div', { style: {background:"linear-gradient(135deg,"+RD+","+R+")",borderRadius:16,padding:"18px 22px",color:"#fff",marginBottom:20} }
               , (function(){
                   var vEjec = pinFormOk ? equipo.find(function(e){return e.id===Number(form.vid);}) : null;
                   var ufPersonal = vEjec ? (parseFloat(vEjec.uf)||0) : 0;
                   var metaPersonal = vEjec && vEjec.metaUF>0 ? vEjec.metaUF : metaUFSafe;
                   var pctPersonal = vEjec && metaPersonal>0 ? Math.min(Math.round((ufPersonal/metaPersonal)*100),100) : 0;
                   var faltaPersonal = Math.max(0, metaPersonal - ufPersonal);
-                  return React.createElement(React.Fragment, null
-                    , React.createElement('div', { style: {textAlign:"center",minWidth:80} },
-                        React.createElement('div', { style: {fontSize:34,fontWeight:900,lineHeight:1} }, fmtUF2(ufPersonal)),
-                        React.createElement('div', { style: {fontSize:10,color:"rgba(255,255,255,.65)",textTransform:"uppercase",letterSpacing:"0.12em",marginTop:3} }, "UF Logradas!")
+                  // Ritmo diario
+                  var diaHoy = new Date().getDate();
+                  var diasMes = new Date(new Date().getFullYear(), new Date().getMonth()+1, 0).getDate();
+                  var proporcion = diaHoy / diasMes;
+                  var deberiaLlevar = parseFloat((metaPersonal * proporcion).toFixed(2));
+                  var diferencia = parseFloat((ufPersonal - deberiaLlevar).toFixed(2));
+                  var adelante = diferencia >= 0;
+                  // Proyección al cierre
+                  var ritmo = diaHoy > 0 ? ufPersonal / diaHoy : 0;
+                  var proyFin = parseFloat((ritmo * diasMes).toFixed(2));
+                  var llegaMeta = proyFin >= metaPersonal;
+                  return React.createElement('div', null
+                    // Fila principal: UF + barra
+                    , React.createElement('div', { style: {display:"flex",alignItems:"center",gap:18,marginBottom:14} }
+                      , React.createElement('div', { style: {textAlign:"center",minWidth:72} }
+                        , React.createElement('div', { style: {fontSize:34,fontWeight:900,lineHeight:1} }, fmtUF2(ufPersonal))
+                        , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.65)",textTransform:"uppercase",letterSpacing:"0.1em",marginTop:3} }, "UF Logradas!")
                       )
-                    , React.createElement('div', { style: {flex:1} }
-                      , React.createElement('div', { style: {display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:7,fontWeight:600} },
-                          React.createElement('span', { style: {color:"rgba(255,255,255,.75)"} }, "Mi avance personal"),
-                          React.createElement('span', null, pctPersonal+"% de "+metaPersonal+" UF")
+                      , React.createElement('div', { style: {flex:1} }
+                        , React.createElement('div', { style: {display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:6,fontWeight:600} }
+                          , React.createElement('span', { style: {color:"rgba(255,255,255,.75)"} }, "Mi avance personal")
+                          , React.createElement('span', null, pctPersonal+"% de "+fmtUF2(metaPersonal)+" UF")
                         )
-                      , React.createElement(Bar, { pct: pctPersonal, color: "rgba(255,255,255,.9)", h: 10 })
-                      , React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.6)",marginTop:6} },
-                          faltaPersonal>0 ? "Me faltan "+fmtUF2(faltaPersonal)+" UF para mi meta" : "¡Meta personal cumplida! 🎉"
+                        , React.createElement(Bar, { pct: pctPersonal, color: "rgba(255,255,255,.9)", h: 10 })
+                        , React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.6)",marginTop:5} }
+                          , faltaPersonal>0 ? "Me faltan "+fmtUF2(faltaPersonal)+" UF para mi meta" : "🎉 ¡Meta personal cumplida!"
                         )
+                      )
+                    )
+                    // Fila ritmo + proyección
+                    , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:10} }
+                      // Ritmo del día
+                      , React.createElement('div', { style: {background:"rgba(255,255,255,.12)",borderRadius:10,padding:"10px 14px"} }
+                        , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:4} }, "⏱ Ritmo al día "+diaHoy)
+                        , React.createElement('div', { style: {fontSize:13,fontWeight:900,color:adelante?"#4ADE80":"#FCA5A5"} }
+                          , adelante ? "▲ +" : "▼ "
+                          , fmtUF2(Math.abs(diferencia))+" UF"
+                        )
+                        , React.createElement('div', { style: {fontSize:10,color:"rgba(255,255,255,.6)",marginTop:2} }
+                          , "Deberías llevar "+fmtUF2(deberiaLlevar)+" UF hoy"
+                        )
+                      )
+                      // Proyección cierre
+                      , React.createElement('div', { style: {background:"rgba(255,255,255,.12)",borderRadius:10,padding:"10px 14px"} }
+                        , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:4} }, "📈 Proyección al cierre")
+                        , React.createElement('div', { style: {fontSize:13,fontWeight:900,color:llegaMeta?"#4ADE80":"#FCD34D"} }
+                          , fmtUF2(proyFin)+" UF"
+                        )
+                        , React.createElement('div', { style: {fontSize:10,color:"rgba(255,255,255,.6)",marginTop:2} }
+                          , llegaMeta ? "✅ ¡Al ritmo de llegar!" : "⚠️ Necesitas acelerar "+fmtUF2(faltaPersonal)+" UF"
+                        )
+                      )
                     )
                   );
                 })()
@@ -6065,11 +6522,13 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                         return r.uf && parseFloat(r.uf)>0;
                       }).sort(function(a,b){return (b.fecha||"").localeCompare(a.fecha||"");}) : [];
                       var totalUFMes = vAct ? (vAct.uf||0) : 0;
-                      if(!reps.length) return null;
-                      return React.createElement(CierresEditables, {
-                        vAct:vAct, reps:reps, totalUFMes:totalUFMes,
-                        equipo:equipo, setEquipo:setEquipo, RD:RD, fmtUF2:fmtUF2
-                      });
+                      return React.createElement("div",null
+                        , React.createElement(SemaforoCRM, {vid:form.vid, crmData:crmData})
+                        , reps.length ? React.createElement(CierresEditables, {
+                            vAct:vAct, reps:reps, totalUFMes:totalUFMes,
+                            equipo:equipo, setEquipo:setEquipo, RD:RD, fmtUF2:fmtUF2
+                          }) : null
+                      );
                     })()
                   /* ── Sección 1: Cierres del día ── */
                   , React.createElement('div', { style: {display:"flex",alignItems:"center",gap:10,marginBottom:10} }
@@ -6915,8 +7374,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
               , React.createElement('div', { style: {fontSize:13,color:"#6B7280",marginBottom:18}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3608}}, "Se actualiza con cada reporte. Ranking por UF brutas acumuladas del mes."           )
               , top5.length===0?(React.createElement('div', { style: {textAlign:"center",padding:"40px",color:"#9CA3AF"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3609}}, React.createElement('div', { style: {fontSize:15,fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3609}}, "Sin reportes este mes aun."    ))):(
                 React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3610}}
-                  , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3611}}, [1,0,2].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: top5[i], badge: BADGES[i], __self: this, __source: {fileName: _jsxFileName, lineNumber: 3611}} );}))
-                  , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3612}}, [3,4].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: top5[i], badge: BADGES[i], __self: this, __source: {fileName: _jsxFileName, lineNumber: 3612}} );}))
+                  , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14} }, [1,0,2].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: top5[i], badge: BADGES[i], equipo: equipo } );}))
+                  , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:14} }, [3,4].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: top5[i], badge: BADGES[i], equipo: equipo } );}))
                 )
               )
               , recoNombre && (
@@ -6933,7 +7392,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                 )
               )
             )
-            , recoNombre && React.createElement('div', { style: {background:"#fff",borderRadius:16,padding:"20px 22px",boxShadow:"0 4px 16px rgba(233,7,41,.09)",border:"1px solid rgba(233,7,41,.1)",marginBottom:16}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3629}}, React.createElement('div', { style: {fontSize:14,fontWeight:800,color:"#C41230",marginBottom:10}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3629}}, "🔍 Tu Score TOP 5 del Año"      ), React.createElement(Top5Badge, { nombre: recoNombre, hallMeses: HALL_MESES }))
+            /* ── Reconocidos Especiales ── */
+            , React.createElement(ReconocidosEspeciales, { equipo: equipo, info: info, RD: RD, R: R })
               , React.createElement('div', { style: {background:"#fff",borderRadius:20,padding:"28px 26px",boxShadow:"0 4px 24px rgba(233,7,41,.09)",border:"1px solid rgba(233,7,41,.1)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3630}}
               , React.createElement('div', { style: {display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:22,flexWrap:"wrap",gap:12}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3631}}
                 , React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3632}}
@@ -7367,6 +7827,10 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                 , supVista==="dpsanalisis" && React.createElement(DpsAnalisisView, { equipo:equipo, setEquipo:setEquipo, info:info, R:R, RD:RD, benchmark:benchmark, setBenchmark:setBenchmark, setSupVista:setSupVista })
                 , supVista==="historialMetricas" && React.createElement(HistorialMetricasView, { equipo:equipo, info:info, R:R, RD:RD })
                 , supVista==="metricas" && React.createElement(MetricasReportView, { equipo:equipo, setEquipo:setEquipo, info:info, R:R, RD:RD })
+                , supVista==="tendencias" && React.createElement(TendenciasView, { equipo:equipo, info:info, R:R, RD:RD })
+                , supVista==="predictor" && React.createElement(PredictorView, { equipo:equipo, info:info, R:R, RD:RD, metaUFSafe:metaUFSafe })
+                , supVista==="correlacion" && React.createElement(CorrelacionView, { equipo:equipo, info:info, R:R, RD:RD })
+                , supVista==="alertas" && React.createElement(AlertasView, { equipo:equipo, info:info, R:R, RD:RD })
                 , supVista==="planagv" && React.createElement(PlanAGVView, { equipo:equipo, info:info, R:R, RD:RD })
                 , supVista==="calEjec"&&(
                   React.createElement('div', { style: {background:"#fff",borderRadius:18,padding:26,boxShadow:"0 3px 16px rgba(233,7,41,.07)"} }
@@ -7798,6 +8262,66 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
   );
 }
 // ── Top 5 Lookup ─────────────────────────────────────────────────
+function ReconocidosEspeciales({ equipo, info, RD, R }) {
+  // Calcular ganadores de esta semana
+  var hoy = new Date();
+  var inicioSemana = new Date(hoy);
+  inicioSemana.setDate(hoy.getDate() - hoy.getDay() + 1); // lunes
+  var iniStr = inicioSemana.toISOString().split("T")[0];
+
+  var stats = equipo.map(function(v){
+    var reps = (v.rep||[]).filter(function(r){ return (r.fecha||"")>=iniStr; });
+    var ufSem = reps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0);
+    var dpsSem = reps.reduce(function(s,r){return s+(parseInt(r.dps)||0);},0);
+    var cttSem = reps.reduce(function(s,r){return s+(parseInt(r.cierres)||0);},0);
+    var conSem = reps.reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0);
+    // Crecimiento UF vs semana anterior
+    var inicioAnt = new Date(inicioSemana); inicioAnt.setDate(inicioAnt.getDate()-7);
+    var finAnt = new Date(inicioSemana); finAnt.setDate(finAnt.getDate()-1);
+    var iniAntStr = inicioAnt.toISOString().split("T")[0];
+    var finAntStr = finAnt.toISOString().split("T")[0];
+    var repsAnt = (v.rep||[]).filter(function(r){return (r.fecha||"")>=iniAntStr&&(r.fecha||"")<=finAntStr;});
+    var ufAnt = repsAnt.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0);
+    var crecUF = ufSem - ufAnt;
+    return {nombre:v.nombre, ufSem:ufSem, dpsSem:dpsSem, cttSem:cttSem, conSem:conSem, crecUF:crecUF};
+  });
+
+  var maxCrec = stats.reduce(function(m,v){return v.crecUF>m.crecUF?v:m;},{crecUF:-999,nombre:""});
+  var maxDPS  = stats.reduce(function(m,v){return v.dpsSem>m.dpsSem?v:m;},{dpsSem:-1,nombre:""});
+  var maxCtts = stats.reduce(function(m,v){return v.cttSem>m.cttSem?v:m;},{cttSem:-1,nombre:""});
+  var maxCon  = stats.reduce(function(m,v){return v.conSem>m.conSem?v:m;},{conSem:-1,nombre:""});
+
+  var categorias = [
+    {label:"💚 CRACK Plan Conecta",     sub:"Mayor venta Planes Conecta",    nombre:maxCon.nombre,  valor:maxCon.conSem+" contratos",  color:"#059669",bg:"linear-gradient(135deg,#DCFCE7,#A7F3D0)",brd:"#6EE7B7"},
+    {label:"📈 Mayor Crecimiento UF",    sub:"Mayor crecimiento UF esta semana",nombre:maxCrec.nombre,valor:maxCrec.crecUF>=0?"+"+maxCrec.crecUF.toFixed(2)+" UF":maxCrec.crecUF.toFixed(2)+" UF",color:"#D97706",bg:"linear-gradient(135deg,#FEF9C3,#FDE68A)",brd:"#FCD34D"},
+    {label:"🔵 Mayor Actividad DPS",     sub:"Mayor cantidad DPS esta semana", nombre:maxDPS.nombre,  valor:maxDPS.dpsSem+" DPS",        color:"#2563EB",bg:"linear-gradient(135deg,#EFF6FF,#BFDBFE)",brd:"#93C5FD"},
+    {label:"📋 Mayor Contratos",         sub:"Mayor contratos cerrados semana",nombre:maxCtts.nombre, valor:maxCtts.cttSem+" contratos",  color:"#7C3AED",bg:"linear-gradient(135deg,#F5F3FF,#DDD6FE)",brd:"#C4B5FD"},
+  ];
+
+  // Solo mostrar si hay actividad esta semana
+  if(stats.every(function(s){return s.ufSem===0&&s.dpsSem===0;})) return null;
+
+  return React.createElement("div",{style:{background:"#fff",borderRadius:20,padding:"24px 22px",boxShadow:"0 4px 24px rgba(233,7,41,.09)",border:"1px solid rgba(233,7,41,.1)",marginBottom:16}}
+    ,React.createElement("div",{style:{fontSize:10,letterSpacing:"0.18em",textTransform:"uppercase",color:"#9CA3AF",marginBottom:6}},"Reconocidos esta semana")
+    ,React.createElement("div",{style:{fontSize:20,fontWeight:900,color:RD,marginBottom:4}},"⭐ Reconocidos Especiales")
+    ,React.createElement("div",{style:{fontSize:13,color:"#6B7280",marginBottom:18}},"Los mejores de la semana en cada categoría")
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}
+      ,categorias.map(function(cat){
+          var vFoto = equipo.find(function(e){return e.nombre===cat.nombre;});
+          var ini = cat.nombre.split(" ").slice(-2).map(function(w){return w[0]||"";}).join("");
+          return React.createElement("div",{key:cat.label,style:{background:cat.bg,borderRadius:14,padding:"16px",textAlign:"center",border:"2px solid "+cat.brd}}
+            ,React.createElement("div",{style:{width:54,height:54,borderRadius:"50%",overflow:"hidden",border:"3px solid "+cat.brd,margin:"0 auto 8px",background:vFoto&&vFoto.fotoUrl?"#000":"rgba(255,255,255,.5)",display:"flex",alignItems:"center",justifyContent:"center"}}
+              ,vFoto&&vFoto.fotoUrl?React.createElement("img",{src:vFoto.fotoUrl,style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement("span",{style:{fontSize:17,fontWeight:900,color:cat.color}},ini)
+            )
+            ,React.createElement("div",{style:{fontSize:11,fontWeight:900,color:cat.color,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:4}},cat.label)
+            ,React.createElement("div",{style:{fontSize:14,fontWeight:900,color:"#1F2937",lineHeight:1.3,marginBottom:4}},cat.nombre.split(" ").slice(-2).join(" "))
+            ,React.createElement("div",{style:{background:"rgba(255,255,255,.6)",borderRadius:99,padding:"3px 12px",display:"inline-block",fontSize:11,fontWeight:700,color:cat.color}},cat.valor)
+          );
+        })
+    )
+  );
+}
+
 function Top5Lookup({ equipo }) {
   const [top5Name, setTop5Name] = React.useState("");
   const RD = "#C41230";
@@ -8025,6 +8549,7 @@ function ProdEditableInner({ v, equipo, setEquipo, guardarProductividad, guardan
           }, "🔒 Cerrar sesion")
       )
       , React.createElement(HistorialPersonal, { histV: v, histLogout: function(){}, info: info, hallMeses: HALL_MESES, equipo: equipo })
+      , React.createElement(RachasView, { v: v, info: info })
       , React.createElement(PlanEjecutivoView, { v: v, info: info, R: R, RD: RD })
     )
   );
