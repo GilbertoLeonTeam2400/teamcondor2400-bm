@@ -2726,11 +2726,19 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
     if (!preview.length) return;
     var mesKey = mesCarga;
     var nuevoEquipo = equipo.map(function(v){
-      var palabrasV = v.nombre.toUpperCase().split(/\s+/);
+      var nombreVUp = v.nombre.toUpperCase().trim();
       var match = preview.find(function(p){
-        var palabrasP = p.nombre.split(/\s+/).filter(function(x){return x.length>1;});
-        var hits = palabrasP.filter(function(w){ return v.nombre.toUpperCase().indexOf(w)>=0; }).length;
-        return hits >= Math.max(1, Math.floor(palabrasP.length*0.5));
+        var nombrePUp = (p.nombre||"").toUpperCase().trim();
+        // Coincidencia exacta primero
+        if(nombreVUp === nombrePUp) return true;
+        // Coincidencia por palabras: mínimo 2 palabras coincidentes (no solo 1 inicial)
+        var palabrasV = nombreVUp.split(/\s+/).filter(function(w){return w.length>2;});
+        var palabrasP = nombrePUp.split(/\s+/).filter(function(w){return w.length>2;});
+        if(!palabrasV.length || !palabrasP.length) return false;
+        var hits = palabrasP.filter(function(w){ return nombreVUp.indexOf(w)>=0; }).length;
+        // Necesita al menos 2 palabras coincidentes O el 70% si tiene menos de 3 palabras
+        var minHits = palabrasP.length >= 3 ? 2 : Math.ceil(palabrasP.length*0.7);
+        return hits >= minHits;
       });
       if (!match) return v;
       var hist = Object.assign({}, v.historial||{});
@@ -2820,6 +2828,27 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
       , React.createElement('button', {onClick:confirmarCarga,
           style:{marginTop:16,background:"#16A34A",color:"#fff",border:"none",borderRadius:12,padding:"12px 28px",fontSize:14,fontWeight:900,cursor:"pointer",fontFamily:"inherit"}}
         , "💾 Confirmar y guardar para todos")
+      // Advertencia: filas del Excel sin coincidencia en equipo actual
+      , (function(){
+          var sinMatch = preview.filter(function(p){
+            var nombrePUp = (p.nombre||"").toUpperCase().trim();
+            return !equipo.some(function(v){
+              var nombreVUp = v.nombre.toUpperCase().trim();
+              if(nombreVUp===nombrePUp) return true;
+              var palabrasP=nombrePUp.split(/\s+/).filter(function(w){return w.length>2;});
+              var hits=palabrasP.filter(function(w){return nombreVUp.indexOf(w)>=0;}).length;
+              var minHits=palabrasP.length>=3?2:Math.ceil(palabrasP.length*0.7);
+              return hits>=minHits;
+            });
+          });
+          if(!sinMatch.length) return null;
+          return React.createElement('div',{style:{marginTop:14,background:"#FFFBEB",borderRadius:10,padding:"12px 16px",border:"1px solid #FCD34D"}}
+            ,React.createElement('div',{style:{fontSize:12,fontWeight:700,color:"#92400E",marginBottom:6}},"⚠️ "+sinMatch.length+" fila(s) del Excel no coinciden con ningún ejecutivo activo — serán ignoradas:")
+            ,sinMatch.map(function(p,i){
+                return React.createElement('div',{key:i,style:{fontSize:11,color:"#92400E",padding:"2px 0"}},"• "+p.nombre);
+              })
+          );
+        })()
     )
   );
 }
@@ -9320,14 +9349,14 @@ function ExcelDataView({ equipo, setEquipo, info }) {
         React.createElement("span", {onClick:function(){setSortMes(null);setSortDir("desc");}, style:{cursor:"pointer",textDecoration:"underline",color:RD}}, "Quitar filtro")
       ),
       React.createElement("div", {style:{overflowX:"auto"}},
-        React.createElement("table", {style:{width:"100%",borderCollapse:"collapse",fontSize:11}},
+        React.createElement("table", {style:{width:"100%",borderCollapse:"collapse",fontSize:10}},
           React.createElement("thead", null,
             React.createElement("tr", {style:{background:"#F8FAFC"}},
               React.createElement("th", {style:{textAlign:"left",padding:"8px 10px",fontWeight:700,color:"#374151",borderBottom:"2px solid #E5E7EB",minWidth:140,position:"sticky",left:0,background:"#F8FAFC",zIndex:1}}, "Ejecutivo"),
               MESES_ORDEN.map(function(mk){
-                return React.createElement("th", {key:mk,style:{textAlign:"center",padding:"6px 4px",fontWeight:700,color:"#374151",borderBottom:"2px solid #E5E7EB",minWidth:110},colSpan:3},
+                return React.createElement("th", {key:mk,style:{textAlign:"center",padding:"6px 4px",fontWeight:700,color:"#374151",borderBottom:"2px solid #E5E7EB",minWidth:70},colSpan:7},
                   React.createElement("div", null, MESES_LABEL[mk]),
-                  React.createElement("div", {style:{display:"flex",justifyContent:"center",gap:6,marginTop:2}},
+                  React.createElement("div", {style:{display:"flex",justifyContent:"center",gap:4,marginTop:2}},
                     React.createElement(SortBtn, {mk:mk,field:"uf",label:"UF↕",color:"#D97706"}),
                     React.createElement(SortBtn, {mk:mk,field:"dps",label:"DPS↕",color:"#16A34A"}),
                     React.createElement(SortBtn, {mk:mk,field:"dpsVenta",label:"c/Vta↕",color:"#059669"})
@@ -9339,9 +9368,13 @@ function ExcelDataView({ equipo, setEquipo, info }) {
               React.createElement("th", {style:{padding:"4px 10px",borderBottom:"1px solid #E5E7EB",position:"sticky",left:0,background:"#F8FAFC"}}),
               MESES_ORDEN.map(function(mk){
                 return [
-                  React.createElement("th", {key:mk+"uf",  style:{padding:"4px 2px",textAlign:"center",fontSize:10,color:"#D97706",fontWeight:700,borderBottom:"1px solid #E5E7EB"}}, "UF"),
-                  React.createElement("th", {key:mk+"dps", style:{padding:"4px 2px",textAlign:"center",fontSize:10,color:"#16A34A",fontWeight:700,borderBottom:"1px solid #E5E7EB"}}, "DPS"),
-                  React.createElement("th", {key:mk+"dpv", style:{padding:"4px 2px",textAlign:"center",fontSize:10,color:"#059669",fontWeight:700,borderBottom:"1px solid #E5E7EB"}}, "c/Vta"),
+                  React.createElement("th", {key:mk+"uf",  style:{padding:"4px 2px",textAlign:"center",fontSize:9,color:"#D97706",fontWeight:700,borderBottom:"1px solid #E5E7EB"}}, "UF"),
+                  React.createElement("th", {key:mk+"dps", style:{padding:"4px 2px",textAlign:"center",fontSize:9,color:"#374151",fontWeight:700,borderBottom:"1px solid #E5E7EB"}}, "Tot DPS"),
+                  React.createElement("th", {key:mk+"dpv", style:{padding:"4px 2px",textAlign:"center",fontSize:9,color:"#16A34A",fontWeight:700,borderBottom:"1px solid #E5E7EB"}}, "c/Vta"),
+                  React.createElement("th", {key:mk+"dsv", style:{padding:"4px 2px",textAlign:"center",fontSize:9,color:"#2563EB",fontWeight:700,borderBottom:"1px solid #E5E7EB"}}, "s/Vta"),
+                  React.createElement("th", {key:mk+"dsp", style:{padding:"4px 2px",textAlign:"center",fontSize:9,color:"#D97706",fontWeight:700,borderBottom:"1px solid #E5E7EB"}}, "Pend"),
+                  React.createElement("th", {key:mk+"dsr", style:{padding:"4px 2px",textAlign:"center",fontSize:9,color:"#DC2626",fontWeight:700,borderBottom:"1px solid #E5E7EB"}}, "Rech"),
+                  React.createElement("th", {key:mk+"tas", style:{padding:"4px 2px",textAlign:"center",fontSize:9,color:"#7C3AED",fontWeight:700,borderBottom:"1px solid #E5E7EB"}}, "Tasa"),
                 ];
               })
             )
@@ -9360,67 +9393,64 @@ function ExcelDataView({ equipo, setEquipo, info }) {
                   var nowKey = (function(){var n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");})();
                   var excelBase = (HISTORIAL_EXCEL[v.id]||HISTORIAL_EXCEL[String(v.id)]||{})[mk]||{};
                   var manualEdit = hist[mk]||{};
-                  // Mes actual: usar datos en vivo del equipo
                   var d;
                   if (mk===nowKey) {
-                    d = { uf: v.uf||0, dps: v.dps||0, dpsVenta: (manualEdit.dpsVenta||excelBase.dpsVenta||0) };
+                    d = { uf:v.uf||0, dps:v.dps||0, dpsVenta:manualEdit.dpsVenta||excelBase.dpsVenta||0,
+                          dpsSinVenta:manualEdit.dpsSinVenta||0, dpsPendiente:manualEdit.dpsPendiente||0, dpsRechazado:manualEdit.dpsRechazado||0 };
                   } else {
                     d = Object.keys(manualEdit).length>0 ? manualEdit : excelBase;
                   }
-                  var uf=d.uf||0, dps=d.dps||0, dpsV=d.dpsVenta||0;
+                  var uf=d.uf||0, dps=d.dps||0, dpsV=d.dpsVenta||0, dpsS=d.dpsSinVenta||0, dpsP=d.dpsPendiente||0, dpsR=d.dpsRechazado||0;
+                  var totD = dpsV+dpsS+dpsP+dpsR; if(!totD&&dps) totD=dps;
+                  var tasa = totD>0?Math.round((dpsV/totD)*100):0;
                   var pct = v.metaUF>0 ? Math.round((uf/v.metaUF)*100) : 0;
                   var col = pct>=100?"#16A34A":pct>=60?"#D97706":uf>0?"#DC2626":"#9CA3AF";
                   return [
-                    React.createElement("td", {key:mk+"uf",  style:{padding:"9px 2px",textAlign:"center"}}, React.createElement(CellVal, {execId:v.id,mesKey:mk,field:"uf",      value:uf,  color:col})),
-                    React.createElement("td", {key:mk+"dps", style:{padding:"9px 2px",textAlign:"center"}}, React.createElement(CellVal, {execId:v.id,mesKey:mk,field:"dps",     value:dps, color:"#16A34A"})),
-                    React.createElement("td", {key:mk+"dpv", style:{padding:"9px 2px",textAlign:"center"}}, React.createElement(CellVal, {execId:v.id,mesKey:mk,field:"dpsVenta",value:dpsV,color:"#059669"})),
+                    React.createElement("td", {key:mk+"uf",  style:{padding:"6px 2px",textAlign:"center"}}, React.createElement(CellVal, {execId:v.id,mesKey:mk,field:"uf",         value:uf,  color:col})),
+                    React.createElement("td", {key:mk+"dps", style:{padding:"6px 2px",textAlign:"center"}}, React.createElement(CellVal, {execId:v.id,mesKey:mk,field:"dps",        value:totD||dps, color:"#374151"})),
+                    React.createElement("td", {key:mk+"dpv", style:{padding:"6px 2px",textAlign:"center"}}, React.createElement(CellVal, {execId:v.id,mesKey:mk,field:"dpsVenta",   value:dpsV, color:"#16A34A"})),
+                    React.createElement("td", {key:mk+"dsv", style:{padding:"6px 2px",textAlign:"center"}}, React.createElement(CellVal, {execId:v.id,mesKey:mk,field:"dpsSinVenta",value:dpsS, color:"#2563EB"})),
+                    React.createElement("td", {key:mk+"dsp", style:{padding:"6px 2px",textAlign:"center"}}, React.createElement(CellVal, {execId:v.id,mesKey:mk,field:"dpsPendiente",value:dpsP,color:"#D97706"})),
+                    React.createElement("td", {key:mk+"dsr", style:{padding:"6px 2px",textAlign:"center"}}, React.createElement(CellVal, {execId:v.id,mesKey:mk,field:"dpsRechazado",value:dpsR,color:"#DC2626"})),
+                    React.createElement("td", {key:mk+"tas", style:{padding:"6px 2px",textAlign:"center",fontSize:10,fontWeight:700,color:tasa>=50?"#16A34A":tasa>=30?"#D97706":"#9CA3AF"}}, totD>0?tasa+"%":"—"),
                   ];
                 })
               );
             })
           ),
           React.createElement("tfoot", null,
-            React.createElement("tr", {style:{background:"#ffffff",fontWeight:900,borderTop:"2px solid rgba(233,7,41,.2)"}},
-              React.createElement("td", {style:{padding:"9px 10px",color:RD,fontSize:11,position:"sticky",left:0,background:"#ffffff"}}, "TOTAL"),
+            React.createElement("tr", {style:{background:"#fff",fontWeight:900,borderTop:"2px solid rgba(233,7,41,.2)"}},
+              React.createElement("td", {style:{padding:"9px 10px",color:RD,fontSize:11,position:"sticky",left:0,background:"#fff"}}, "TOTAL"),
               MESES_ORDEN.map(function(mk){
                 var nowKey = (function(){var n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");})();
-                // Mes actual: sumar v.uf directamente (datos en vivo)
-                if (mk === nowKey) {
-                  var tUFNow  = equipo.reduce(function(s,v){ return s+(v.uf||0); }, 0);
-                  var tDPSNow = equipo.reduce(function(s,v){ return s+(v.dps||0); }, 0);
-                  var tDPVNow = equipo.reduce(function(s,v){
-                    var rep = (v.rep||[]);
-                    return s + rep.reduce(function(a,r){ return a+(r.dpsVenta||0); }, 0);
-                  }, 0);
-                  return [
-                    React.createElement("td", {key:mk+"uf",  style:{padding:"9px 2px",textAlign:"center",color:RD,fontWeight:900,fontSize:12}}, fmtUF(tUFNow)),
-                    React.createElement("td", {key:mk+"dps", style:{padding:"9px 2px",textAlign:"center",color:"#16A34A",fontWeight:900}}, tDPSNow),
-                    React.createElement("td", {key:mk+"dpv", style:{padding:"9px 2px",textAlign:"center",color:"#059669",fontWeight:900}}, tDPVNow),
-                  ];
+                var tUF,tDPS,tDPV,tDSV,tDSP,tDSR;
+                if (mk===nowKey) {
+                  tUF  = equipo.reduce(function(s,v){return s+(v.uf||0);},0);
+                  tDPS = equipo.reduce(function(s,v){return s+(v.dps||0);},0);
+                  tDPV = equipo.reduce(function(s,v){var h=(v.historial||{})[mk]||{};return s+(h.dpsVenta||0);},0);
+                  tDSV = equipo.reduce(function(s,v){var h=(v.historial||{})[mk]||{};return s+(h.dpsSinVenta||0);},0);
+                  tDSP = equipo.reduce(function(s,v){var h=(v.historial||{})[mk]||{};return s+(h.dpsPendiente||0);},0);
+                  tDSR = equipo.reduce(function(s,v){var h=(v.historial||{})[mk]||{};return s+(h.dpsRechazado||0);},0);
+                } else {
+                  tUF=0;tDPS=0;tDPV=0;tDSV=0;tDSP=0;tDSR=0;
+                  equipo.forEach(function(v){
+                    var eb=(HISTORIAL_EXCEL[v.id]||HISTORIAL_EXCEL[String(v.id)]||{})[mk]||{};
+                    var me=(v.historial||{})[mk]||{};
+                    var d=Object.keys(me).length>0?me:eb;
+                    tUF+=d.uf||0; tDPS+=d.dps||0; tDPV+=d.dpsVenta||0;
+                    tDSV+=d.dpsSinVenta||0; tDSP+=d.dpsPendiente||0; tDSR+=d.dpsRechazado||0;
+                  });
                 }
-                // Meses anteriores: usar historial/excel como antes
-                var tUF  = equipo.reduce(function(s,v){
-                  var excelBase = (HISTORIAL_EXCEL[v.id]||HISTORIAL_EXCEL[String(v.id)]||{})[mk]||{};
-                  var manualEdit = (v.historial||{})[mk]||{};
-                  var d = Object.keys(manualEdit).length>0 ? manualEdit : excelBase;
-                  return s+(d.uf||0);
-                },0);
-                var tDPS = equipo.reduce(function(s,v){
-                  var excelBase = (HISTORIAL_EXCEL[v.id]||HISTORIAL_EXCEL[String(v.id)]||{})[mk]||{};
-                  var manualEdit = (v.historial||{})[mk]||{};
-                  var d = Object.keys(manualEdit).length>0 ? manualEdit : excelBase;
-                  return s+(d.dps||0);
-                },0);
-                var tDPV = equipo.reduce(function(s,v){
-                  var excelBase = (HISTORIAL_EXCEL[v.id]||HISTORIAL_EXCEL[String(v.id)]||{})[mk]||{};
-                  var manualEdit = (v.historial||{})[mk]||{};
-                  var d = Object.keys(manualEdit).length>0 ? manualEdit : excelBase;
-                  return s+(d.dpsVenta||0);
-                },0);
+                var totD=tDPV+tDSV+tDSP+tDSR; if(!totD&&tDPS)totD=tDPS;
+                var tTasa=totD>0?Math.round((tDPV/totD)*100):0;
                 return [
-                  React.createElement("td", {key:mk+"uf",  style:{padding:"9px 2px",textAlign:"center",color:RD,fontWeight:900,fontSize:12}}, fmtUF(tUF)),
-                  React.createElement("td", {key:mk+"dps", style:{padding:"9px 2px",textAlign:"center",color:"#16A34A",fontWeight:900}}, tDPS),
-                  React.createElement("td", {key:mk+"dpv", style:{padding:"9px 2px",textAlign:"center",color:"#059669",fontWeight:900}}, tDPV),
+                  React.createElement("td", {key:mk+"uf",  style:{padding:"9px 2px",textAlign:"center",color:RD,fontWeight:900,fontSize:11}}, fmtUF(tUF)),
+                  React.createElement("td", {key:mk+"dps", style:{padding:"9px 2px",textAlign:"center",color:"#374151",fontWeight:900}}, totD||tDPS),
+                  React.createElement("td", {key:mk+"dpv", style:{padding:"9px 2px",textAlign:"center",color:"#16A34A",fontWeight:900}}, tDPV),
+                  React.createElement("td", {key:mk+"dsv", style:{padding:"9px 2px",textAlign:"center",color:"#2563EB",fontWeight:900}}, tDSV),
+                  React.createElement("td", {key:mk+"dsp", style:{padding:"9px 2px",textAlign:"center",color:"#D97706",fontWeight:900}}, tDSP),
+                  React.createElement("td", {key:mk+"dsr", style:{padding:"9px 2px",textAlign:"center",color:"#DC2626",fontWeight:900}}, tDSR),
+                  React.createElement("td", {key:mk+"tas", style:{padding:"9px 2px",textAlign:"center",color:tTasa>=50?"#16A34A":tTasa>=30?"#D97706":"#9CA3AF",fontWeight:900}}, totD>0?tTasa+"%":"—"),
                 ];
               })
             )
