@@ -8361,49 +8361,81 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
 }
 // ── Top 5 Lookup ─────────────────────────────────────────────────
 function ReconocidosEspeciales({ equipo, info, RD, R }) {
-  var hoy=new Date(), mesKey=info.mesKey;
-  function getDpsMes(v){var h=(v.historial||{})[mesKey]||{};var s=(parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0);return s>0?s:(parseInt(v.dps)||0);}
-  var statsMes=equipo.map(function(v){
-    return {id:v.id,nombre:v.nombre,fotoUrl:v.fotoUrl,
+  var hoy = new Date();
+  var mesKey = info.mesKey;
+
+  // ── Calcular el lunes de la semana actual ──
+  var diaSemana = hoy.getDay(); // 0=Dom, 1=Lun...6=Sab
+  var diffLunes = (diaSemana === 0) ? -6 : 1 - diaSemana;
+  var lunes = new Date(hoy); lunes.setDate(hoy.getDate() + diffLunes);
+  lunes.setHours(0,0,0,0);
+  var domingo = new Date(lunes); domingo.setDate(lunes.getDate() + 6); domingo.setHours(23,59,59,999);
+
+  var lunesStr = lunes.getFullYear()+"-"+String(lunes.getMonth()+1).padStart(2,"0")+"-"+String(lunes.getDate()).padStart(2,"0");
+  var domingoStr = domingo.getFullYear()+"-"+String(domingo.getMonth()+1).padStart(2,"0")+"-"+String(domingo.getDate()).padStart(2,"0");
+
+  // ── Auto-reset en Firebase si cambió la semana ──
+  React.useEffect(function(){
+    if(!window.__fbDb||!window.__fbDoc||!window.__fbGetDoc||!window.__fbSetDoc) return;
+    var ref = window.__fbDoc(window.__fbDb, "reconocimientos_semana", "estado");
+    window.__fbGetDoc(ref).then(function(snap){
+      var data = snap.exists() ? (typeof snap.data === "function" ? snap.data() : snap.data) : null;
+      var lunesGuardado = data ? data.lunesStr : null;
+      if(lunesGuardado !== lunesStr){
+        // Nueva semana — resetear
+        window.__fbSetDoc(ref, { lunesStr: lunesStr, resetadoEn: Date.now() }).catch(function(){});
+      }
+    }).catch(function(){});
+  }, [lunesStr]);
+
+  // ── Stats de la semana actual (lunes a domingo) ──
+  function getDpsMes(v){
+    var h=(v.historial||{})[mesKey]||{};
+    var s=(parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0);
+    return s>0?s:(parseInt(v.dps)||0);
+  }
+
+  var statsSem = equipo.map(function(v){
+    // Solo rep[] de esta semana (lunes a domingo)
+    var reps = (v.rep||[]).filter(function(r){
+      var f = r.fecha||"";
+      return f >= lunesStr && f <= domingoStr;
+    });
+    var ufSem     = reps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0);
+    var dpsSem    = reps.reduce(function(s,r){return s+(parseInt(r.dps)||0);},0);
+    var cttosSem  = reps.reduce(function(s,r){return s+(parseInt(r.cierres)||0);},0);
+    var conectaSem= reps.reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0);
+    return {id:v.id, nombre:v.nombre, fotoUrl:v.fotoUrl,
+      ufSem:parseFloat(ufSem.toFixed(3)), dpsSem:dpsSem, cttosSem:cttosSem, conectaSem:conectaSem};
+  });
+
+  // Stats del mes para Estrellas del Mes
+  var statsMes = equipo.map(function(v){
+    return {id:v.id, nombre:v.nombre, fotoUrl:v.fotoUrl,
       ufMes:parseFloat(v.uf)||0, dpsMes:getDpsMes(v),
       cttosMes:parseInt(((v.historial||{})[mesKey]||{}).cttosDig)||0,
       conectaMes:(v.rep||[]).reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0)};
   });
-  var hace7=new Date(hoy);hace7.setDate(hace7.getDate()-7);
-  var hace14=new Date(hoy);hace14.setDate(hace14.getDate()-14);
-  var iniStr=hace7.getFullYear()+"-"+String(hace7.getMonth()+1).padStart(2,"0")+"-"+String(hace7.getDate()).padStart(2,"0");
-  var iniAntStr=hace14.getFullYear()+"-"+String(hace14.getMonth()+1).padStart(2,"0")+"-"+String(hace14.getDate()).padStart(2,"0");
-  var statsSem=equipo.map(function(v){
-    var reps=(v.rep||[]).filter(function(r){return (r.fecha||"")>=iniStr;});
-    var repsAnt=(v.rep||[]).filter(function(r){return (r.fecha||"")>=iniAntStr&&(r.fecha||"")<iniStr;});
-    var ufSem=reps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0);
-    return {id:v.id,nombre:v.nombre,fotoUrl:v.fotoUrl,
-      ufSem:ufSem, dpsSem:reps.reduce(function(s,r){return s+(parseInt(r.dps)||0);},0),
-      cttosSem:reps.reduce(function(s,r){return s+(parseInt(r.cierres)||0);},0),
-      conectaSem:reps.reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0),
-      crecUF:parseFloat((ufSem-repsAnt.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0)).toFixed(2))};
-  });
-  var semHas=statsSem.some(function(s){return s.ufSem>0||s.dpsSem>0||s.cttosSem>0||s.conectaSem>0;});
-  if(!statsMes.some(function(s){return s.ufMes>0||s.dpsMes>0;})) return null;
 
-  function bM(f){
-    var sorted=statsMes.slice().sort(function(a,b){return (b[f]||0)-(a[f]||0);});
-    return (sorted[0]&&(sorted[0][f]||0)>0)?sorted[0]:null;
-  }
-  function bS(sf,mf){
-    if(semHas){var sorted=statsSem.slice().sort(function(a,b){return (b[sf]||0)-(a[sf]||0);});if(sorted[0]&&(sorted[0][sf]||0)>0)return sorted[0];}
-    return bM(mf||sf);
-  }
-  function bCrecSem(){
-    if(semHas){var s=statsSem.slice().sort(function(a,b){return (b.crecUF||0)-(a.crecUF||0);});if(s[0]&&s[0].crecUF>0)return s[0];}
-    return bM("ufMes");
+  var mesHasData = statsMes.some(function(s){return s.ufMes>0||s.dpsMes>0;});
+  if(!mesHasData) return null;
+
+  // ── Función: mejor de la semana — solo si valor > 0 ──
+  function bS(field){
+    var sorted = statsSem.slice().sort(function(a,b){return (b[field]||0)-(a[field]||0);});
+    return (sorted[0] && (sorted[0][field]||0) > 0) ? sorted[0] : null;
   }
 
-  var tUM=bM("ufMes"),tDM=bM("dpsMes"),tCM=bM("cttosMes"),tCoM=bM("conectaMes");
-  var tUS=bS("ufSem","ufMes"),tDS=bS("dpsSem","dpsMes"),tCS=bS("cttosSem","cttosMes"),tCoS=bS("conectaSem","conectaMes");
-  var tCrS=bCrecSem();
+  // ── Función: mejor del mes — solo si valor > 0 ──
+  function bM(field){
+    var sorted = statsMes.slice().sort(function(a,b){return (b[field]||0)-(a[field]||0);});
+    return (sorted[0] && (sorted[0][field]||0) > 0) ? sorted[0] : null;
+  }
 
-  // MES: 4 categorías (sin Mayor UF Total)
+  var tCoM=bM("conectaMes"), tUM=bM("ufMes"), tDM=bM("dpsMes"), tCM=bM("cttosMes");
+  var tCoS=bS("conectaSem"), tUS=bS("ufSem"),  tDS=bS("dpsSem"),  tCS=bS("cttosSem");
+
+  // MES: 4 categorías
   var cM=[
     tCoM&&{label:"💚 MEJOR VENDEDOR PLAN CONECTA",sub:"del mes",nombre:tCoM.nombre,color:"#059669",bg:"linear-gradient(135deg,#DCFCE7,#A7F3D0)",brd:"#6EE7B7"},
     tUM&&{label:"📈 MAYOR CRECIMIENTO UF",sub:"del mes",nombre:tUM.nombre,color:"#D97706",bg:"linear-gradient(135deg,#FEF9C3,#FDE68A)",brd:"#FCD34D"},
@@ -8411,34 +8443,40 @@ function ReconocidosEspeciales({ equipo, info, RD, R }) {
     tCM&&{label:"📋 MAYOR CANTIDAD CONTRATOS",sub:"del mes",nombre:tCM.nombre,color:"#7C3AED",bg:"linear-gradient(135deg,#F5F3FF,#DDD6FE)",brd:"#C4B5FD"},
   ].filter(Boolean);
 
-  // SEMANA: 5 categorías con 🔥 y "DE LA SEMANA"
-  var cS=[
-    tCoS&&{label:"💚 MEJOR VENDEDOR PLAN CONECTA DE LA SEMANA 🔥",sub:"esta semana",nombre:tCoS.nombre,color:"#059669",bg:"linear-gradient(135deg,#DCFCE7,#A7F3D0)",brd:"#6EE7B7",fila:"top"},
-    tDS&&{label:"🔵 MAYOR ACTIVIDAD DPS DE LA SEMANA 🔥",sub:"esta semana",nombre:tDS.nombre,color:"#2563EB",bg:"linear-gradient(135deg,#EFF6FF,#BFDBFE)",brd:"#93C5FD",fila:"top"},
-    tCS&&{label:"📋 MAYOR CANTIDAD CONTRATOS DE LA SEMANA 🔥",sub:"esta semana",nombre:tCS.nombre,color:"#7C3AED",bg:"linear-gradient(135deg,#F5F3FF,#DDD6FE)",brd:"#C4B5FD",fila:"top"},
-    tCrS&&{label:"📈 MAYOR CRECIMIENTO UF DE LA SEMANA 🔥",sub:"esta semana",nombre:tCrS.nombre,color:"#D97706",bg:"linear-gradient(135deg,#FEF9C3,#FDE68A)",brd:"#FCD34D",fila:"bottom"},
-    tUS&&{label:"⭐ MAYOR UF TOTAL DE LA SEMANA 🔥",sub:"esta semana",nombre:tUS.nombre,color:"#C9A84C",bg:"linear-gradient(135deg,#FFFBEB,#FEF3C7)",brd:"#FDE68A",fila:"bottom"},
+  // SEMANA: 5 categorías — top 3 arriba, 2 UF abajo
+  var cSTop=[
+    tCoS&&{label:"💚 MEJOR VENDEDOR PLAN CONECTA DE LA SEMANA 🔥",sub:"esta semana",nombre:tCoS.nombre,color:"#059669",bg:"linear-gradient(135deg,#DCFCE7,#A7F3D0)",brd:"#6EE7B7"},
+    tDS&&{label:"🔵 MAYOR ACTIVIDAD DPS DE LA SEMANA 🔥",sub:"esta semana",nombre:tDS.nombre,color:"#2563EB",bg:"linear-gradient(135deg,#EFF6FF,#BFDBFE)",brd:"#93C5FD"},
+    tCS&&{label:"📋 MAYOR CANTIDAD CONTRATOS DE LA SEMANA 🔥",sub:"esta semana",nombre:tCS.nombre,color:"#7C3AED",bg:"linear-gradient(135deg,#F5F3FF,#DDD6FE)",brd:"#C4B5FD"},
   ].filter(Boolean);
+  var cSBot=[
+    tUS&&{label:"📈 MAYOR CRECIMIENTO UF DE LA SEMANA 🔥",sub:"esta semana",nombre:tUS.nombre,color:"#D97706",bg:"linear-gradient(135deg,#FEF9C3,#FDE68A)",brd:"#FCD34D"},
+    tUS&&{label:"⭐ MAYOR UF TOTAL DE LA SEMANA 🔥",sub:"esta semana",nombre:tUS.nombre,color:"#C9A84C",bg:"linear-gradient(135deg,#FFFBEB,#FEF3C7)",brd:"#FDE68A"},
+  ].filter(Boolean);
+
+  // Label semana visible
+  var semLabel = "Semana "+lunesStr+" al "+domingoStr.slice(8)+"/"+domingoStr.slice(5,7);
 
   function Card(cat){
     var vF=equipo.find(function(e){return e.nombre===cat.nombre;});
     var ini=(cat.nombre||"").split(" ").slice(-2).map(function(w){return (w||"")[0]||"";}).join("");
     return React.createElement("div",{key:cat.label,style:{background:cat.bg,borderRadius:14,padding:"16px 12px",textAlign:"center",border:"2px solid "+cat.brd}}
       ,React.createElement("div",{style:{width:52,height:52,borderRadius:"50%",overflow:"hidden",border:"3px solid "+cat.brd,margin:"0 auto 10px",background:vF&&vF.fotoUrl?"#000":"rgba(255,255,255,.5)",display:"flex",alignItems:"center",justifyContent:"center"}}
-        ,vF&&vF.fotoUrl?React.createElement("img",{src:vF.fotoUrl,style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement("span",{style:{fontSize:16,fontWeight:900,color:cat.color}},ini))
+        ,vF&&vF.fotoUrl
+          ?React.createElement("img",{src:vF.fotoUrl,style:{width:"100%",height:"100%",objectFit:"cover"}})
+          :React.createElement("span",{style:{fontSize:16,fontWeight:900,color:cat.color}},ini))
       ,React.createElement("div",{style:{fontSize:9,fontWeight:900,color:cat.color,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:6,lineHeight:1.3}},cat.label)
       ,React.createElement("div",{style:{fontSize:14,fontWeight:900,color:"#1F2937",lineHeight:1.3}},(cat.nombre||"").split(" ").slice(-2).join(" "))
     );
   }
 
   var mL=(new Date()).toLocaleString("es-CL",{month:"long",year:"numeric"}).replace(/^./,function(c){return c.toUpperCase();});
-  var cSTop=cS.filter(function(c){return c.fila==="top";});
-  var cSBot=cS.filter(function(c){return c.fila==="bottom";});
 
   return React.createElement("div",{style:{background:"#fff",borderRadius:20,padding:"24px 22px",boxShadow:"0 4px 24px rgba(233,7,41,.09)",border:"1px solid rgba(233,7,41,.1)",marginBottom:16}}
     ,React.createElement("div",{style:{fontSize:20,fontWeight:900,color:RD,marginBottom:4}},"⭐ Reconocimientos Especiales")
     ,React.createElement("div",{style:{fontSize:13,color:"#6B7280",marginBottom:22}},"Solo aparecen quienes tienen actividad real — ¡bien ganado!")
-    // Estrellas del Mes
+
+    // ── Estrellas del Mes ──
     ,cM.length>0&&React.createElement("div",{style:{marginBottom:24}}
       ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}}
         ,React.createElement("div",{style:{width:4,height:20,background:RD,borderRadius:99}})
@@ -8448,29 +8486,23 @@ function ReconocidosEspeciales({ equipo, info, RD, R }) {
       )
       ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:10}},cM.map(Card))
     )
-    // Estrellas de la Semana
-    ,(function(){
-      var habilitadoDesde=new Date(2026,5,1);
-      if(hoy<habilitadoDesde){
-        return React.createElement("div",{style:{marginTop:8,background:"#F8FAFC",borderRadius:14,padding:"16px 18px",border:"1px dashed #E5E7EB",textAlign:"center"}}
-          ,React.createElement("div",{style:{fontSize:13,fontWeight:700,color:"#9CA3AF",marginBottom:4}},"⚡ Estrellas de la Semana 🔥")
-          ,React.createElement("div",{style:{fontSize:12,color:"#9CA3AF"}},"Disponible desde el 1 de junio — el sistema acumulará historial esta semana.")
-        );
-      }
-      if(!cS.length) return null;
-      return React.createElement("div",null
-        ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}}
-          ,React.createElement("div",{style:{width:4,height:20,background:"#2563EB",borderRadius:99}})
-          ,React.createElement("div",{style:{fontSize:14,fontWeight:900,color:"#2563EB"}},"⚡ Estrellas de la Semana 🔥")
-          ,React.createElement("div",{style:{flex:1,height:1,background:"#F3F4F6"}})
-          ,React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",fontWeight:700}},semHas?"ÚLTIMOS 7 DÍAS":"BASADO EN MES ACTUAL")
-        )
-        // Fila top: 3 cards (Conecta, DPS, Contratos)
-        ,cSTop.length>0&&React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:10}},cSTop.map(Card))
-        // Fila bottom: 2 cards anchas (Crecimiento UF + UF Total)
-        ,cSBot.length>0&&React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}},cSBot.map(Card))
-      );
-    })()
+
+    // ── Estrellas de la Semana ──
+    ,(cSTop.length>0||cSBot.length>0)&&React.createElement("div",null
+      ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}}
+        ,React.createElement("div",{style:{width:4,height:20,background:"#2563EB",borderRadius:99}})
+        ,React.createElement("div",{style:{fontSize:14,fontWeight:900,color:"#2563EB"}},"⚡ Estrellas de la Semana 🔥")
+        ,React.createElement("div",{style:{flex:1,height:1,background:"#F3F4F6"}})
+        ,React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",fontWeight:700}},semLabel.toUpperCase())
+      )
+      ,cSTop.length>0&&React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat("+Math.min(cSTop.length,3)+",1fr)",gap:10,marginBottom:10}},cSTop.map(Card))
+      ,cSBot.length>0&&React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}},cSBot.map(Card))
+    )
+    // Si nadie tiene datos de la semana aún
+    ,(cSTop.length===0&&cSBot.length===0)&&React.createElement("div",{style:{background:"#F8FAFC",borderRadius:14,padding:"16px 18px",border:"1px dashed #E5E7EB",textAlign:"center"}}
+      ,React.createElement("div",{style:{fontSize:13,fontWeight:700,color:"#9CA3AF",marginBottom:4}},"⚡ Estrellas de la Semana 🔥")
+      ,React.createElement("div",{style:{fontSize:12,color:"#9CA3AF"}},"Aún no hay actividad registrada esta semana ("+semLabel+"). ¡El primero en mover será reconocido!")
+    )
   );
 }
 
