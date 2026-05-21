@@ -2940,7 +2940,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD }) {
 
     // KPIs resumen
     ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16}}
-      ,[{l:"DPS Con Venta",v:totConVenta,c:"#16A34A",bg:"#F0FDF4"},{l:"DPS Sin Venta",v:totSinVenta,c:"#2563EB",bg:"#EFF6FF"},{l:"DPS Pendientes",v:totPendiente,c:"#D97706",bg:"#FFFBEB"},{l:"DPS Rechazadas",v:totRechazado,c:"#DC2626",bg:"#FFF1F2"}]
+      ,[{l:"Total DPS",v:totTotal,c:"#374151",bg:"#F9FAFB"},{l:"DPS Con Venta",v:totConVenta,c:"#16A34A",bg:"#F0FDF4"},{l:"DPS Sin Venta",v:totSinVenta,c:"#2563EB",bg:"#EFF6FF"},{l:"DPS Pendientes",v:totPendiente,c:"#D97706",bg:"#FFFBEB"},{l:"DPS Rechazadas",v:totRechazado,c:"#DC2626",bg:"#FFF1F2"}]
         .map(function(k){return React.createElement("div",{key:k.l,style:{background:k.bg,borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #E5E7EB"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:k.c}},k.v) ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},k.l));})
     )
     ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}
@@ -5582,8 +5582,9 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
               /* ── DPS PIPELINE KPIs ── */
               , totDpsTotal > 0 && React.createElement('div', { style:{background:"rgba(255,255,255,.04)",borderRadius:14,padding:"16px 18px",marginBottom:16,border:"1px solid rgba(99,179,237,.2)"} }
                 , React.createElement('div', { style:{fontSize:9,color:"rgba(99,179,237,.8)",textTransform:"uppercase",letterSpacing:"0.18em",marginBottom:12,fontWeight:700} }, "🔵 PIPELINE DPS — ESTADO ACTUAL")
-                , React.createElement('div', { style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8} }
+                , React.createElement('div', { style:{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8} }
                   , [
+                      {label:"Total DPS", val:totDpsTotal, color:"#E2E8F0", bg:"rgba(255,255,255,.12)"},
                       {label:"Con Venta", val:totDpsConVenta, color:"#4ADE80", bg:"rgba(74,222,128,.12)"},
                       {label:"Sin Venta", val:totDpsSinVenta, color:"#60A5FA", bg:"rgba(96,165,250,.12)"},
                       {label:"Pendientes", val:totDpsPendiente, color:"#FBBF24", bg:"rgba(251,191,36,.12)"},
@@ -5595,8 +5596,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                       );
                     })
                 )
-                , React.createElement('div', { style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:10,paddingTop:8,borderTop:"1px solid rgba(99,179,237,.15)"} }
-                  , React.createElement('div', { style:{fontSize:11,color:"rgba(255,255,255,.4)"} }, "Total DPS: "+totDpsTotal)
+                , React.createElement('div', { style:{display:"flex",justifyContent:"flex-end",alignItems:"center",marginTop:10,paddingTop:8,borderTop:"1px solid rgba(99,179,237,.15)"} }
                   , React.createElement('div', { style:{fontSize:12,fontWeight:800,color:tasaCierreDPS>=50?"#4ADE80":tasaCierreDPS>=30?"#FBBF24":"#F87171"} },
                     "Tasa de cierre: "+tasaCierreDPS+"%"
                   )
