@@ -8438,7 +8438,7 @@ function ReconocidosEspeciales({ equipo, info, RD, R }) {
       ,React.createElement("div",{style:{fontSize:10,fontWeight:900,color:cat.color,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:2}},cat.label)
       ,React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",marginBottom:4}},cat.sub)
       ,React.createElement("div",{style:{fontSize:13,fontWeight:900,color:"#1F2937",lineHeight:1.3,marginBottom:4}},(cat.nombre||"").split(" ").slice(-2).join(" "))
-      ,React.createElement("div",{style:{background:"rgba(255,255,255,.6)",borderRadius:99,padding:"2px 10px",display:"inline-block",fontSize:11,fontWeight:700,color:cat.color}},cat.val)
+      // Valores ocultos — solo nombre y categoría
     );
   }
 
@@ -8450,10 +8450,22 @@ function ReconocidosEspeciales({ equipo, info, RD, R }) {
       ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}},React.createElement("div",{style:{width:4,height:20,background:RD,borderRadius:99}}),React.createElement("div",{style:{fontSize:14,fontWeight:900,color:RD}},"🏆 Estrellas del Mes"),React.createElement("div",{style:{flex:1,height:1,background:"#F3F4F6"}}),React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",fontWeight:700}},mL.toUpperCase()))
       ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}},cM.map(Card))
     )
-    ,cS.length>0&&React.createElement("div",null
-      ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}},React.createElement("div",{style:{width:4,height:20,background:"#2563EB",borderRadius:99}}),React.createElement("div",{style:{fontSize:14,fontWeight:900,color:"#2563EB"}},"⚡ Estrellas de la Semana"),React.createElement("div",{style:{flex:1,height:1,background:"#F3F4F6"}}),React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",fontWeight:700}},semHas?"ÚLTIMOS 7 DÍAS":"BASADO EN MES ACTUAL"))
-      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}},cS.map(Card))
-    )
+    ,(function(){
+      // Estrellas de la Semana: disponible desde el 1 de junio 2026
+      var hoyCheck=new Date();
+      var habilitadoDesde=new Date(2026,5,1); // mes 5 = junio (0-indexed)
+      if(hoyCheck<habilitadoDesde){
+        return React.createElement("div",{style:{marginTop:16,background:"#F8FAFC",borderRadius:14,padding:"16px 18px",border:"1px dashed #E5E7EB",textAlign:"center"}}
+          ,React.createElement("div",{style:{fontSize:13,fontWeight:700,color:"#9CA3AF",marginBottom:4}},"⚡ Estrellas de la Semana")
+          ,React.createElement("div",{style:{fontSize:12,color:"#9CA3AF"}},"Disponible desde el 1 de junio — el sistema acumulará historial esta semana.")
+        );
+      }
+      if(!cS.length) return null;
+      return React.createElement("div",null
+        ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}},React.createElement("div",{style:{width:4,height:20,background:"#2563EB",borderRadius:99}}),React.createElement("div",{style:{fontSize:14,fontWeight:900,color:"#2563EB"}},"⚡ Estrellas de la Semana"),React.createElement("div",{style:{flex:1,height:1,background:"#F3F4F6"}}),React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",fontWeight:700}},semHas?"ÚLTIMOS 7 DÍAS":"BASADO EN MES ACTUAL"))
+        ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}},cS.map(Card))
+      );
+    })()
   );
 }
 
