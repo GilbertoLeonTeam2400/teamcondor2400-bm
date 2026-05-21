@@ -5984,6 +5984,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                   )
                   , bmProp && (function(){
                       var d=bmDiff(totUF,bmProp.uf);
+                      // Solo mostrar si hay benchmark activo con datos reales
+                      if(!bmProp||!bmProp.mesLabel||bmProp.mesLabel==="Benchmark"||!bmProp.uf) return null;
                       return React.createElement('div',{style:{fontSize:11,fontWeight:700,marginTop:5,color:d?d.color:"#9CA3AF"}},
                         d?d.txt:"=","  vs benchmark ",bmProp.mesLabel," · esperado ",bmProp.uf," UF (día ",new Date().getDate(),"/",new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate(),")"
                       );
@@ -8359,79 +8361,102 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
 }
 // ── Top 5 Lookup ─────────────────────────────────────────────────
 function ReconocidosEspeciales({ equipo, info, RD, R }) {
-  // Calcular ganadores de esta semana
-  var hoy = new Date();
-  // Use last 7 days instead of calendar week to avoid timezone issues
-  var hace7 = new Date(hoy); hace7.setDate(hace7.getDate()-7);
-  var iniStr = hace7.getFullYear()+"-"+String(hace7.getMonth()+1).padStart(2,"0")+"-"+String(hace7.getDate()).padStart(2,"0");
-  var hace14 = new Date(hoy); hace14.setDate(hace14.getDate()-14);
-  var iniAntStr = hace14.getFullYear()+"-"+String(hace14.getMonth()+1).padStart(2,"0")+"-"+String(hace14.getDate()).padStart(2,"0");
-
-  var stats = equipo.map(function(v){
-    var reps = (v.rep||[]).filter(function(r){ return (r.fecha||"")>=iniStr; });
-    var ufSem = reps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0);
-    var dpsSem = reps.reduce(function(s,r){return s+(parseInt(r.dps)||0);},0);
-    var cttSem = reps.reduce(function(s,r){return s+(parseInt(r.cierres)||0);},0);
-    var conSem = reps.reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0);
-    var repsAnt = (v.rep||[]).filter(function(r){return (r.fecha||"")>=iniAntStr&&(r.fecha||"")<iniStr;});
-    var ufAnt = repsAnt.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0);
-    var crecUF = ufSem - ufAnt;
-    return {nombre:v.nombre, ufSem:ufSem, dpsSem:dpsSem, cttSem:cttSem, conSem:conSem, crecUF:crecUF};
+  var hoy=new Date(), mesKey=info.mesKey;
+  function getDpsMes(v){var h=(v.historial||{})[mesKey]||{};var s=(parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0);return s>0?s:(parseInt(v.dps)||0);}
+  var statsMes=equipo.map(function(v){
+    return {id:v.id,nombre:v.nombre,fotoUrl:v.fotoUrl,
+      ufMes:parseFloat(v.uf)||0, dpsMes:getDpsMes(v),
+      cttosMes:parseInt(((v.historial||{})[mesKey]||{}).cttosDig)||0,
+      conectaMes:(v.rep||[]).reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0)};
   });
+  var hace7=new Date(hoy);hace7.setDate(hace7.getDate()-7);
+  var hace14=new Date(hoy);hace14.setDate(hace14.getDate()-14);
+  var iniStr=hace7.getFullYear()+"-"+String(hace7.getMonth()+1).padStart(2,"0")+"-"+String(hace7.getDate()).padStart(2,"0");
+  var iniAntStr=hace14.getFullYear()+"-"+String(hace14.getMonth()+1).padStart(2,"0")+"-"+String(hace14.getDate()).padStart(2,"0");
+  var statsSem=equipo.map(function(v){
+    var reps=(v.rep||[]).filter(function(r){return (r.fecha||"")>=iniStr;});
+    var repsAnt=(v.rep||[]).filter(function(r){return (r.fecha||"")>=iniAntStr&&(r.fecha||"")<iniStr;});
+    var ufSem=reps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0);
+    return {id:v.id,nombre:v.nombre,fotoUrl:v.fotoUrl,
+      ufSem:ufSem, dpsSem:reps.reduce(function(s,r){return s+(parseInt(r.dps)||0);},0),
+      cttosSem:reps.reduce(function(s,r){return s+(parseInt(r.cierres)||0);},0),
+      conectaSem:reps.reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0),
+      crecUF:parseFloat((ufSem-repsAnt.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0)).toFixed(2))};
+  });
+  var semHas=statsSem.some(function(s){return s.ufSem>0||s.dpsSem>0||s.cttosSem>0||s.conectaSem>0;});
+  if(!statsMes.some(function(s){return s.ufMes>0||s.dpsMes>0;})) return null;
 
-  var maxCrec = stats.reduce(function(m,v){return v.crecUF>m.crecUF?v:m;},{crecUF:-999,nombre:""});
-  var maxDPS  = stats.reduce(function(m,v){return v.dpsSem>m.dpsSem?v:m;},{dpsSem:-1,nombre:""});
-  var maxCtts = stats.reduce(function(m,v){return v.cttSem>m.cttSem?v:m;},{cttSem:-1,nombre:""});
-  var maxCon  = stats.reduce(function(m,v){return v.conSem>m.conSem?v:m;},{conSem:-1,nombre:""});
-
-  // Use UF leader as fallback for empty categories
-  var maxUF = stats.reduce(function(m,v){return v.ufSem>m.ufSem?v:m;},{ufSem:-1,nombre:""});
-  if(!maxCon.nombre||maxCon.conSem<=0)  maxCon  = Object.assign({},maxUF,{conSem:0});
-  if(!maxCrec.nombre||maxCrec.crecUF<0) maxCrec = Object.assign({},maxUF,{crecUF:maxUF.ufSem});
-  if(!maxDPS.nombre||maxDPS.dpsSem<=0)  maxDPS  = Object.assign({},maxUF,{dpsSem:0});
-  if(!maxCtts.nombre||maxCtts.cttSem<=0)maxCtts = Object.assign({},maxUF,{cttSem:0});
-
-  var categorias = [
-    {label:"💚 CRACK Plan Conecta",     sub:"Mayor venta Planes Conecta",    nombre:maxCon.nombre,  valor:maxCon.conSem+" contratos",  color:"#059669",bg:"linear-gradient(135deg,#DCFCE7,#A7F3D0)",brd:"#6EE7B7"},
-    {label:"📈 Mayor Crecimiento UF",    sub:"Mayor crecimiento UF esta semana",nombre:maxCrec.nombre,valor:maxCrec.crecUF>=0?"+"+maxCrec.crecUF.toFixed(2)+" UF":maxCrec.crecUF.toFixed(2)+" UF",color:"#D97706",bg:"linear-gradient(135deg,#FEF9C3,#FDE68A)",brd:"#FCD34D"},
-    {label:"🔵 Mayor Actividad DPS",     sub:"Mayor cantidad DPS esta semana", nombre:maxDPS.nombre,  valor:maxDPS.dpsSem+" DPS",        color:"#2563EB",bg:"linear-gradient(135deg,#EFF6FF,#BFDBFE)",brd:"#93C5FD"},
-    {label:"📋 Mayor Contratos",         sub:"Mayor contratos cerrados semana",nombre:maxCtts.nombre, valor:maxCtts.cttSem+" contratos",  color:"#7C3AED",bg:"linear-gradient(135deg,#F5F3FF,#DDD6FE)",brd:"#C4B5FD"},
-  ];
-
-  // Si no hay actividad semanal, usar datos del mes completo
-  var sinActividad = stats.every(function(s){return s.ufSem===0&&s.dpsSem===0;});
-  if(sinActividad) {
-    stats = equipo.map(function(v){
-      var reps = v.rep||[];
-      var ufSem = v.uf||0;
-      var dpsSem = v.dps||0;
-      var cttSem = reps.reduce(function(s,r){return s+(parseInt(r.cierres)||0);},0);
-      var conSem = reps.reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0);
-      return {nombre:v.nombre, ufSem:ufSem, dpsSem:dpsSem, cttSem:cttSem, conSem:conSem, crecUF:ufSem};
-    });
+  // Solo devolver ganador si valor > 0, sino null (la categoría no aparece)
+  function bM(f){
+    var sorted=statsMes.slice().sort(function(a,b){return (b[f]||0)-(a[f]||0);});
+    return (sorted[0]&&(sorted[0][f]||0)>0)?sorted[0]:null;
   }
-  if(equipo.every(function(v){return (v.uf||0)===0&&(v.dps||0)===0;})) return null;
+  function bS(sf,mf){
+    if(semHas){
+      var sorted=statsSem.slice().sort(function(a,b){return (b[sf]||0)-(a[sf]||0);});
+      if(sorted[0]&&(sorted[0][sf]||0)>0) return sorted[0];
+    }
+    return bM(mf||sf);
+  }
+  function bCrecSem(){
+    if(semHas){var s=statsSem.slice().sort(function(a,b){return (b.crecUF||0)-(a.crecUF||0);});if(s[0]&&s[0].crecUF>0)return s[0];}
+    return bM("ufMes");
+  }
+  function fv(v,u){
+    if(!v&&v!==0) return "";
+    var n=typeof v==="number"?v:parseFloat(v)||0;
+    if(n<=0) return "";
+    return (u==="UF"?n.toFixed(2):Math.round(n))+" "+u;
+  }
 
+  var tUM=bM("ufMes"),tDM=bM("dpsMes"),tCM=bM("cttosMes"),tCoM=bM("conectaMes");
+  var tUS=bS("ufSem","ufMes"),tDS=bS("dpsSem","dpsMes"),tCS=bS("cttosSem","cttosMes"),tCoS=bS("conectaSem","conectaMes");
+  var tCrS=bCrecSem();
+
+  var cM=[
+    tCoM&&{label:"💚 Mejor Vendedor Plan Conecta",sub:"del mes",nombre:tCoM.nombre,val:fv(tCoM.conectaMes,"planes"),color:"#059669",bg:"linear-gradient(135deg,#DCFCE7,#A7F3D0)",brd:"#6EE7B7"},
+    tUM&&{label:"📈 Mayor Crecimiento UF",sub:"del mes",nombre:tUM.nombre,val:fv(tUM.ufMes,"UF"),color:"#D97706",bg:"linear-gradient(135deg,#FEF9C3,#FDE68A)",brd:"#FCD34D"},
+    tDM&&{label:"🔵 Mayor Actividad DPS",sub:"del mes",nombre:tDM.nombre,val:fv(tDM.dpsMes,"DPS"),color:"#2563EB",bg:"linear-gradient(135deg,#EFF6FF,#BFDBFE)",brd:"#93C5FD"},
+    tCM&&{label:"📋 Mayor Cantidad Contratos",sub:"del mes",nombre:tCM.nombre,val:fv(tCM.cttosMes,"contratos"),color:"#7C3AED",bg:"linear-gradient(135deg,#F5F3FF,#DDD6FE)",brd:"#C4B5FD"},
+    tUM&&{label:"⭐ Mayor UF Total",sub:"del mes",nombre:tUM.nombre,val:fv(tUM.ufMes,"UF"),color:"#C9A84C",bg:"linear-gradient(135deg,#FFFBEB,#FEF3C7)",brd:"#FDE68A"},
+  ].filter(Boolean);
+
+  var cS=[
+    tCoS&&{label:"💚 Mejor Vendedor Plan Conecta",sub:"esta semana",nombre:tCoS.nombre,val:fv(tCoS.conectaSem||tCoS.conectaMes,"planes"),color:"#059669",bg:"linear-gradient(135deg,#DCFCE7,#A7F3D0)",brd:"#6EE7B7"},
+    tCrS&&{label:"📈 Mayor Crecimiento UF",sub:"esta semana",nombre:tCrS.nombre,val:semHas?(tCrS.crecUF>0?"+"+tCrS.crecUF.toFixed(2)+" UF":""):fv(tCrS.ufMes,"UF"),color:"#D97706",bg:"linear-gradient(135deg,#FEF9C3,#FDE68A)",brd:"#FCD34D"},
+    tDS&&{label:"🔵 Mayor Actividad DPS",sub:"esta semana",nombre:tDS.nombre,val:fv(tDS.dpsSem||tDS.dpsMes,"DPS"),color:"#2563EB",bg:"linear-gradient(135deg,#EFF6FF,#BFDBFE)",brd:"#93C5FD"},
+    tCS&&{label:"📋 Mayor Cantidad Contratos",sub:"esta semana",nombre:tCS.nombre,val:fv(tCS.cttosSem||tCS.cttosMes,"contratos"),color:"#7C3AED",bg:"linear-gradient(135deg,#F5F3FF,#DDD6FE)",brd:"#C4B5FD"},
+    tUS&&{label:"⭐ Mayor UF Total",sub:"esta semana",nombre:tUS.nombre,val:fv(tUS.ufSem||tUS.ufMes,"UF"),color:"#C9A84C",bg:"linear-gradient(135deg,#FFFBEB,#FEF3C7)",brd:"#FDE68A"},
+  ].filter(Boolean).filter(function(c){return c.val&&c.val.trim();});
+
+  function Card(cat){
+    var vF=equipo.find(function(e){return e.nombre===cat.nombre;});
+    var ini=(cat.nombre||"").split(" ").slice(-2).map(function(w){return (w||"")[0]||"";}).join("");
+    return React.createElement("div",{key:cat.label,style:{background:cat.bg,borderRadius:14,padding:"14px 12px",textAlign:"center",border:"2px solid "+cat.brd}}
+      ,React.createElement("div",{style:{width:50,height:50,borderRadius:"50%",overflow:"hidden",border:"3px solid "+cat.brd,margin:"0 auto 8px",background:vF&&vF.fotoUrl?"#000":"rgba(255,255,255,.5)",display:"flex",alignItems:"center",justifyContent:"center"}}
+        ,vF&&vF.fotoUrl?React.createElement("img",{src:vF.fotoUrl,style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement("span",{style:{fontSize:16,fontWeight:900,color:cat.color}},ini))
+      ,React.createElement("div",{style:{fontSize:10,fontWeight:900,color:cat.color,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:2}},cat.label)
+      ,React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",marginBottom:4}},cat.sub)
+      ,React.createElement("div",{style:{fontSize:13,fontWeight:900,color:"#1F2937",lineHeight:1.3,marginBottom:4}},(cat.nombre||"").split(" ").slice(-2).join(" "))
+      ,React.createElement("div",{style:{background:"rgba(255,255,255,.6)",borderRadius:99,padding:"2px 10px",display:"inline-block",fontSize:11,fontWeight:700,color:cat.color}},cat.val)
+    );
+  }
+
+  var mL=(new Date()).toLocaleString("es-CL",{month:"long",year:"numeric"}).replace(/^./,function(c){return c.toUpperCase();});
   return React.createElement("div",{style:{background:"#fff",borderRadius:20,padding:"24px 22px",boxShadow:"0 4px 24px rgba(233,7,41,.09)",border:"1px solid rgba(233,7,41,.1)",marginBottom:16}}
-    ,React.createElement("div",{style:{fontSize:10,letterSpacing:"0.18em",textTransform:"uppercase",color:"#9CA3AF",marginBottom:6}},sinActividad?"Reconocidos este mes":"Reconocidos últimos 7 días")
-    ,React.createElement("div",{style:{fontSize:20,fontWeight:900,color:RD,marginBottom:4}},"⭐ Reconocidos Especiales")
-    ,React.createElement("div",{style:{fontSize:13,color:"#6B7280",marginBottom:18}},"Los mejores de la semana en cada categoría")
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}
-      ,categorias.map(function(cat){
-          var vFoto = equipo.find(function(e){return e.nombre===cat.nombre;});
-          var ini = cat.nombre.split(" ").slice(-2).map(function(w){return w[0]||"";}).join("");
-          return React.createElement("div",{key:cat.label,style:{background:cat.bg,borderRadius:14,padding:"16px",textAlign:"center",border:"2px solid "+cat.brd}}
-            ,React.createElement("div",{style:{width:54,height:54,borderRadius:"50%",overflow:"hidden",border:"3px solid "+cat.brd,margin:"0 auto 8px",background:vFoto&&vFoto.fotoUrl?"#000":"rgba(255,255,255,.5)",display:"flex",alignItems:"center",justifyContent:"center"}}
-              ,vFoto&&vFoto.fotoUrl?React.createElement("img",{src:vFoto.fotoUrl,style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement("span",{style:{fontSize:17,fontWeight:900,color:cat.color}},ini)
-            )
-            ,React.createElement("div",{style:{fontSize:11,fontWeight:900,color:cat.color,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:4}},cat.label)
-            ,React.createElement("div",{style:{fontSize:14,fontWeight:900,color:"#1F2937",lineHeight:1.3,marginBottom:4}},cat.nombre.split(" ").slice(-2).join(" "))
-            ,React.createElement("div",{style:{background:"rgba(255,255,255,.6)",borderRadius:99,padding:"3px 12px",display:"inline-block",fontSize:11,fontWeight:700,color:cat.color}},cat.valor)
-          );
-        })
+    ,React.createElement("div",{style:{fontSize:20,fontWeight:900,color:RD,marginBottom:4}},"⭐ Reconocimientos Especiales")
+    ,React.createElement("div",{style:{fontSize:13,color:"#6B7280",marginBottom:22}},"Solo aparecen quienes tienen actividad real — ¡bien ganado!")
+    ,cM.length>0&&React.createElement("div",{style:{marginBottom:20}}
+      ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}},React.createElement("div",{style:{width:4,height:20,background:RD,borderRadius:99}}),React.createElement("div",{style:{fontSize:14,fontWeight:900,color:RD}},"🏆 Estrellas del Mes"),React.createElement("div",{style:{flex:1,height:1,background:"#F3F4F6"}}),React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",fontWeight:700}},mL.toUpperCase()))
+      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}},cM.map(Card))
+    )
+    ,cS.length>0&&React.createElement("div",null
+      ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}},React.createElement("div",{style:{width:4,height:20,background:"#2563EB",borderRadius:99}}),React.createElement("div",{style:{fontSize:14,fontWeight:900,color:"#2563EB"}},"⚡ Estrellas de la Semana"),React.createElement("div",{style:{flex:1,height:1,background:"#F3F4F6"}}),React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",fontWeight:700}},semHas?"ÚLTIMOS 7 DÍAS":"BASADO EN MES ACTUAL"))
+      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}},cS.map(Card))
     )
   );
 }
+
 
 function Top5Lookup({ equipo }) {
   const [top5Name, setTop5Name] = React.useState("");
