@@ -7884,7 +7884,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                     )
                     , React.createElement('div', { className:"bulk-table-wrap", style: {overflowX:"auto"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3724}}
                       , React.createElement('table', { style: {width:"100%",borderCollapse:"collapse",fontSize:14}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3725}}
-                        , React.createElement('thead', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3726}}, React.createElement('tr', { style: {background:"#F8FAFC",borderBottom:"2px solid #E5E7EB"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3726}}, ["#","Ejecutivo","RUT","Meta UF","UF actuales","DPS actuales"].map(function(h){return React.createElement('th', { key: h, style: {padding:"12px 14px",textAlign:"left",fontSize:11,color:"#6B7280",fontWeight:700,textTransform:"uppercase",whiteSpace:"nowrap"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3726}}, h);})))
+                        , React.createElement('thead', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3726}}, React.createElement('tr', { style: {background:"#F8FAFC",borderBottom:"2px solid #E5E7EB"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3726}}, ["#","Ejecutivo","RUT","Meta UF","UF actuales","Meta DPS","DPS actuales"].map(function(h){return React.createElement('th', { key: h, style: {padding:"12px 14px",textAlign:"left",fontSize:11,color:"#6B7280",fontWeight:700,textTransform:"uppercase",whiteSpace:"nowrap"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3726}}, h);})))
                         , React.createElement('tbody', null
                           , equipo.map(function(v,i){const e=bulk[v.id]||{uf:"",dps:""};return (
                             React.createElement('tr', { key: v.id, style: {borderBottom:"1px solid #F0F4FA",background:i%2===0?"#fff":"#FAFBFF"}}
@@ -7906,6 +7906,21 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                                   return null;
                                 })()
                               )
+                              // Meta DPS input
+                              , React.createElement('td', { style: {padding:"10px 14px"}}
+                                , React.createElement('input', { type:"number", min:0,
+                                    defaultValue: v.metaDPS||"",
+                                    placeholder: "—",
+                                    onBlur: function(e2){
+                                      var val=parseInt(e2.target.value)||0;
+                                      var newEq=equipo.map(function(eq){return eq.id===v.id?Object.assign({},eq,{metaDPS:val}):eq;});
+                                      setEquipo(newEq);
+                                      if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
+                                        window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",info.mesKey),{equipo:newEq,metaEquipo:metaEquipo},{merge:true}).catch(function(){});
+                                    },
+                                    style:{width:60,padding:"8px 10px",fontSize:13,borderRadius:9,border:"1.5px solid #E5E7EB",background:"#FAFAFA",fontFamily:"inherit",outline:"none"}
+                                  })
+                              )
                               , React.createElement('td', { style: {padding:"10px 14px"}}
                                 , React.createElement('input', { type: "number", min: "0",
                                   value: e.dps!==""?e.dps:"",
@@ -7924,7 +7939,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                           );})
                           /* FILA DE TOTALES */
                           , React.createElement('tr', { style: {borderTop:"3px solid "+RD,background:"#FFF0F2"}}
-                            , React.createElement('td', { colSpan: 4, style: {padding:"12px 14px",fontWeight:900,color:RD,fontSize:14,textTransform:"uppercase",letterSpacing:"0.05em"}}, "TOTAL EQUIPO")
+                            , React.createElement('td', { colSpan: 5, style: {padding:"12px 14px",fontWeight:900,color:RD,fontSize:14,textTransform:"uppercase",letterSpacing:"0.05em"}}, "TOTAL EQUIPO")
                             , React.createElement('td', { style: {padding:"12px 14px",fontWeight:900,color:RD,fontSize:16}},
                               (function(){
                                 var tot = equipo.reduce(function(s,v){
@@ -8188,8 +8203,35 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                                     , React.createElement('span', { style: {fontSize:12,fontWeight:700,color:col,whiteSpace:"nowrap"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3802}}, pct+"%")
                                   )
                                 )
-                                , React.createElement('td', { style: {padding:"11px 10px",color:"#374151",fontWeight:600}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3805}}, v.dps)
-                                , React.createElement('td', { style: {padding:"11px 10px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3806}}, React.createElement(Pill, { color: col, bg: pct>=90?"#DCFCE7":pct>=60?"#FEF3C7":"#FEE2E2", __self: this, __source: {fileName: _jsxFileName, lineNumber: 3806}}, pct>=90?"Top":pct>=60?"En ruta":"Atencion"))
+                                
+                                // Meta DPS (editable)
+                                , React.createElement('td', { style: {padding:"11px 10px"}}
+                                  , React.createElement('input', {
+                                      type:"number", min:0, defaultValue:metaDPS||"",
+                                      placeholder:"—",
+                                      onBlur: function(e){
+                                        var val=parseInt(e.target.value)||0;
+                                        var newEq=equipo.map(function(eq){return eq.id===v.id?Object.assign({},eq,{metaDPS:val}):eq;});
+                                        setEquipo(newEq);
+                                        if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
+                                          window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",info.mesKey),{equipo:newEq,metaEquipo:metaEquipo},{merge:true}).catch(function(){});
+                                      },
+                                      style:{width:50,padding:"3px 6px",borderRadius:6,border:"1px solid #E5E7EB",fontSize:13,fontWeight:700,textAlign:"center",color:"#374151"}
+                                    })
+                                )
+                                // DPS Real
+                                , React.createElement('td', { style: {padding:"11px 10px",color:"#374151",fontWeight:700}}, dpsMes)
+                                // % Meta DPS
+                                , React.createElement('td', { style: {padding:"11px 10px",minWidth:90}}
+                                  , metaDPS>0
+                                    ? React.createElement('div', { style: {display:"flex",gap:6,alignItems:"center"}}
+                                        , React.createElement('div', { style: {background:"#E5E7EB",borderRadius:99,height:7,flex:1,overflow:"hidden"}}, React.createElement('div', { style: {width:Math.min(pctDPS,100)+"%",height:"100%",background:colD,borderRadius:99}}))
+                                        , React.createElement('span', { style: {fontSize:12,fontWeight:700,color:colD,whiteSpace:"nowrap"}}, pctDPS+"%")
+                                      )
+                                    : React.createElement('span', { style: {color:"#9CA3AF",fontSize:12}}, "Sin meta")
+                                )
+                                // Estado (basado en % Meta UF)
+                                , React.createElement('td', { style: {padding:"11px 10px"}}, React.createElement(Pill, { color: colM, bg: pctMeta>=90?"#DCFCE7":pctMeta>=60?"#FEF3C7":"#FEE2E2"}, pctMeta>=90?"Top":pctMeta>=60?"En ruta":"Atención"))
                               )
                             );
                           })
