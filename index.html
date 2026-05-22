@@ -4928,6 +4928,48 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
   }
   window.__showToast = showToast;
 
+  // ── App state declarations ──
+  const [acceso,       setAcceso]       = useState(false);
+  const [pin,          setPin]          = useState("");
+  const [pinErr,       setPinErr]       = useState(false);
+  const [supVista,     setSupVista]     = useState("dashboard");
+  const [supGrupo,     setSupGrupo]     = useState("A");
+  const [tab,          setTab]          = useState(0);
+  const [selId,        setSelId]        = useState(null);
+  const [histVid,      setHistVid]      = useState("");
+  const [histAcc,      setHistAcc]      = useState(false);
+  const [histPin,      setHistPin]      = useState("");
+  const [histErr,      setHistErr]      = useState(false);
+  const [metaMod,      setMetaMod]      = useState(null);
+  const [bulk,         setBulk]         = useState({});
+  const [bulkOk,       setBulkOk]       = useState("");
+  const [editMes,      setEditMes]      = useState(null);
+  const [nuevoNom,     setNuevoNom]     = useState("");
+  const [benchmark,    setBenchmark]    = useState(null);
+  const [draft,        setDraft]        = useState("");
+  const [enviado,      setEnviado]      = useState(false);
+  const [guardandoProd,setGuardandoProd]= useState(false);
+  const [recoNombre,   setRecoNombre]   = useState("");
+  const [premiosImgs,  setPremiosImgs]  = useState({});
+  const [calcKey,      setCalcKey]      = useState(0);
+  const [mesAnt,       setMesAnt]       = useState(null);
+  const [mesAntIdx,    setMesAntIdx]    = useState(0);
+  const [pinFormOk,    setPinFormOk]    = useState(false);
+  const [pinFormulario,setPinFormulario]= useState("");
+  const [pinFormErr,   setPinFormErr]   = useState(false);
+  const [form,         setForm]         = useState({vid:"",contactos:"",cot:"",dps:"",nota:"",dpsVenta:""});
+  const [cierresHoy,   setCierresHoy]   = useState([]);
+  const [cierreRecordatorio, setCierreRecordatorio] = useState(false);
+  const [crmVid,       setCrmVid]       = useState("");
+  const [crmAcc,       setCrmAcc]       = useState(false);
+  const [crmPin,       setCrmPin]       = useState("");
+  const [crmErr,       setCrmErr]       = useState(false);
+  const [crmData,      setCrmData]      = useState([]);
+  const [crmForm,      setCrmForm]      = useState(null);
+  const [crmModal,     setCrmModal]     = useState(false);
+  const [crmEdit,      setCrmEdit]      = useState(null);
+  const [crmVista,     setCrmVista]     = useState("agenda");
+
   useEffect(function() {
     const key = info.mesKey;
     const storageKey = "equipo_" + info.mesKey;
@@ -5222,39 +5264,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
 
   }, [equipo, metaEquipo, loaded]);
 
-  // ── CRM: Cargar historial de meses anteriores cuando cambia ejecutivo ──
-  useEffect(function() {
-    if (!loaded) return;
-    if(window.__fbDb && window.__fbDoc && window.__fbGetDoc){
-      // Cargar los 3 meses anteriores desde Firebase
-      var offsets = [1,2,3];
-      Promise.all(offsets.map(function(offset){
-        var snapKey = "mes_"+vid+"_"+buildMesKey(offset);
-        return window.__fbGetDoc(window.__fbDoc(window.__fbDb,"snapshots",snapKey))
-          .then(function(snap){
-            if(snap.exists){ var d=snap.data(); return {offset:offset, data:d}; }
-            return {offset:offset, data:null};
-          }).catch(function(){ return {offset:offset, data:null}; });
-      })).then(function(results){
-        var meses = [];
-        var todosVacios = true;
-        results.forEach(function(r){
-          if(r.data && r.data.uf > 0){
-            todosVacios = false;
-            meses.push(Object.assign({key:buildMesKey(r.offset), label:buildMesLabel(r.offset)}, r.data));
-          }
-        });
-        if(todosVacios){
-          // Firebase vacío → usar localStorage
-          cargarDesdeLocal();
-        } else {
-          setHistorialMeses(meses);
-        }
-      }).catch(cargarDesdeLocal);
-    } else {
-      cargarDesdeLocal();
-    }
-  }, [form.vid]);
+  // Historial de meses anteriores: se carga desde cargarHistorialMesesAnteriores() via onSnapshot
 
   // Save current month snapshot to storage when equipo changes
   useEffect(function(){
