@@ -4947,14 +4947,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
   const [editMes,      setEditMes]      = useState(null);
   const [nuevoNom,     setNuevoNom]     = useState("");
   const [benchmark,    setBenchmark]    = useState(null);
-  const [draft,        setDraft]        = useState("");
-  const [enviado,      setEnviado]      = useState(false);
-  const [guardandoProd,setGuardandoProd]= useState(false);
-  const [recoNombre,   setRecoNombre]   = useState("");
   const [premiosImgs,  setPremiosImgs]  = useState({});
-  const [calcKey,      setCalcKey]      = useState(0);
-  const [mesAnt,       setMesAnt]       = useState(null);
-  const [mesAntIdx,    setMesAntIdx]    = useState(0);
   const [pinFormOk,    setPinFormOk]    = useState(false);
   const [pinFormulario,setPinFormulario]= useState("");
   const [pinFormErr,   setPinFormErr]   = useState(false);
@@ -4970,6 +4963,24 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
   const [crmModal,     setCrmModal]     = useState(false);
   const [crmEdit,      setCrmEdit]      = useState(null);
   const [crmVista,     setCrmVista]     = useState("agenda");
+  const [premioConecta,    setPremioConecta]    = useState(100000);
+  const [nombrePremio,     setNombrePremio]     = useState("Premio Plan Conecta");
+  const [tablaPremios,     setTablaPremios]     = useState([]);
+  const [recoNombre,       setRecoNombre]       = useState("");
+  const [mesAntIdx,        setMesAntIdx]        = useState(0);
+  const [calcKey,          setCalcKey]          = useState(0);
+  const [guardandoProd,    setGuardandoProd]    = useState(false);
+  const [enviado,          setEnviado]          = useState(false);
+  const [draft,            setDraft]            = useState("");
+
+  // Constants used in render
+  const VISTAS_SUPERVISOR = {
+    equipo:   [["gestion","👥 Gestionar Equipo"],["editar","✏️ Editar Estadísticas"]],
+    metas:    [["metasEq","🎯 Meta del Equipo"],["metasInd","📋 Metas Individuales"]],
+    analisis: [["clasificacion","📊 Clasificación AGV"],["agentes0","🚨 Agentes en 0"],["dpsanalisis","📊 Análisis Reporte Diario de Métricas"],["historialMetricas","📋 Ver Historial Métricas por Ejecutivo"],["tendencias","📈 Tendencias y Gráficos"],["predictor","🎯 Predictor Cierre de Mes"],["correlacion","🔗 Correlación DPS→UF"],["alertas","🚨 Alertas del Equipo"],["planagv","📋 Plan de Trabajo AGV"]],
+    premios:  [["premioConecta","💚 Premio Plan Conecta"]],
+    metricas: [["metricas","📊 Métricas de Administración"]],
+  };
 
   useEffect(function() {
     const key = info.mesKey;
@@ -10589,7 +10600,26 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
 
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(React.createElement(App));
+// Wrap render in error boundary
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = {error: null}; }
+  componentDidCatch(error, info) { this.setState({error: error}); }
+  static getDerivedStateFromError(error) { return {error}; }
+  render() {
+    if (this.state.error) {
+      return React.createElement('div', {
+        style: {padding:'40px',fontFamily:'sans-serif',color:'#B91C1C',
+                background:'#FEE2E2',margin:'20px',borderRadius:'12px'}
+      },
+        React.createElement('h2', null, '❌ Error al cargar'),
+        React.createElement('pre', {style:{fontSize:'12px',whiteSpace:'pre-wrap'}}, 
+          this.state.error.toString())
+      );
+    }
+    return this.props.children;
+  }
+}
+root.render(React.createElement(ErrorBoundary, null, React.createElement(App)));
 
 // Catch render errors
 window.addEventListener("error", function(e){
