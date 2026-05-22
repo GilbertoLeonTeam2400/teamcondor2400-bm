@@ -10590,6 +10590,17 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(React.createElement(App));
+
+// Catch render errors
+window.addEventListener("error", function(e){
+  document.getElementById("root").innerHTML = 
+    '<div style="padding:40px;font-family:sans-serif;color:#B91C1C;background:#FEE2E2;border-radius:12px;margin:20px">' +
+    '<h2>Error al cargar el dashboard</h2>' +
+    '<p><b>' + (e.message||"Unknown error") + '</b></p>' +
+    '<p>Línea: ' + e.lineno + ' | Archivo: ' + (e.filename||"") + '</p>' +
+    '<p>Por favor contacta al administrador con este mensaje.</p>' +
+    '</div>';
+});
 </script>
 </body>
 </html>
