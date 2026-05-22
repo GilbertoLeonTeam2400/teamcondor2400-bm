@@ -4972,6 +4972,12 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
   const [guardandoProd,    setGuardandoProd]    = useState(false);
   const [enviado,          setEnviado]          = useState(false);
   const [draft,            setDraft]            = useState("");
+  const [mesAnt,           setMesAnt]           = useState(null);
+  const [date,             setDate]             = useState(new Date());
+  const [hours,            setHours]            = useState(0);
+  const [item,             setItem]             = useState(null);
+  const [docsGestion,      setDocsGestion]      = useState([]);
+  const [infoDocsVista,    setInfoDocsVista]    = useState("docs");
 
   // Constants used in render
   const VISTAS_SUPERVISOR = {
