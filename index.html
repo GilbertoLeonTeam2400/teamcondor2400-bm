@@ -5220,6 +5220,11 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
         });
     }
 
+  }, [equipo, metaEquipo, loaded]);
+
+  // ── CRM: Cargar historial de meses anteriores cuando cambia ejecutivo ──
+  useEffect(function() {
+    if (!loaded) return;
     if(window.__fbDb && window.__fbDoc && window.__fbGetDoc){
       // Cargar los 3 meses anteriores desde Firebase
       var offsets = [1,2,3];
