@@ -4959,7 +4959,12 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
 
       const unsub = window.__fbOnSnapshot(ref, function(snap) {
         fbRespondio = true;
+        // Skip if we just saved (within 8 seconds) to prevent overwriting fresh local data
         if (skipSnapshot.current) { skipSnapshot.current = false; setLoaded(true); setSincronizado(true); return; }
+        if (window.__lastSaveTs && (Date.now() - window.__lastSaveTs) < 8000) {
+          console.log("[SNAP] Skipped — saved", Math.round((Date.now()-window.__lastSaveTs)/1000)+"s ago");
+          setLoaded(true); setSincronizado(true); return;
+        }
         if (snap.exists()) {
           const snapData = snap.data();
           const d = snapData.equipo;
@@ -4973,7 +4978,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
             console.log("[LOAD] Firebase datos recibidos OK");
             merged = merged.map(function(x){
               var reps = x.rep || [];
-              var ufDesdeReps = parseFloat(reps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0).toFixed(2));
+              var ufDesdeReps = parseFloat((Math.floor(reps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0)*1000)/1000).toFixed(3));
               var mesKeyNow=(function(){var n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");})();
               var hNow=(x.historial||{})[mesKeyNow]||{};
               var hDpsTot=(parseInt(hNow.dpsVenta)||0)+(parseInt(hNow.dpsSinVenta)||0)+(parseInt(hNow.dpsPendiente)||0)+(parseInt(hNow.dpsRechazado)||0);
@@ -5188,7 +5193,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
       window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",key), dataToSave)
         .then(function(){
           console.log("[SAVE] Firebase OK ✅");
-          setTimeout(function(){ skipSnapshot.current = false; }, 2000);
+          window.__lastSaveTs = Date.now();
+          setTimeout(function(){ skipSnapshot.current = false; }, 6000);
 
           // ── MEJORA 2: Backup en Firebase (colección separada) ───────────────
           if (ufTotal > 0) {
@@ -5589,6 +5595,9 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
       var ufRecalc = parseFloat((Math.floor(todosReps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0)*1000)/1000).toFixed(3));
       return Object.assign({},v,{uf:ufRecalc,rep:todosReps});
     });
+    // Bloquear onSnapshot ANTES de actualizar estado para evitar overwrite
+    if(window.skipSnapshotRef) window.skipSnapshotRef.current = true;
+    window.__lastSaveTs = Date.now();
     setEquipo(nuevoEquipo);
     setCierresHoy(cierresActualizados);
     // Confirmación visual
