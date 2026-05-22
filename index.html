@@ -4963,7 +4963,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
           }).catch(function(){});
         });
         Promise.all(promises).then(function(){
-          console.log("[HISTORIAL] Meses anteriores cargados OK");
+          localStorage.setItem("HIST_LAST_LOAD", String(Date.now()));
+        console.log("[HISTORIAL] Meses anteriores cargados OK");
           // Forzar re-render de UFLinealesView sin tocar el estado del equipo
           setSincronizado(function(v){ return v; });
         });
@@ -5004,8 +5005,9 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
               });
             }).filter(function(x){ return x && x.nombre && typeof x.nombre === 'string' && x.nombre.trim() !== ''; });
             setEquipo(merged);
-            // Cargar fotos desde colección separada para no saturar el doc principal
-            if (window.__fbDb && window.__fbDoc && window.__fbGetDoc) {
+            // Cargar fotos solo una vez (primera carga)
+            if (window.__fbDb && window.__fbDoc && window.__fbGetDoc && !window.__fotosYaCargadas) {
+              window.__fotosYaCargadas = true;
               merged.forEach(function(v) {
                 window.__fbGetDoc(window.__fbDoc(window.__fbDb,"fotos",String(v.id))).then(function(snap){
                   if (snap.exists && snap.data && snap.data().fotoUrl) {
@@ -5014,7 +5016,11 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                 }).catch(function(){});
               });
             }
-            setTimeout(cargarHistorialMesesAnteriores, 800);
+            // Cargar historial solo si no se ha cargado en la última hora
+            var lastHistLoad = parseInt(localStorage.getItem("HIST_LAST_LOAD")||"0");
+            if(Date.now() - lastHistLoad > 3600000) {
+              setTimeout(cargarHistorialMesesAnteriores, 1200);
+            }
           }
           const m = snapData.metaEquipo;
           if (m && typeof m === "number" && !isNaN(m) && m > 0) {
@@ -5207,289 +5213,11 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
           console.log("[SAVE] Firebase OK ✅");
           window.__lastSaveTs = Date.now();
           setTimeout(function(){ skipSnapshot.current = false; }, 6000);
-
-          // ── MEJORA 2: Backup en Firebase (colección separada) ───────────────
-          if (ufTotal > 0) {
-            var fbBackupKey = info.mesKey + "_" + ahora.toISOString().slice(0,10);
-            // Recopilar CRM de todos los ejecutivos desde Firebase
-            var crmPromises = equipo.map(function(v) {
-              return window.__fbGetDoc(window.__fbDoc(window.__fbDb,"crm",String(v.id)))
-                .then(function(snap){ return {id:v.id, contactos: snap.exists && snap.data() ? (snap.data().contactos||[]) : []}; })
-                .catch(function(){ return {id:v.id, contactos:[]}; });
-            });
-            // Recopilar calendarios de todos los ejecutivos desde localStorage
-            var calData = {};
-            equipo.forEach(function(v){
-              Object.keys(localStorage).filter(function(k){ return k.startsWith("cal_"+v.id+"_"); }).forEach(function(k){
-                try { calData[k] = JSON.parse(localStorage.getItem(k)||"[]"); } catch(e){}
-              });
-            });
-            Promise.all(crmPromises).then(function(crmAll){
-              window.__fbSetDoc(window.__fbDoc(window.__fbDb,"backups",fbBackupKey), {
-                timestamp: ahora.toISOString(),
-                mesKey: info.mesKey,
-                ufTotal: ufTotal,
-                equipo: equipo,
-                metaEquipo: safeMetaToSave,
-                ejecutivos: equipo.length,
-                crm: crmAll,
-                calendarios: calData
-              }).then(function(){
-                console.log("[BACKUP-FB] ✅ Backup completo en Firebase:", fbBackupKey, "| CRM ejecutivos:", crmAll.filter(function(c){return c.contactos.length>0;}).length);
-              }).catch(function(e){
-                console.warn("[BACKUP-FB] Error:", e);
-              });
-            });
-          }
         })
         .catch(function(e){
-          console.error("[SAVE] Firebase ERROR:", e);
+          console.warn("[SAVE] Error Firebase:", e.message);
           skipSnapshot.current = false;
         });
-    }
-  }, [equipo, metaEquipo, loaded]);
-
-  //  UI state 
-  const [tab,      setTab]      = useState("equipo");
-  const [calcKey,  setCalcKey]  = useState(0); // reset calculadora session on tab leave
-  const [selId,    setSelId]    = useState(null);
-  const [metaMod,  setMetaMod]  = useState(null);
-  // Supervisor
-  const [pin,      setPin]      = useState("");
-  const [acceso,   setAcceso]   = useState(false);
-  const [pinErr,   setPinErr]   = useState(false);
-  const [supVista, setSupVista] = useState("dashboard");
-  const [supGrupo, setSupGrupo] = useState("dashboard");
-  // Map group -> sub-tabs
-  const SUP_GRUPOS = {
-    dashboard: [["dashboard","📊 Dashboard"],["calEjec","📅 Calendario Ejecutivos"]],
-    equipo:    [["gestion","👥 Gestionar Equipo"],["carga","📥 Cargar UF/DPS"],["editar","✏️ Editar Estadísticas"]],
-    metas:     [["meta","🎯 Meta del Equipo"],["uflineales","📈 UF's Lineales"]],
-    contenido: [["gestPremios","🏆 Gestionar Premios"],["gestDocs","📂 Gestionar Docs"]],
-    analisis:  [["clasificacion","📊 Clasificación AGV"],["agentes0","🚨 Agentes en 0"],["dpsanalisis","📊 Análisis Reporte Diario de Métricas"],["historialMetricas","📋 Ver Historial Métricas por Ejecutivo"],["tendencias","📈 Tendencias y Gráficos"],["predictor","🎯 Predictor Cierre de Mes"],["correlacion","🔗 Correlación DPS→UF"],["alertas","🚨 Alertas del Equipo"],["planagv","📋 Plan de Trabajo AGV"]],
-  };
-  const [bulk,     setBulk]     = useState({});
-  const [bulkOk,   setBulkOk]   = useState(false);
-  const [nuevoNom, setNuevoNom] = useState("");
-  // Reporte
-  const [form,     setForm]     = useState({ vid:"", contactos:"", cot:"", dps:"0", dpsVenta:"0", nota:"" });
-  const [cierresHoy,    setCierresHoy]    = useState([]);
-  const [recoNombre,    setRecoNombre]    = useState("");
-  const [premioConecta, setPremioConecta] = useState(100000); // Monto por plan Conecta (editable en supervisor)
-  const [benchmark, setBenchmark] = useState(null); // Mes de referencia elegido por supervisor
-
-  // Tablas de premios por antigüedad (editables desde Supervisor → Gestionar Premios)
-  const TABLA_DEFAULT = {
-    novato: [ // 0-12 meses
-      {desde:0,    hasta:4.99,  monto:0},
-      {desde:5,    hasta:5.99,  monto:78400},
-      {desde:6,    hasta:7.99,  monto:117600},
-      {desde:8,    hasta:9.99,  monto:156800},
-      {desde:10,   hasta:11.99, monto:196000},
-      {desde:12,   hasta:14.99, monto:235200},
-      {desde:15,   hasta:17.99, monto:294000},
-      {desde:18,   hasta:21.99, monto:352800},
-      {desde:22,   hasta:24.99, monto:369600},
-      {desde:25,   hasta:9999,  monto:420000},
-    ],
-    desarrollo: [ // 13-35 meses
-      {desde:0,    hasta:11.99, monto:0},
-      {desde:12,   hasta:14.99, monto:201600},
-      {desde:15,   hasta:17.99, monto:252000},
-      {desde:18,   hasta:21.99, monto:302400},
-      {desde:22,   hasta:24.99, monto:369600},
-      {desde:25,   hasta:29.99, monto:420000},
-      {desde:30,   hasta:34.99, monto:504000},
-      {desde:35,   hasta:39.99, monto:539000},
-      {desde:40,   hasta:9999,  monto:560000},
-    ],
-    veterano: [ // 36+ meses
-      {desde:0,    hasta:24.99, monto:0},
-      {desde:25,   hasta:29.99, monto:550000},
-      {desde:30,   hasta:34.99, monto:600000},
-      {desde:35,   hasta:39.99, monto:700000},
-      {desde:40,   hasta:49.99, monto:800000},
-      {desde:50,   hasta:59.99, monto:850000},
-      {desde:60,   hasta:69.99, monto:900000},
-      {desde:70,   hasta:9999,  monto:1000000},
-    ],
-  };
-  const [tablaPremios, setTablaPremios] = useState(function(){
-    try {
-      var saved = localStorage.getItem("TABLA_PREMIOS");
-      return saved ? JSON.parse(saved) : TABLA_DEFAULT;
-    } catch(e) { return TABLA_DEFAULT; }
-  });
-  const [nombrePremio, setNombrePremio] = useState("Premio Plan Conecta"); // Nombre editable del premio
-  const [pinFormulario, setPinFormulario] = useState("");
-  const [pinFormOk,     setPinFormOk]     = useState(false);
-  const [pinFormErr,    setPinFormErr]    = useState(false);
-  const [enviado,  setEnviado]  = useState(false);
-  const [guardandoProd, setGuardandoProd] = useState(false);
-  // Historial personal
-  const [histVid,  setHistVid]  = useState("");
-  const [histPin,  setHistPin]  = useState("");
-  const [histAcc,  setHistAcc]  = useState(false);
-  const [histErr,  setHistErr]  = useState(false);
-  // CRM
-  const [crmVid,   setCrmVid]   = useState("");
-  const [crmPin,   setCrmPin]   = useState("");
-  const [crmAcc,   setCrmAcc]   = useState(false);
-  const [crmErr,   setCrmErr]   = useState(false);
-  const [crmData,  setCrmData]  = useState([]); // contactos del ejecutivo logueado
-  const EMPTY_CRM_FORM = { nombre:"", email:"", tel:"", plan:"", planUF:"", proxAct:"", proxFecha:"", nota:"", canal:"", canalDetalle:"", temperatura:"tibio", oportunidad:"cotizando", fechaCierre:"", motivoNoConcretar:"" };
-  const [crmForm,  setCrmForm]  = useState(EMPTY_CRM_FORM);
-  const [crmModal, setCrmModal] = useState(false);
-  const [crmEdit,  setCrmEdit]  = useState(null);
-  const [crmVista, setCrmVista] = useState("calendario"); // calendario | activos | cerrados | noConcretados | ufCerradas | ufPotencial
-  // ── Info y Docs Importantes ──
-  const [infoDocsVista, setInfoDocsVista] = useState("premios");
-  const [premiosImgs,   setPremiosImgs]   = useState(function(){
-    try{ return JSON.parse(localStorage.getItem("PREMIOS_"+new Date().getFullYear()+"-"+String(new Date().getMonth()+1).padStart(2,"0"))||"[]"); }catch(e){return[];}
-  });
-  const [docsGestion,   setDocsGestion]   = useState(function(){
-    try{ return JSON.parse(localStorage.getItem("DOCS_GESTION")||"[]"); }catch(e){return[];}
-  });
-  // Pop-up recordatorio cierre CRM
-  const [cierreRecordatorio, setCierreRecordatorio] = useState(false);
-  // Reconocimientos
-  const HALL_MESES = window.HALL_MESES = [
-    { label:"Octubre 2025", top:[
-      { nombre:"MERINO RIVEROS MARCELA", pos:1, uf:71.21 },
-      { nombre:"PERDOMO GUEVARA LOLA", pos:2, uf:38.59 },
-      { nombre:"DOMINGUEZ CORNEJO CHRISTIAN", pos:3, uf:32.59 },
-      { nombre:"ROJAS IBANEZ PERLA", pos:4, uf:26.91 },
-      { nombre:"TRINCADO SALAS PAMELA", pos:5, uf:23.75 },
-    ]},
-    { label:"Noviembre 2025", top:[
-      { nombre:"MERINO RIVEROS MARCELA", pos:1, uf:53.47 },
-      { nombre:"UNDURRAGA DIEZ CRISTINA", pos:2, uf:35.89 },
-      { nombre:"PERDOMO GUEVARA LOLA", pos:3, uf:33.63 },
-      { nombre:"SALINAS TAPIA ROMINA", pos:4, uf:23.1 },
-      { nombre:"NEIRA SEPULVEDA CRISTIAN", pos:5, uf:20.73 },
-    ]},
-    { label:"Diciembre 2025", top:[
-      { nombre:"DOMINGUEZ CORNEJO CHRISTIAN", pos:1, uf:45.6 },
-      { nombre:"MERINO RIVEROS MARCELA", pos:2, uf:39.2 },
-      { nombre:"DE LA CHINQUINQUI GOMEZ MATHISON KENIA", pos:3, uf:25.3 },
-      { nombre:"UNDURRAGA DIEZ CRISTINA", pos:4, uf:24.6 },
-      { nombre:"GALVEZ ABARCA ELIZABETH", pos:5, uf:23.8 },
-    ]},
-    { label:"Enero 2026", top:[
-      { nombre:"MERINO RIVEROS MARCELA", pos:1, uf:75.2 },
-      { nombre:"OVALLOS ROMERO LUISANA", pos:2, uf:36.8 },
-      { nombre:"ORTIZ DE ZARATE RODRIGO", pos:3, uf:31.4 },
-      { nombre:"DOMINGUEZ CORNEJO CHRISTIAN", pos:4, uf:31.0 },
-      { nombre:"ALVAREZ ASENCIO MARIA ELENA", pos:5, uf:25.7 },
-    ]},
-    { label:"Febrero 2026", top:[
-      { nombre:"MERINO RIVEROS MARCELA", pos:1, uf:69.41 },
-      { nombre:"TRINCADO SALAS PAMELA", pos:2, uf:26.01 },
-      { nombre:"SANDOVAL CUEVAS LESLY", pos:3, uf:25.71 },
-      { nombre:"URRUTIA GARCIA CAMILA", pos:4, uf:20.73 },
-      { nombre:"DE LA CHINQUINQUI GOMEZ MATHISON KENIA", pos:5, uf:19.73 },
-    ]},
-    { label:"Marzo 2026", top:[
-      { nombre:"MERINO RIVEROS MARCELA", pos:1, uf:63.13 },
-      { nombre:"ORTIZ DE ZARATE RODRIGO", pos:2, uf:28.3 },
-      { nombre:"PERDOMO GUEVARA LOLA", pos:3, uf:23.91 },
-      { nombre:"OVALLOS ROMERO LUISANA", pos:4, uf:23.13 },
-      { nombre:"RAMIREZ SAAVEDRA MARIANA", pos:5, uf:19.0 },
-    ]},
-  ];
-
-  const [mesAnt,   setMesAnt]   = useState(HALL_MESES[0]);
-  const [mesAntIdx, setMesAntIdx] = useState(0);
-  const [editMes,  setEditMes]  = useState(false);
-  const [draft,    setDraft]    = useState(null);
-
-  //  Computed — todos los reduce usan (||0) para evitar NaN si Firebase trae datos corruptos
-  const equipoValido = equipo.filter(function(v){ return v && v.nombre && typeof v.nombre === 'string'; });
-  const totUF   = equipoValido.reduce(function(s,v){return s+(parseFloat(v.uf)||0);},0);
-  const totDPS  = equipoValido.reduce(function(s,v){return s+(parseInt(v.dps)||0);},0);
-  // Benchmark proporcional: ajusta el total del mes benchmark al día actual del mes
-  const bmProp = (function(){
-    if(!benchmark) return null;
-    var diasMes = new Date(new Date().getFullYear(), new Date().getMonth()+1, 0).getDate();
-    var diaHoy = new Date().getDate();
-    var prop = diaHoy / diasMes;
-    return {
-      uf:    parseFloat(((benchmark.uf||0)    * prop).toFixed(2)),
-      dps:   Math.round((benchmark.dps||0)   * prop),
-      benef: Math.round((benchmark.nBenef||0)* prop),
-      cttos: Math.round((benchmark.cttosDig||0)*prop),
-      tasa:  benchmark.tasa||0,
-      mesLabel: benchmark.mesLabel||"Benchmark",
-      prop:  Math.round(prop*100),
-    };
-  })();
-  function bmDiff(actual, bm) {
-    if(!bm||bm===0) return null;
-    var pct = Math.round(((actual-bm)/bm)*100);
-    return {pct:pct, color:pct>=0?"#4ADE80":"#FCA5A5", txt:(pct>=0?"▲ +":"▼ ")+Math.abs(pct)+"%"};
-  }
-  // DPS KPIs — desde historial del mes actual
-  const totDpsConVenta    = equipoValido.reduce(function(s,v){var h=(v.historial||{})[info.mesKey];return s+(h?parseInt(h.dpsVenta)||0:0);},0);
-  const totDpsSinVenta    = equipoValido.reduce(function(s,v){var h=(v.historial||{})[info.mesKey];return s+(h?parseInt(h.dpsSinVenta)||0:0);},0);
-  const totDpsPendiente   = equipoValido.reduce(function(s,v){var h=(v.historial||{})[info.mesKey];return s+(h?parseInt(h.dpsPendiente)||0:0);},0);
-  const totDpsRechazado   = equipoValido.reduce(function(s,v){var h=(v.historial||{})[info.mesKey];return s+(h?parseInt(h.dpsRechazado)||0:0);},0);
-  const totDpsTotal       = totDpsConVenta + totDpsSinVenta + totDpsPendiente + totDpsRechazado;
-  const tasaCierreDPS     = totDpsTotal > 0 ? Math.round((totDpsConVenta/totDpsTotal)*100) : 0;
-  const metaUFSafe = (isNaN(META_UF)||META_UF<=0) ? 550 : META_UF;
-  const falta   = Math.max(0, metaUFSafe - totUF);
-  const xCrack  = equipoValido.length > 0 ? fmtUF2(falta/equipoValido.length) : "0";
-  const totHombres = equipoValido.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.hombres)||0);},0);},0);
-  const totMujeres = equipoValido.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.mujeres)||0);},0);},0);
-  const totConecta = equipoValido.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.conecta)||0);},0);},0);
-  const totTitulares = totHombres + totMujeres;
-  const pctH = totTitulares > 0 ? Math.round((totHombres/totTitulares)*100) : 0;
-  const pctM = totTitulares > 0 ? Math.round((totMujeres/totTitulares)*100) : 0;
-  const proyV   = function(v){return ((parseFloat(v.metaUF)||0)/info.wdTotal)*info.elapsed;};
-  const proyEq  = metaUFSafe>0 ? (metaUFSafe/info.wdTotal)*info.elapsed : 0;
-  const pctEq   = proyEq>0?Math.round((totUF/proyEq)*100):0;
-  const TODAY   = hoyStr();
-  const ufHoy   = equipoValido.reduce(function(s,v){return s+(v.rep||[]).filter(function(r){return r.fecha===TODAY;}).reduce(function(a,r){return a+(parseFloat(r.uf)||0);},0);},0);
-  const dpsHoy  = equipoValido.reduce(function(s,v){
-    var repsHoy = (v.rep||[]).filter(function(r){return r.fecha===TODAY;});
-    if (repsHoy.length === 0) return s;
-    return s + repsHoy.reduce(function(a,r){return a+(parseInt(r.dps)||0);},0);
-  },0);
-  const top5    = equipoValido.filter(function(v){return v.uf>0;}).sort(function(a,b){return b.uf-a.uf;}).slice(0,5).map(function(v,i){return {nombre:v.nombre,pos:i+1};});
-
-  // Build last 3 months keys for historial
-  const buildMesKey = function(offset) {
-    const d = new Date();
-    d.setMonth(d.getMonth() - offset);
-    return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
-  };
-  const buildMesLabel = function(offset) {
-    const d = new Date();
-    d.setMonth(d.getMonth() - offset);
-    return d.toLocaleString("es-CL",{month:"long",year:"numeric"});
-  };
-
-  // historialMeses: built from storage for current executive (loaded when vid changes)
-  const [historialMeses, setHistorialMeses] = useState([]);
-
-  useEffect(function(){
-    if(!form.vid) { setHistorialMeses([]); return; }
-    const vid = form.vid;
-
-    function cargarDesdeLocal(){
-      Promise.all([
-        storageGet("mes_"+vid+"_"+buildMesKey(1)),
-        storageGet("mes_"+vid+"_"+buildMesKey(2)),
-        storageGet("mes_"+vid+"_"+buildMesKey(3)),
-      ]).then(function(results){
-        const meses = [];
-        [1,2,3].forEach(function(offset, i){
-          const data = results[i];
-          if(data && data.uf > 0){
-            meses.push(Object.assign({key:buildMesKey(offset), label:buildMesLabel(offset)}, data));
-          }
-        });
-        setHistorialMeses(meses);
-      });
     }
 
     if(window.__fbDb && window.__fbDoc && window.__fbGetDoc){
