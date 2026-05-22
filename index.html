@@ -4982,7 +4982,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
               return Object.assign({rep:[]}, x, {
                 uf:  reps.length > 0 ? ufDesdeReps : (parseFloat(x.uf)||0),
                 dps: dpsFinal,
-                metaUF: parseFloat(x.metaUF) || 25
+                metaUF: parseFloat(x.metaUF) || 25,
+                metaDPS: x.metaDPS !== undefined ? parseInt(x.metaDPS)||0 : 0
               });
             }).filter(function(x){ return x && x.nombre && typeof x.nombre === 'string' && x.nombre.trim() !== ''; });
             setEquipo(merged);
@@ -5686,7 +5687,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
     if (v && pinFormulario === v.pin) { setPinFormOk(true); setPinFormErr(false); }
     else { setPinFormErr(true); setPinFormulario(""); }
   }
-  function guardarMeta(){if(!metaMod)return;const val=parseFloat(metaMod.value);if(isNaN(val)||val<1)return;setEquipo(equipo.map(function(v){return v.id!==metaMod.id?v:Object.assign({},v,{metaUF:val});}));setMetaMod(null);}
+  function guardarMeta(){if(!metaMod)return;const val=parseFloat(metaMod.value);if(isNaN(val)||val<0)return;setEquipo(equipo.map(function(v){return v.id!==metaMod.id?v:Object.assign({},v,{metaUF:val});}));setMetaMod(null);}
   function agregarEjecutivo(){
     if(!nuevoNom.trim())return;
     const newId=Math.max.apply(null,equipo.map(function(v){return v.id;}))+1;
@@ -6071,7 +6072,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                   return (
                     React.createElement('div', { style: {marginTop:12,display:"inline-flex",alignItems:"center",gap:8,background:ok?"rgba(22,163,74,.2)":"rgba(220,38,38,.2)",borderRadius:99,padding:"6px 14px",border:"1px solid "+(ok?"rgba(134,239,172,.35)":"rgba(252,165,165,.35)")}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3094}}
                       , React.createElement('span', { style: {fontSize:14,fontWeight:900,color:ok?"#4ADE80":"#FCA5A5"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3095}}, (ok?"+":"-")+pctDif+"%")
-                      , React.createElement('span', { style: {fontSize:11,color:"rgba(255,255,255,.6)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3096}}, ok?"vs proyección — ¡vamos adelantados!":"vs proyección — hay que acelerar")
+                      , React.createElement('span', { style: {fontSize:11,color:"rgba(255,255,255,.6)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3096}}, ok?"vs proyección — ¡vamos adelantados!":"del ritmo diario — se necesita acelerar")
                     )
                   );
                 })()
@@ -7909,8 +7910,13 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                               // Meta DPS input
                               , React.createElement('td', { style: {padding:"10px 14px"}}
                                 , React.createElement('input', { type:"number", min:0,
-                                    defaultValue: v.metaDPS||"",
+                                    value: v.metaDPS||"",
                                     placeholder: "—",
+                                    onChange: function(ev){
+                                      var val=parseInt(ev.target.value)||0;
+                                      var newEq=equipo.map(function(eq){return eq.id===v.id?Object.assign({},eq,{metaDPS:val}):eq;});
+                                      setEquipo(newEq);
+                                    },
                                     onBlur: function(e2){
                                       var val=parseInt(e2.target.value)||0;
                                       var newEq=equipo.map(function(eq){return eq.id===v.id?Object.assign({},eq,{metaDPS:val}):eq;});
@@ -8211,8 +8217,14 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                                 // Meta DPS (editable)
                                 , React.createElement('td', { style: {padding:"11px 10px"}}
                                   , React.createElement('input', {
-                                      type:"number", min:0, defaultValue:metaDPS||"",
+                                      type:"number", min:0,
+                                      value: metaDPS||"",
                                       placeholder:"—",
+                                      onChange: function(e){
+                                        var val=parseInt(e.target.value)||0;
+                                        var newEq=equipo.map(function(eq){return eq.id===v.id?Object.assign({},eq,{metaDPS:val}):eq;});
+                                        setEquipo(newEq);
+                                      },
                                       onBlur: function(e){
                                         var val=parseInt(e.target.value)||0;
                                         var newEq=equipo.map(function(eq){return eq.id===v.id?Object.assign({},eq,{metaDPS:val}):eq;});
