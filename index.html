@@ -75,6 +75,10 @@ var __supPinActual = PIN_SUP_DEFAULT;
     window.__fbGetDoc(window.__fbDoc(window.__fbDb,"supervisor","config")).then(function(snap){
       if(snap.exists){var d=snap.data();if(d&&d.pin&&/^\d{6}$/.test(d.pin))__supPinActual=d.pin;}
     }).catch(function(){});
+    // Leer también desde config/supervisor (nueva ubicación)
+    window.__fbGetDoc(window.__fbDoc(window.__fbDb,"config","supervisor")).then(function(snap){
+      if(snap.exists){var d=snap.data();if(d&&d.supPin&&/^\d{6}$/.test(d.supPin)){__supPinActual=d.supPin;try{localStorage.setItem("SUP_PIN_LOCAL",d.supPin);}catch(e){}}}
+    }).catch(function(){});
   }
 })();
 const R       = "#e90729";
@@ -7660,13 +7664,11 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                           // Guardar en localStorage (siempre funciona, todos los dispositivos que ya lo tienen)
                           try { localStorage.setItem("SUP_PIN_LOCAL", nuevoPinSup); } catch(e){}
                           // Guardar en el documento principal del equipo (tiene permisos de escritura)
-                          if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc&&window.__fbGetDoc){
-                            var mesKey = info.mesKey;
-                            window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey)).then(function(snap){
-                              var base = snap.exists() ? (snap.data()||{}) : {};
-                              return window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey), Object.assign({},base,{supPin:nuevoPinSup}));
-                            }).then(function(){ window.alert("✅ PIN actualizado y sincronizado en la nube."); })
-                              .catch(function(){ window.alert("✅ PIN actualizado localmente.\n⚠️ No se pudo sincronizar (error de red)."); });
+                          if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
+                            // Guardar PIN en doc dedicado "config/supervisor" (sin leer antes)
+                            window.__fbSetDoc(window.__fbDoc(window.__fbDb,"config","supervisor"), {supPin:nuevoPinSup}, {merge:true})
+                              .then(function(){ window.alert("✅ PIN actualizado y sincronizado en la nube."); })
+                              .catch(function(e){ window.alert("✅ PIN actualizado localmente.\n⚠️ No se pudo sincronizar: "+e.message); });
                           } else {
                             window.alert("✅ PIN actualizado en esta sesión (guardado localmente).");
                           }
