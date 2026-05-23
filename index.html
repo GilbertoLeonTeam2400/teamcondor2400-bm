@@ -3973,7 +3973,7 @@ function CierresEditables({ vAct, reps, totalUFMes, equipo, setEquipo, RD, fmtUF
   return React.createElement('div',{style:{marginBottom:20}}
     ,React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}
       ,React.createElement('div',{style:{fontSize:14,fontWeight:900,color:RD}},'📋 Mis cierres del mes')
-      ,React.createElement('div',{style:{background:'#FFF0F2',borderRadius:99,padding:'4px 12px',fontSize:13,fontWeight:900,color:RD}},fmtUF2(totalUFMes)+' UF total')
+      ,React.createElement('div',{style:{background:'#FFF0F2',borderRadius:99,padding:'4px 12px',fontSize:13,fontWeight:900,color:RD}},fmtUF(totalUFMes)+' UF total')
     )
     ,reps.map(function(r,i){
         var sexo=r.hombres>0&&r.mujeres<=0?'👨':r.mujeres>0&&r.hombres<=0?'👩':'👥';
@@ -4029,10 +4029,19 @@ function CierresEditables({ vAct, reps, totalUFMes, equipo, setEquipo, RD, fmtUF
                 ,React.createElement('option',{value:'fonasa'},'Fonasa')
                 ,React.createElement('option',{value:'isapre'},'Isapre')
               )
-              ,editData.origen==='isapre'&&React.createElement('input',{type:'text',value:editData.isapre,
-                  placeholder:'¿Cuál Isapre?',
+              ,editData.origen==='isapre'&&React.createElement('select',{
+                  value:editData.isapre,
                   onChange:function(e){setEditData(Object.assign({},editData,{isapre:e.target.value}));},
-                  style:{padding:'6px 10px',borderRadius:8,border:'1.5px solid #93C5FD',fontSize:13,fontFamily:'inherit',width:120}})
+                  style:{padding:'6px 10px',borderRadius:8,border:'1.5px solid #93C5FD',fontSize:13,fontFamily:'inherit'}}
+                  ,React.createElement('option',{value:''},'— Selecciona —')
+                  ,React.createElement('option',{value:'banmedica-carga'},'Banmédica Carga')
+                  ,React.createElement('option',{value:'colmena'},'Colmena')
+                  ,React.createElement('option',{value:'consalud'},'Consalud')
+                  ,React.createElement('option',{value:'vida-tres'},'Vida Tres')
+                  ,React.createElement('option',{value:'nueva-masvida'},'Nueva Masvida')
+                  ,React.createElement('option',{value:'cruz-blanca'},'Cruz Blanca')
+                  ,React.createElement('option',{value:'esencial'},'Esencial')
+                )
             )
             // Conecta
             ,React.createElement('div',{style:{display:'flex',gap:8,marginBottom:10,alignItems:'center'}}
