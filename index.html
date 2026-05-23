@@ -3983,7 +3983,7 @@ function CierresEditables({ vAct, reps, totalUFMes, equipo, setEquipo, RD, fmtUF
             ,React.createElement('div',{style:{fontSize:11,color:'#9CA3AF',flexShrink:0,minWidth:70}},r.fecha||'')
             ,React.createElement('div',{style:{flex:1}}
               ,React.createElement('div',{style:{fontWeight:800,color:RD,fontSize:14}},
-                fmtUF2(parseFloat(r.uf)||0)+' UF'+(r.nombre?' · '+r.nombre:' · (sin nombre)')
+                fmtUF(parseFloat(r.uf)||0)+' UF'+(r.nombre?' · '+r.nombre:' · (sin nombre)')
               )
               ,React.createElement('div',{style:{fontSize:11,color:'#6B7280',marginTop:1}},
                 sexo+' '+(r.hombres||0)+'H / '+(r.mujeres||0)+'M'
