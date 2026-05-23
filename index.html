@@ -6766,7 +6766,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                   , React.createElement('div', { style: {marginBottom:16}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3213}}
                     , React.createElement('label', { style: Object.assign({},LBL), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3214}}, "Ejecutivo *" )
                     , React.createElement('select', { value: form.vid,
-                      onChange: function(e){setForm(Object.assign({},form,{vid:e.target.value}));setPinFormOk(false);setPinFormulario("");setPinFormErr(false);},
+                      onChange: function(e){setForm(Object.assign({},form,{vid:e.target.value}));setPinFormOk(false);setPinFormulario("");setPinFormErr(false);setCierresHoy([]);},
                       style: Object.assign({},INP), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3215}}
                       , React.createElement('option', { value: "", __self: this, __source: {fileName: _jsxFileName, lineNumber: 3218}}, "Selecciona tu nombre"  )
                       , equipo.map(function(v){return React.createElement('option', { key: v.id, value: v.id, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3219}}, v.nombre);})
