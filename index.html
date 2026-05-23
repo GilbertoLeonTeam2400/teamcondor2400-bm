@@ -5278,14 +5278,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
         return;
       }
 
-      // ── MEJORA 4: Anti-sobreescritura — nunca guardar si las UF bajaron mucho ──
+      // Anti-sobreescritura eliminada — causaba bloqueos legítimos de guardado
       var lastUFKey = "LAST_UF_" + info.mesKey;
-      var lastUF = parseFloat(localStorage.getItem(lastUFKey) || "0");
-      if (lastUF > 0 && ufTotal < lastUF * 0.5) {
-        console.warn("[SAVE] BLOQUEADO - UF bajó de", lastUF.toFixed(2), "a", ufTotal.toFixed(2), "- posible corrupción. No se guarda en Firebase.");
-        skipSnapshot.current = false;
-        return;
-      }
       if (ufTotal > 0) localStorage.setItem(lastUFKey, ufTotal.toString());
 
       skipSnapshot.current = true;
