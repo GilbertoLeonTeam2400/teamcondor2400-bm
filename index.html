@@ -5050,7 +5050,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
           }).catch(function(){});
         });
         Promise.all(promises).then(function(){
-          console.log("[HISTORIAL] Meses anteriores cargados OK");
+          localStorage.setItem("HIST_LAST_LOAD", String(Date.now()));
+        console.log("[HISTORIAL] Meses anteriores cargados OK");
           // Forzar re-render de UFLinealesView sin tocar el estado del equipo
           setSincronizado(function(v){ return v; });
         });
@@ -5088,7 +5089,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
             }).filter(function(x){ return x && x.nombre && typeof x.nombre === 'string' && x.nombre.trim() !== ''; });
             setEquipo(merged);
             // Cargar fotos desde colección separada para no saturar el doc principal
-            if (window.__fbDb && window.__fbDoc && window.__fbGetDoc) {
+            if (window.__fbDb && window.__fbDoc && window.__fbGetDoc && !window.__fotosYaCargadas) {
+              window.__fotosYaCargadas = true;
               merged.forEach(function(v) {
                 window.__fbGetDoc(window.__fbDoc(window.__fbDb,"fotos",String(v.id))).then(function(snap){
                   if (snap.exists && snap.data && snap.data().fotoUrl) {
@@ -5097,7 +5099,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                 }).catch(function(){});
               });
             }
-            setTimeout(cargarHistorialMesesAnteriores, 800);
+            var _lh=parseInt(localStorage.getItem("HIST_LAST_LOAD")||"0");
+            if(Date.now()-_lh>3600000){ setTimeout(cargarHistorialMesesAnteriores, 800); }
           }
           const m = snapData.metaEquipo;
           if (m && typeof m === "number" && !isNaN(m) && m > 0) {
@@ -5295,39 +5298,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
           window.__lastSaveTs = Date.now();
           setTimeout(function(){ skipSnapshot.current = false; }, 8000);
 
-          // ── MEJORA 2: Backup en Firebase (colección separada) ───────────────
-          if (ufTotal > 0) {
-            var fbBackupKey = info.mesKey + "_" + ahora.toISOString().slice(0,10);
-            // Recopilar CRM de todos los ejecutivos desde Firebase
-            var crmPromises = equipo.map(function(v) {
-              return window.__fbGetDoc(window.__fbDoc(window.__fbDb,"crm",String(v.id)))
-                .then(function(snap){ return {id:v.id, contactos: snap.exists && snap.data() ? (snap.data().contactos||[]) : []}; })
-                .catch(function(){ return {id:v.id, contactos:[]}; });
-            });
-            // Recopilar calendarios de todos los ejecutivos desde localStorage
-            var calData = {};
-            equipo.forEach(function(v){
-              Object.keys(localStorage).filter(function(k){ return k.startsWith("cal_"+v.id+"_"); }).forEach(function(k){
-                try { calData[k] = JSON.parse(localStorage.getItem(k)||"[]"); } catch(e){}
-              });
-            });
-            Promise.all(crmPromises).then(function(crmAll){
-              window.__fbSetDoc(window.__fbDoc(window.__fbDb,"backups",fbBackupKey), {
-                timestamp: ahora.toISOString(),
-                mesKey: info.mesKey,
-                ufTotal: ufTotal,
-                equipo: equipo,
-                metaEquipo: safeMetaToSave,
-                ejecutivos: equipo.length,
-                crm: crmAll,
-                calendarios: calData
-              }).then(function(){
-                console.log("[BACKUP-FB] ✅ Backup completo en Firebase:", fbBackupKey, "| CRM ejecutivos:", crmAll.filter(function(c){return c.contactos.length>0;}).length);
-              }).catch(function(e){
-                console.warn("[BACKUP-FB] Error:", e);
-              });
-            });
-          }
+          // Backup Firebase CRM eliminado — conserva cuota Firestore
         })
         .catch(function(e){
           console.error("[SAVE] Firebase ERROR:", e);
