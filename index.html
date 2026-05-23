@@ -9687,14 +9687,14 @@ function MetasIndividualesView({ equipo, setEquipo, setMetaEquipo, info }) {
             React.createElement('th', { style: Object.assign({}, thStyle, { textAlign: "left", paddingLeft: 12, minWidth: 160 }) }, "Ejecutivo"),
             React.createElement('th', { style: Object.assign({}, thStyle, { minWidth: 70 }) }, "UF actual"),
             [0,1,2,3].map(function(si){
-              return React.createElement('th', { key: si, style: Object.assign({}, thStyle, { color: sem_colors[si], minWidth: 80 }) },
+              return React.createElement('th', { key: si, style: Object.assign({}, thStyle, { color: sem_colors[si], minWidth: 65 }) },
                 "Sem "+(si+1)+" (UF)");
             }),
-            React.createElement('th', { style: Object.assign({}, thStyle, { color: RD, fontWeight: 900, minWidth: 90, background: "#FFF0F2" }) }, "🏁 META MES"),
-            React.createElement('th', { style: Object.assign({}, thStyle, { color: "#7C3AED", fontWeight: 900, minWidth: 90, background: "#F5F3FF" }) }, "🎯 Compromiso")
+            React.createElement('th', { style: Object.assign({}, thStyle, { color: RD, fontWeight: 900, minWidth: 80, background: "#FFF0F2" }) }, "🏁 META MES"),
+            React.createElement('th', { style: Object.assign({}, thStyle, { color: "#7C3AED", fontWeight: 900, minWidth: 80, background: "#F5F3FF" }) }, "🎯 Compromiso"),
+            React.createElement('th', { style: Object.assign({}, thStyle, { color: "#2563EB", fontWeight: 900, minWidth: 70, background: "#EFF6FF" }) }, "Meta DPS"),
+            React.createElement('th', { style: Object.assign({}, thStyle, { color: "#374151", fontWeight: 900, minWidth: 60 }) }, "DPS Act.")
           )
-          , React.createElement('th', { style: Object.assign({}, thStyle, { color: "#2563EB", fontWeight: 900, minWidth: 80, background: "#EFF6FF" }) }, "🎯 Meta DPS")
-          , React.createElement('th', { style: Object.assign({}, thStyle, { color: "#374151", fontWeight: 900, minWidth: 80 }) }, "📊 DPS Actuales")
         ),
         React.createElement('tbody', null,
           metas.map(function(m, i) {
