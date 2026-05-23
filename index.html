@@ -5112,9 +5112,13 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
     }
   }, []);
 
-  // Guardar cuando cambia el estado - FUENTE UNICA DE VERDAD
+  // Guardar cuando cambia el estado - FUENTE UNICA DE VERDAD (debounced 3s)
+  const __saveTimer = React.useRef(null);
   useEffect(function() {
     if (!loaded) return;
+    // Debounce: esperar 3s sin cambios antes de guardar
+    if (__saveTimer.current) clearTimeout(__saveTimer.current);
+    __saveTimer.current = setTimeout(function() {
     // PROTECCIÓN CRÍTICA: nunca guardar si el equipo está vacío o sin nombres
     if (!equipo || equipo.length === 0) return;
     if (!equipo.some(function(v){ return v.nombre && v.nombre.length > 0; })) return;
@@ -5248,6 +5252,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
           skipSnapshot.current = false;
         });
     }
+    }, 3000); // fin debounce
+    return function(){ if(__saveTimer.current) clearTimeout(__saveTimer.current); };
   }, [equipo, metaEquipo, loaded]);
 
   //  UI state 
