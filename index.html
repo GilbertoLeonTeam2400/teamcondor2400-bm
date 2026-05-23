@@ -101,6 +101,12 @@ var __supPinActual = PIN_SUP_DEFAULT;
 const R       = "#e90729";
 const RD      = "#8B0418";
 const BG      = "#ffffff";
+// Truncar a 3 decimales SIN redondear (evita error de punto flotante)
+function truncUF3(n) {
+  var s = parseFloat(n||0).toFixed(10);
+  var p = s.split('.');
+  return parseFloat(p[0] + '.' + (p[1]||'000').substring(0,3));
+}
 const ACTIVIDADES = [
   { k: "llamar",     l: "Llamar",            col: "#3B82F6" },
   { k: "cotizar",    l: "Enviar cotizacion",  col: "#F59E0B" },
@@ -1723,12 +1729,9 @@ console.log("💡 Si faltan ejecutivos, ejecuta: window.recuperarDatos()");
 // ─────────────────────────────────────────────────────────────────────────────
 function fmtUF(n) {
   if (n === null || n === undefined || isNaN(n)) return "0";
-  // Truncar (nunca redondear) a 3 decimales
-  var t = Math.floor(Math.abs(n) * 1000) / 1000 * (n < 0 ? -1 : 1);
-  // Mostrar 3 decimales, luego eliminar trailing zero del 3ro (si es 0)
+  var t = truncUF3(n);
   var s = t.toFixed(3);
-  if (s.slice(-1) === "0") s = s.slice(0, -1); // 16.560 → 16.56
-  // Nunca menos de 2 decimales
+  if (s.slice(-1) === "0") s = s.slice(0, -1);
   var parts = s.split(".");
   if (!parts[1] || parts[1].length < 2) s = t.toFixed(2);
   return s.replace(".", ",");
@@ -3949,7 +3952,7 @@ function CierresEditables({ vAct, reps, totalUFMes, equipo, setEquipo, RD, fmtUF
         conecta: editData.conecta?1:0
       });
     });
-    var nuevaUF = parseFloat((Math.floor(nuevosReps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0)*1000)/1000).toFixed(3));
+    var nuevaUF = truncUF3(nuevosReps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0));
     var nuevoEquipo = equipo.map(function(e){
       if(e.id!==vAct.id) return e;
       return Object.assign({},e,{rep:nuevosReps,uf:nuevaUF});
@@ -3965,7 +3968,7 @@ function CierresEditables({ vAct, reps, totalUFMes, equipo, setEquipo, RD, fmtUF
     var nuevaUF = nuevosReps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0);
     var nuevoEquipo = equipo.map(function(e){
       if(e.id!==vAct.id) return e;
-      return Object.assign({},e,{rep:nuevosReps,uf:parseFloat((Math.floor(nuevaUF*1000)/1000).toFixed(3))});
+      return Object.assign({},e,{rep:nuevosReps,uf:truncUF3(nuevaUF)});
     });
     setEquipo(nuevoEquipo);
   }
@@ -5057,7 +5060,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
             console.log("[LOAD] Firebase datos recibidos OK");
             merged = merged.map(function(x){
               var reps = x.rep || [];
-              var ufDesdeReps = parseFloat((Math.floor(reps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0)*1000)/1000).toFixed(3));
+              var ufDesdeReps = truncUF3(reps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0));
               var mesKeyNow=(function(){var n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");})();
               var hNow=(x.historial||{})[mesKeyNow]||{};
               var hDpsTot=(parseInt(hNow.dpsVenta)||0)+(parseInt(hNow.dpsSinVenta)||0)+(parseInt(hNow.dpsPendiente)||0)+(parseInt(hNow.dpsRechazado)||0);
@@ -5636,7 +5639,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
     const id = Number(form.vid);
     const repCierre = {
       fecha: TODAY,
-      uf: parseFloat((Math.floor(parseFloat(cierre.uf)*1000)/1000).toFixed(3)),
+      uf: truncUF3(cierre.uf),
       nombre: cierre.clienteNombre||"",
       hombres: cierre.sexo==="hombre"?1:0,
       mujeres: cierre.sexo==="mujer"?1:0,
@@ -5649,7 +5652,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
     const nuevoEquipo = equipo.map(function(v){
       if(v.id!==id) return v;
       var todosReps = (v.rep||[]).concat([repCierre]);
-      var ufRecalculado = parseFloat((Math.floor(todosReps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0)*1000)/1000).toFixed(3));
+      var ufRecalculado = truncUF3(todosReps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0));
       var dpsRecalculado = todosReps.reduce(function(s,r){return s+(parseInt(r.dps)||0);},0);
       return Object.assign({},v,{uf:ufRecalculado,dps:dpsRecalculado,rep:todosReps});
     });
@@ -5699,7 +5702,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
       contactos: parseInt(form.contactos)||0,
       cot: parseInt(form.cot)||0,
       cierres: cierresHoy.length,
-      uf: parseFloat((Math.floor(ufTotal*1000)/1000).toFixed(3)),
+      uf: truncUF3(ufTotal),
       dps: dps,
       dpsVenta: dpsVenta,
       nota: form.nota,
@@ -5718,7 +5721,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
       var repHoyAnterior = (v.rep||[]).find(function(r){ return r.fecha === TODAY; });
       // Si ya había reporte hoy, sumar los cierres (puede haber reportado varias veces)
       var nuevoRepFinal = repHoyAnterior ? Object.assign({}, repHoyAnterior, {
-        uf:        parseFloat((Math.floor((repHoyAnterior.uf + ufTotal)*1000)/1000).toFixed(3)),
+        uf:        truncUF3(repHoyAnterior.uf + ufTotal),
         dps:       (repHoyAnterior.dps||0) + dps,
         cierres:   (repHoyAnterior.cierres||0) + cierresHoy.length,
         hombres:   (repHoyAnterior.hombres||0) + homTotal,
@@ -5732,7 +5735,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
       }) : nuevoRep;
       var todosReps = repsAnteriores.concat([nuevoRepFinal]);
       // v.uf = suma de TODOS los rep[].uf — fuente única de verdad, nunca se desincroniza
-      var ufRecalculado = parseFloat((Math.floor(todosReps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0)*1000)/1000).toFixed(3));
+      var ufRecalculado = truncUF3(todosReps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0));
       var dpsRecalculado = todosReps.reduce(function(s,r){return s+(parseInt(r.dps)||0);},0);
       return Object.assign({},v,{
         uf:  ufRecalculado,
