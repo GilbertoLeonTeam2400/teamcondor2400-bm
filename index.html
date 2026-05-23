@@ -5327,7 +5327,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
   // Map group -> sub-tabs
   const SUP_GRUPOS = {
     dashboard: [["dashboard","📊 Dashboard"],["calEjec","📅 Calendario Ejecutivos"]],
-    equipo:    [["gestion","👥 Gestionar Equipo"],["carga","📥 Cargar UF/DPS"]],
+    equipo:    [["gestion","👥 Gestionar Equipo"]],
     metas:     [["meta","🎯 Meta del Equipo"],["uflineales","📈 UF's Lineales"]],
     contenido: [["gestPremios","🏆 Gestionar Premios"],["gestDocs","📂 Gestionar Docs"]],
     analisis:  [["clasificacion","📊 Clasificación AGV"],["agentes0","🚨 Agentes en 0"],["dpsanalisis","📊 Análisis Reporte Diario de Métricas"],["historialMetricas","📋 Ver Historial Métricas por Ejecutivo"],["tendencias","📈 Tendencias y Gráficos"],["predictor","🎯 Predictor Cierre de Mes"],["correlacion","🔗 Correlación DPS→UF"],["alertas","🚨 Alertas del Equipo"],["planagv","📋 Plan de Trabajo AGV"]],
@@ -9739,21 +9739,29 @@ function MetasIndividualesView({ equipo, setEquipo, setMetaEquipo, info }) {
                   )
                   : React.createElement('div', { style: { fontSize: 11, color: "#D1D5DB", fontStyle: "italic" } }, "Sin guardar")
               )
-              // Meta DPS editable
-              , React.createElement('td', { style: { padding: "10px 12px", textAlign: "center" } }
-                , React.createElement('input', {
-                    type: "number", min: 0,
-                    value: v.metaDPS||"",
-                    placeholder: "—",
-                    onChange: function(ev){ var val=parseInt(ev.target.value)||0; var nE=equipo.map(function(eq){return eq.id===v.id?Object.assign({},eq,{metaDPS:val}):eq;}); setEquipo(nE); },
-                    onBlur: function(ev){ var val=parseInt(ev.target.value)||0; var nE=equipo.map(function(eq){return eq.id===v.id?Object.assign({},eq,{metaDPS:val}):eq;}); setEquipo(nE); if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",info.mesKey),{equipo:nE,metaEquipo:metaEquipo},{merge:true}).catch(function(){}); },
-                    style: { width: 60, padding: "6px 8px", borderRadius: 8, border: "1.5px solid #BFDBFE", fontSize: 13, fontWeight: 700, textAlign: "center", fontFamily: "inherit" }
-                  })
-              )
-              // DPS Actuales (calculado)
-              , React.createElement('td', { style: { padding: "10px 12px", textAlign: "center", fontWeight: 700, color: "#374151" } }
-                , (function(){ var h=(v.historial||{})[info.mesKey]||{}; var d=(parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0); return d>0?d:(parseInt(v.dps)||0)||"—"; })()
-              )
+              // Meta DPS editable — usar m.id para buscar en equipo
+              , (function(){
+                  var eq = equipo.find(function(e){ return e.id===m.id; }) || {};
+                  var mDPS = parseInt(eq.metaDPS)||0;
+                  var h = (eq.historial||{})[info.mesKey]||{};
+                  var dAct = (parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0);
+                  if(!dAct) dAct = parseInt(eq.dps)||0;
+                  return React.createElement(React.Fragment, null,
+                    React.createElement('td', { style: { padding: "10px 12px", textAlign: "center" } }
+                      , React.createElement('input', {
+                          type: "number", min: 0,
+                          value: mDPS||"",
+                          placeholder: "—",
+                          onChange: function(ev){ var val=parseInt(ev.target.value)||0; var nE=equipo.map(function(e){return e.id===m.id?Object.assign({},e,{metaDPS:val}):e;}); setEquipo(nE); },
+                          onBlur: function(ev){ var val=parseInt(ev.target.value)||0; var nE=equipo.map(function(e){return e.id===m.id?Object.assign({},e,{metaDPS:val}):e;}); setEquipo(nE); if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",info.mesKey),{equipo:nE,metaEquipo:metaEquipo},{merge:true}).catch(function(){}); },
+                          style: { width: 60, padding: "6px 8px", borderRadius: 8, border: "1.5px solid #BFDBFE", fontSize: 13, fontWeight: 700, textAlign: "center", fontFamily: "inherit" }
+                        })
+                    )
+                    , React.createElement('td', { style: { padding: "10px 12px", textAlign: "center", fontWeight: 700, color: "#374151" } }
+                      , dAct||"—"
+                    )
+                  );
+                })()
             );
           }),
           /* FILA TOTALES */
