@@ -3965,7 +3965,7 @@ function CierresEditables({ vAct, reps, totalUFMes, equipo, setEquipo, RD, fmtUF
     var nuevaUF = nuevosReps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0);
     var nuevoEquipo = equipo.map(function(e){
       if(e.id!==vAct.id) return e;
-      return Object.assign({},e,{rep:nuevosReps,uf:parseFloat(nuevaUF.toFixed(2))});
+      return Object.assign({},e,{rep:nuevosReps,uf:parseFloat((Math.floor(nuevaUF*1000)/1000).toFixed(3))});
     });
     setEquipo(nuevoEquipo);
   }
@@ -5057,7 +5057,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
             console.log("[LOAD] Firebase datos recibidos OK");
             merged = merged.map(function(x){
               var reps = x.rep || [];
-              var ufDesdeReps = parseFloat(reps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0).toFixed(2));
+              var ufDesdeReps = parseFloat((Math.floor(reps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0)*1000)/1000).toFixed(3));
               var mesKeyNow=(function(){var n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");})();
               var hNow=(x.historial||{})[mesKeyNow]||{};
               var hDpsTot=(parseInt(hNow.dpsVenta)||0)+(parseInt(hNow.dpsSinVenta)||0)+(parseInt(hNow.dpsPendiente)||0)+(parseInt(hNow.dpsRechazado)||0);
@@ -5636,7 +5636,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
     const id = Number(form.vid);
     const repCierre = {
       fecha: TODAY,
-      uf: parseFloat(cierre.uf.toFixed(2)),
+      uf: parseFloat((Math.floor(parseFloat(cierre.uf)*1000)/1000).toFixed(3)),
       nombre: cierre.clienteNombre||"",
       hombres: cierre.sexo==="hombre"?1:0,
       mujeres: cierre.sexo==="mujer"?1:0,
@@ -5649,7 +5649,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
     const nuevoEquipo = equipo.map(function(v){
       if(v.id!==id) return v;
       var todosReps = (v.rep||[]).concat([repCierre]);
-      var ufRecalculado = parseFloat(todosReps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0).toFixed(2));
+      var ufRecalculado = parseFloat((Math.floor(todosReps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0)*1000)/1000).toFixed(3));
       var dpsRecalculado = todosReps.reduce(function(s,r){return s+(parseInt(r.dps)||0);},0);
       return Object.assign({},v,{uf:ufRecalculado,dps:dpsRecalculado,rep:todosReps});
     });
@@ -5699,7 +5699,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
       contactos: parseInt(form.contactos)||0,
       cot: parseInt(form.cot)||0,
       cierres: cierresHoy.length,
-      uf: parseFloat(ufTotal.toFixed(2)),
+      uf: parseFloat((Math.floor(ufTotal*1000)/1000).toFixed(3)),
       dps: dps,
       dpsVenta: dpsVenta,
       nota: form.nota,
@@ -5718,7 +5718,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
       var repHoyAnterior = (v.rep||[]).find(function(r){ return r.fecha === TODAY; });
       // Si ya había reporte hoy, sumar los cierres (puede haber reportado varias veces)
       var nuevoRepFinal = repHoyAnterior ? Object.assign({}, repHoyAnterior, {
-        uf:        parseFloat((repHoyAnterior.uf + ufTotal).toFixed(2)),
+        uf:        parseFloat((Math.floor((repHoyAnterior.uf + ufTotal)*1000)/1000).toFixed(3)),
         dps:       (repHoyAnterior.dps||0) + dps,
         cierres:   (repHoyAnterior.cierres||0) + cierresHoy.length,
         hombres:   (repHoyAnterior.hombres||0) + homTotal,
@@ -5732,7 +5732,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
       }) : nuevoRep;
       var todosReps = repsAnteriores.concat([nuevoRepFinal]);
       // v.uf = suma de TODOS los rep[].uf — fuente única de verdad, nunca se desincroniza
-      var ufRecalculado = parseFloat(todosReps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0).toFixed(2));
+      var ufRecalculado = parseFloat((Math.floor(todosReps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0)*1000)/1000).toFixed(3));
       var dpsRecalculado = todosReps.reduce(function(s,r){return s+(parseInt(r.dps)||0);},0);
       return Object.assign({},v,{
         uf:  ufRecalculado,
