@@ -5581,7 +5581,30 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
       var dpsRecalculado = todosReps.reduce(function(s,r){return s+(parseInt(r.dps)||0);},0);
       return Object.assign({},v,{uf:ufRecalculado,dps:dpsRecalculado,rep:todosReps});
     });
+    // Guardar DIRECTAMENTE a Firebase (no esperar useEffect)
+    if(window.skipSnapshotRef) window.skipSnapshotRef.current = true;
+    window.__lastSaveTs = Date.now();
     setEquipo(nuevoEquipo);
+    setCierresHoy((cierresHoy||[]).concat([cierre]));
+    if(window.__fbDb && window.__fbDoc && window.__fbSetDoc) {
+      var _meta = (isNaN(metaEquipo)||metaEquipo<=0) ? 550 : metaEquipo;
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",info.mesKey),{equipo:nuevoEquipo,metaEquipo:_meta})
+        .then(function(){
+          window.__lastSaveTs = Date.now();
+          if(window.__showToast) window.__showToast(parseFloat(Math.floor(parseFloat(cierre.uf)*1000)/1000)+" UF guardada ✓","ok");
+          setTimeout(function(){if(window.skipSnapshotRef)window.skipSnapshotRef.current=false;},8000);
+        })
+        .catch(function(){
+          setTimeout(function(){
+            window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",info.mesKey),{equipo:nuevoEquipo,metaEquipo:_meta})
+              .then(function(){if(window.__showToast)window.__showToast("UF guardada ✓","ok");window.__lastSaveTs=Date.now();setTimeout(function(){if(window.skipSnapshotRef)window.skipSnapshotRef.current=false;},8000);})
+              .catch(function(){if(window.__showToast)window.__showToast("Guardado local","warn");if(window.skipSnapshotRef)window.skipSnapshotRef.current=false;});
+          },3000);
+        });
+    } else {
+      if(window.__showToast) window.__showToast("UF guardada local","warn");
+      setTimeout(function(){if(window.skipSnapshotRef)window.skipSnapshotRef.current=false;},8000);
+    }
   }
 
   function enviarReporte(){
