@@ -3189,7 +3189,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
               return React.createElement("tr",{key:d.id,style:{borderTop:"1px solid #F3F4F6",background:i%2===0?"#fff":"#FAFBFF"}}
                 ,React.createElement("td",{style:{padding:"10px 12px",fontWeight:700,color:RD,fontSize:12}},d.nombre)
                 ,React.createElement(EditableCell,{vid:d.id,campo:"uf",valor:d.uf,color:"#C9A84C"})
-                ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#374151",fontWeight:700}},d.dpsTotal>0?d.dpsTotal:"—")
+                ,React.createElement(EditableCell,{vid:d.id,campo:"dpsTotal",valor:d.dpsTotal,color:"#374151"})
                 ,React.createElement(EditableCell,{vid:d.id,campo:"dpsVenta",valor:d.dpsConVenta,color:"#16A34A"})
                 ,React.createElement(EditableCell,{vid:d.id,campo:"dpsSinVenta",valor:d.dpsSinVenta,color:"#2563EB"})
                 ,React.createElement(EditableCell,{vid:d.id,campo:"dpsPendiente",valor:d.dpsPendiente,color:"#D97706"})
@@ -3199,7 +3199,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
                 )
                 ,React.createElement(EditableCell,{vid:d.id,campo:"nBenef",valor:d.nBenef,color:"#0891B2"})
                 ,React.createElement(EditableCell,{vid:d.id,campo:"cttosDig",valor:d.cttosDig,color:"#059669"})
-                ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#059669",fontWeight:700}},d.conecta>0?d.conecta:"—")
+                ,React.createElement(EditableCell,{vid:d.id,campo:"conecta",valor:d.conecta,color:"#059669"})
                 ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#EC4899",fontWeight:700}},d.pctF>0?d.pctF+"%":"—")
                 ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#3B82F6",fontWeight:700}},d.pctM>0?d.pctM+"%":"—")
               );
@@ -5001,7 +5001,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                 uf:  reps.length > 0 ? ufDesdeReps : (parseFloat(x.uf)||0),
                 dps: dpsFinal,
                 metaUF: parseFloat(x.metaUF) || 25,
-                metaDPS: x.metaDPS !== undefined ? parseInt(x.metaDPS)||0 : 0
+                metaDPS: (parseInt(x.metaDPS)||0)===30 ? 0 : (x.metaDPS !== undefined ? parseInt(x.metaDPS)||0 : 0)
               });
             }).filter(function(x){ return x && x.nombre && typeof x.nombre === 'string' && x.nombre.trim() !== ''; });
             setEquipo(merged);
@@ -5264,7 +5264,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
   // Map group -> sub-tabs
   const SUP_GRUPOS = {
     dashboard: [["dashboard","📊 Dashboard"],["calEjec","📅 Calendario Ejecutivos"]],
-    equipo:    [["gestion","👥 Gestionar Equipo"],["carga","📥 Cargar UF/DPS"],["editar","✏️ Editar Estadísticas"]],
+    equipo:    [["gestion","👥 Gestionar Equipo"],["carga","📥 Cargar UF/DPS"]],
     metas:     [["meta","🎯 Meta del Equipo"],["uflineales","📈 UF's Lineales"]],
     contenido: [["gestPremios","🏆 Gestionar Premios"],["gestDocs","📂 Gestionar Docs"]],
     analisis:  [["clasificacion","📊 Clasificación AGV"],["agentes0","🚨 Agentes en 0"],["dpsanalisis","📊 Análisis Reporte Diario de Métricas"],["historialMetricas","📋 Ver Historial Métricas por Ejecutivo"],["tendencias","📈 Tendencias y Gráficos"],["predictor","🎯 Predictor Cierre de Mes"],["correlacion","🔗 Correlación DPS→UF"],["alertas","🚨 Alertas del Equipo"],["planagv","📋 Plan de Trabajo AGV"]],
@@ -8034,7 +8034,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                   )
                 )
 
-                , supVista==="editar"&&React.createElement(EditarDatosView, { equipo: equipo, setEquipo: setEquipo, info: info, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3770}} )
+                , false&&React.createElement(EditarDatosView, { equipo: equipo, setEquipo: setEquipo, info: info, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3770}} )
                 , supVista==="meta"&&React.createElement('div', { style: {display:"flex",flexDirection:"column",gap:18} },
                   React.createElement(MetasIndividualesView, { equipo: equipo, setEquipo: setEquipo, setMetaEquipo: setMetaEquipo, info: info }),
                   React.createElement(EditarMetaEquipo, { metaEquipo: metaEquipo, setMetaEquipo: setMetaEquipo, premioConecta: premioConecta, setPremioConecta: setPremioConecta, nombrePremio: nombrePremio, setNombrePremio: setNombrePremio })
@@ -9630,6 +9630,8 @@ function MetasIndividualesView({ equipo, setEquipo, setMetaEquipo, info }) {
             React.createElement('th', { style: Object.assign({}, thStyle, { color: RD, fontWeight: 900, minWidth: 90, background: "#FFF0F2" }) }, "🏁 META MES"),
             React.createElement('th', { style: Object.assign({}, thStyle, { color: "#7C3AED", fontWeight: 900, minWidth: 90, background: "#F5F3FF" }) }, "🎯 Compromiso")
           )
+          , React.createElement('th', { style: Object.assign({}, thStyle, { color: "#2563EB", fontWeight: 900, minWidth: 80, background: "#EFF6FF" }) }, "🎯 Meta DPS")
+          , React.createElement('th', { style: Object.assign({}, thStyle, { color: "#374151", fontWeight: 900, minWidth: 80 }) }, "📊 DPS Actuales")
         ),
         React.createElement('tbody', null,
           metas.map(function(m, i) {
@@ -9673,6 +9675,21 @@ function MetasIndividualesView({ equipo, setEquipo, setMetaEquipo, info }) {
                       )
                   )
                   : React.createElement('div', { style: { fontSize: 11, color: "#D1D5DB", fontStyle: "italic" } }, "Sin guardar")
+              )
+              // Meta DPS editable
+              , React.createElement('td', { style: { padding: "10px 12px", textAlign: "center" } }
+                , React.createElement('input', {
+                    type: "number", min: 0,
+                    value: v.metaDPS||"",
+                    placeholder: "—",
+                    onChange: function(ev){ var val=parseInt(ev.target.value)||0; var nE=equipo.map(function(eq){return eq.id===v.id?Object.assign({},eq,{metaDPS:val}):eq;}); setEquipo(nE); },
+                    onBlur: function(ev){ var val=parseInt(ev.target.value)||0; var nE=equipo.map(function(eq){return eq.id===v.id?Object.assign({},eq,{metaDPS:val}):eq;}); setEquipo(nE); if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",info.mesKey),{equipo:nE,metaEquipo:metaEquipo},{merge:true}).catch(function(){}); },
+                    style: { width: 60, padding: "6px 8px", borderRadius: 8, border: "1.5px solid #BFDBFE", fontSize: 13, fontWeight: 700, textAlign: "center", fontFamily: "inherit" }
+                  })
+              )
+              // DPS Actuales (calculado)
+              , React.createElement('td', { style: { padding: "10px 12px", textAlign: "center", fontWeight: 700, color: "#374151" } }
+                , (function(){ var h=(v.historial||{})[info.mesKey]||{}; var d=(parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0); return d>0?d:(parseInt(v.dps)||0)||"—"; })()
               )
             );
           }),
