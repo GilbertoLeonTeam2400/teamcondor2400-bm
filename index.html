@@ -103,9 +103,22 @@ const RD      = "#8B0418";
 const BG      = "#ffffff";
 // Truncar a 3 decimales SIN redondear (evita error de punto flotante)
 function truncUF3(n) {
-  var s = parseFloat(n||0).toFixed(10);
-  var p = s.split('.');
-  return parseFloat(p[0] + '.' + (p[1]||'000').substring(0,3));
+  // Convert to string first to avoid float precision errors
+  var str = String(n||0).replace(',','.');
+  if(isNaN(parseFloat(str))) return 0;
+  var p = parseFloat(str).toFixed(10).split('.');
+  var dec = (p[1]||'000').substring(0,3);
+  return parseFloat(p[0] + '.' + dec);
+}
+function truncUF3str(n) {
+  // Returns exact string representation
+  var str = String(n||0).replace(',','.');
+  if(!/^-?\d+\.?\d*$/.test(str)) str = parseFloat(str).toFixed(10);
+  var p = str.split('.');
+  var dec = (p[1]||'000').substring(0,3);
+  // Remove trailing zero only if 3rd decimal is 0
+  var result = p[0] + '.' + dec;
+  return parseFloat(result);
 }
 const ACTIVIDADES = [
   { k: "llamar",     l: "Llamar",            col: "#3B82F6" },
@@ -9398,7 +9411,11 @@ function NuevoCierreForm({ BTN, INP, RD, cierresHoy, setCierresHoy, crmData, TOD
   }
 
   function agregar() {
-    const uf = parseFloat(Math.floor(parseFloat(nc.uf||0)*1000)/1000);
+    // Usar el string exacto del input para evitar error de punto flotante
+    var ufStr = String(nc.uf||'').replace(',','.');
+    var ufParts = ufStr.split('.');
+    var ufExact = parseFloat(ufParts[0] + '.' + (ufParts[1]||'000').substring(0,3));
+    const uf = ufExact;
     if (!uf || uf <= 0) return;
     if (nc.origen === "isapre" && !nc.isapre) { window.alert("Por favor selecciona la Isapre de origen."); return; }
     if (dupWarning && !dupConfirmed) return;
@@ -9443,7 +9460,7 @@ function NuevoCierreForm({ BTN, INP, RD, cierresHoy, setCierresHoy, crmData, TOD
         , React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 4476}}
           , React.createElement('label', { style: {fontSize:11,fontWeight:600,color:"#374151",display:"block",marginBottom:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4477}}, "UF del contrato *"   )
           , React.createElement('input', { type: "number", step: "0.001", min: "0", value: nc.uf,
-            onChange: function(e){setNc(Object.assign({},nc,{uf:e.target.value}));},
+            onChange: function(e){setNc(Object.assign({},nc,{uf:e.target.value}))},
             style: Object.assign({},INP,{fontSize:20,fontWeight:900,color:RD}), placeholder: "0.00", __self: this, __source: {fileName: _jsxFileName, lineNumber: 4478}} )
         )
         , React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 4482}}
