@@ -4409,9 +4409,9 @@ function PredictorPersonalView({ equipo, form, RD, info }) {
       ,React.createElement("div",{style:{fontSize:9,color:"#111827",fontWeight:800,marginBottom:3,textTransform:"uppercase"}},
         llega?"Para lograrlo necesitas:":"¡TÚ PUEDES CRACK, VAMOS!!!"
       )
-      ,React.createElement("div",{style:{display:"flex",gap:3,justifyContent:"center",flexWrap:"wrap"}}
-        ,React.createElement("span",{style:{background:llega?"#DCFCE7":"#FEE2E2",color:clr,borderRadius:99,padding:"2px 6px",fontSize:8,fontWeight:900}},dCal+" UF/día cal.")
-        ,React.createElement("span",{style:{background:llega?"#DCFCE7":"#FEE2E2",color:clr,borderRadius:99,padding:"2px 6px",fontSize:8,fontWeight:900}},dHab+" UF/día háb.")
+      ,React.createElement("div",{style:{display:"flex",gap:4,justifyContent:"center",flexWrap:"wrap"}}
+        ,React.createElement("span",{style:{background:llega?"#DCFCE7":"#FEE2E2",color:clr,borderRadius:8,padding:"6px 10px",fontSize:14,fontWeight:900,display:"block",width:"100%",marginBottom:4}},dCal+" UF/día cal.")
+        ,React.createElement("span",{style:{background:llega?"#DCFCE7":"#FEE2E2",color:clr,borderRadius:8,padding:"6px 10px",fontSize:14,fontWeight:900,display:"block",width:"100%"}},dHab+" UF/día háb.")
       )
     );
   }
@@ -4446,14 +4446,14 @@ function PredictorPersonalView({ equipo, form, RD, info }) {
     )
     ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}
       ,React.createElement("div",{style:{background:"#F0FDF4",borderRadius:12,padding:"14px",textAlign:"center",border:"1.5px solid #86EFAC"}}
-        ,React.createElement("div",{style:{fontSize:26,fontWeight:900,color:"#16A34A",lineHeight:1}},ritmoNecV)
-        ,React.createElement("div",{style:{fontSize:11,fontWeight:800,color:"#15803D",marginTop:5}},"UF por día (calendario)")
-        ,React.createElement("div",{style:{fontSize:10,color:"#374151",marginTop:4,lineHeight:1.4}},"Con este ritmo llegarás a tu meta con los días corridos que restan")
+        ,React.createElement("div",{style:{fontSize:32,fontWeight:900,color:"#16A34A",lineHeight:1}},ritmoNecV)
+        ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:"#15803D",marginTop:6}},"UF por día (calendario)")
+        ,React.createElement("div",{style:{fontSize:11,color:"#374151",marginTop:4,lineHeight:1.4}},"Con este ritmo llegarás a tu meta con los días corridos que restan")
       )
       ,React.createElement("div",{style:{background:"#F0FDF4",borderRadius:12,padding:"14px",textAlign:"center",border:"1.5px solid #86EFAC"}}
-        ,React.createElement("div",{style:{fontSize:26,fontWeight:900,color:"#16A34A",lineHeight:1}},ritmoNecHV)
-        ,React.createElement("div",{style:{fontSize:11,fontWeight:800,color:"#15803D",marginTop:5}},"UF por día (hábil)")
-        ,React.createElement("div",{style:{fontSize:10,color:"#374151",marginTop:4,lineHeight:1.4}},"Con este ritmo llegarás a tu meta considerando solo días hábiles")
+        ,React.createElement("div",{style:{fontSize:32,fontWeight:900,color:"#16A34A",lineHeight:1}},ritmoNecHV)
+        ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:"#15803D",marginTop:6}},"UF por día (hábil)")
+        ,React.createElement("div",{style:{fontSize:11,color:"#374151",marginTop:4,lineHeight:1.4}},"Con este ritmo llegarás a tu meta considerando solo días hábiles")
       )
     )
     ,React.createElement("div",{style:{background:"#FFF8E7",borderRadius:10,padding:"8px 14px",marginBottom:10,display:"flex",alignItems:"center",gap:8,border:"1px solid #FCD34D"}}
@@ -4461,7 +4461,7 @@ function PredictorPersonalView({ equipo, form, RD, info }) {
       ,React.createElement("span",{style:{fontSize:16,fontWeight:900,color:"#C9A84C"}},fmtUF2(metaV)+" UF")
     )
     ,React.createElement(ScenCardV,{
-      label:"🔥 Optimista (Efecto "+vSel.nombre.split(" ")[0]+" es su Última Semana)",
+      label:"Optimista (Efecto "+vSel.nombre.split(" ")[0]+" es su Última Semana) "+(((vSel.rep||[]).reduce(function(s,r){return s+(r.mujeres||0);},0)>(vSel.rep||[]).reduce(function(s,r){return s+(r.hombres||0);},0))?"🏃‍♀️":"🏃‍♂️"),
       val:pExtrV,
       desc:pExtrV>=metaV?"¡Si duplicas tu promedio de UF diarias superarías tu meta! 🔥":"Si duplicas tu promedio de UF diarias no llegarías a la meta"
     })
@@ -4528,8 +4528,8 @@ function PredictorView({ equipo, info, R, RD, metaUFSafe }) {
       ,React.createElement("div",{style:{borderTop:"1px solid "+brd,paddingTop:8,opacity:0.9}})
       ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginBottom:4,textTransform:"uppercase"}},"UF/día requerida:")
       ,React.createElement("div",{style:{display:"flex",gap:4,justifyContent:"center",flexWrap:"wrap"}}
-        ,React.createElement("span",{style:{background:llega?"#DCFCE7":"#FEE2E2",color:clr,borderRadius:99,padding:"3px 8px",fontSize:9,fontWeight:900}},ufDiaCal+" UF/día cal.")
-        ,React.createElement("span",{style:{background:llega?"#DCFCE7":"#FEE2E2",color:clr,borderRadius:99,padding:"3px 8px",fontSize:9,fontWeight:900}},ufDiaHab+" UF/día háb.")
+        ,React.createElement("span",{style:{background:llega?"#DCFCE7":"#FEE2E2",color:clr,borderRadius:8,padding:"6px 10px",fontSize:13,fontWeight:900,display:"block",width:"100%",marginBottom:4}},ufDiaCal+" UF/día cal.")
+        ,React.createElement("span",{style:{background:llega?"#DCFCE7":"#FEE2E2",color:clr,borderRadius:8,padding:"6px 10px",fontSize:13,fontWeight:900,display:"block",width:"100%"}},ufDiaHab+" UF/día háb.")
       )
     );
   }
@@ -4560,14 +4560,14 @@ function PredictorView({ equipo, info, R, RD, metaUFSafe }) {
     // Fila 2: Necesario cal + Necesario háb
     ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}
       ,React.createElement("div",{style:{background:"#F0FDF4",borderRadius:12,padding:"16px",textAlign:"center",border:"1.5px solid #86EFAC"}}
-        ,React.createElement("div",{style:{fontSize:28,fontWeight:900,color:"#16A34A",lineHeight:1}},ritmoNecesario)
-        ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:"#15803D",marginTop:6}},"UF por día (calendario)")
-        ,React.createElement("div",{style:{fontSize:11,color:"#374151",marginTop:4,lineHeight:1.4}},"Con este ritmo llegarás a la meta con los días corridos que restan")
+        ,React.createElement("div",{style:{fontSize:36,fontWeight:900,color:"#16A34A",lineHeight:1}},ritmoNecesario)
+        ,React.createElement("div",{style:{fontSize:13,fontWeight:800,color:"#15803D",marginTop:6}},"UF por día (calendario)")
+        ,React.createElement("div",{style:{fontSize:11,color:"#374151",marginTop:4,lineHeight:1.4}},"Con este ritmo el equipo llegará a la meta con los días corridos que restan")
       )
       ,React.createElement("div",{style:{background:"#F0FDF4",borderRadius:12,padding:"16px",textAlign:"center",border:"1.5px solid #86EFAC"}}
-        ,React.createElement("div",{style:{fontSize:28,fontWeight:900,color:"#16A34A",lineHeight:1}},ritmoNecesarioHabil)
-        ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:"#15803D",marginTop:6}},"UF por día (hábil)")
-        ,React.createElement("div",{style:{fontSize:11,color:"#374151",marginTop:4,lineHeight:1.4}},"Con este ritmo llegarás a la meta considerando solo los días hábiles")
+        ,React.createElement("div",{style:{fontSize:36,fontWeight:900,color:"#16A34A",lineHeight:1}},ritmoNecesarioHabil)
+        ,React.createElement("div",{style:{fontSize:13,fontWeight:800,color:"#15803D",marginTop:6}},"UF por día (hábil)")
+        ,React.createElement("div",{style:{fontSize:11,color:"#374151",marginTop:4,lineHeight:1.4}},"Con este ritmo el equipo llegará a la meta considerando solo los días hábiles")
       )
     )
     // Escenarios
@@ -4575,7 +4575,7 @@ function PredictorView({ equipo, info, R, RD, metaUFSafe }) {
     ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:16}}
       ,React.createElement(ScenCard,{label:"📉 Conservador (+30%)",val:proyConservador})
       ,React.createElement(ScenCard,{label:"🚀 Optimista (+50%)",val:proyOptimista})
-      ,React.createElement(ScenCard,{label:"🔥 Extremo (Efecto Última Semana)",val:proyExtremo})
+      ,React.createElement(ScenCard,{label:"🔥 Extremo — +100% ritmo actual (Efecto Última Semana)",val:proyExtremo})
     )
     // Mensaje
     ,React.createElement("div",{style:{background:llegaRealista?"#F0FDF4":"#FEF9C3",borderRadius:12,padding:"14px 16px",border:"1.5px solid "+(llegaRealista?"#86EFAC":"#FCD34D"),fontSize:13,fontWeight:700,color:llegaRealista?"#166534":"#92400E"}}
