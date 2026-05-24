@@ -4427,10 +4427,10 @@ function PredictorPersonalView({ equipo, form, RD, info }) {
           ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:"#C9A84C"}},ufV.toFixed(3))
           ,React.createElement("div",{style:{fontSize:9,color:"#92400E",fontWeight:700,marginTop:2}},"UF Actual")
         )
-        ,React.createElement("div",{style:{background:"#EFF6FF",borderRadius:12,padding:"8px",textAlign:"center",border:"1.5px solid #2563EB"}}
-          ,React.createElement("div",{style:{fontSize:13,fontWeight:900,color:"#1D4ED8"}},"Solo necesitas")
-          ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:"#1D4ED8",lineHeight:1.1}},parseFloat(Math.max(0,metaV-ufV).toFixed(3))+" UF")
-          ,React.createElement("div",{style:{fontSize:9,color:"#1D4ED8",fontWeight:800,marginTop:3}},"¡Esto es nada! ¡Vamos!")
+        ,React.createElement("div",{style:{background:"#F0FDF4",borderRadius:12,padding:"8px",textAlign:"center",border:"1.5px solid #16A34A"}}
+          ,React.createElement("div",{style:{fontSize:13,fontWeight:900,color:"#15803D"}},"Solo necesitas")
+          ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:"#15803D",lineHeight:1.1}},parseFloat(Math.max(0,metaV-ufV).toFixed(3))+" UF")
+          ,React.createElement("div",{style:{fontSize:9,color:"#15803D",fontWeight:800,marginTop:3}},"¡Esto es nada para ti CRACK! ¡VAMOS!")
         )
       )
       ,React.createElement("div",{style:{background:"#F8FAFC",borderRadius:12,padding:"10px",textAlign:"center",border:"1px solid #E5E7EB"}}
@@ -4460,11 +4460,11 @@ function PredictorPersonalView({ equipo, form, RD, info }) {
       ,React.createElement("span",{style:{fontSize:11,color:"#92400E",fontWeight:700}},"🎯 Tu meta comprometida:")
       ,React.createElement("span",{style:{fontSize:16,fontWeight:900,color:"#C9A84C"}},fmtUF2(metaV)+" UF")
     )
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}
-      ,React.createElement(ScenCardV,{label:"📉 Conservador",val:pConsV,desc:pConsV>=metaV?"Si aumentas un 30% tu promedio de UF diarias llegarías a tu meta 🎯":"Si aumentas un 30% tu promedio de UF diarias no llegarías a tu meta"})
-      ,React.createElement(ScenCardV,{label:"🚀 Optimista",val:pOptV,desc:pOptV>=metaV?"Si aumentas un 50% tu promedio de UF diarias llegarías a tu meta 🎯":"Si aumentas un 50% tu promedio de UF diarias no llegarías a tu meta"})
-      ,React.createElement(ScenCardV,{label:"🔥 Extremo (Efecto Última Semana)",val:pExtrV,desc:pExtrV>=metaV?"Si duplicas tu promedio de UF diarias superarías tu meta 🔥":"Si duplicas tu promedio de UF diarias no llegarías a tu meta"})
-    )
+    ,React.createElement(ScenCardV,{
+      label:"🔥 Optimista (Efecto "+vSel.nombre.split(" ")[0]+" es su Última Semana)",
+      val:pExtrV,
+      desc:pExtrV>=metaV?"¡Si duplicas tu promedio de UF diarias superarías tu meta! 🔥":"Si duplicas tu promedio de UF diarias no llegarías a la meta"
+    })
     ,React.createElement("div",{style:{background:llegaV?"#F0FDF4":"#FEF9C3",borderRadius:10,padding:"12px 14px",border:"1.5px solid "+(llegaV?"#86EFAC":"#FCD34D"),fontSize:12,fontWeight:700,color:llegaV?"#166534":"#92400E"}}
       ,llegaV
         ? "✅ Escenario conservador llega a tu meta. ¡Buen ritmo!"
@@ -4525,11 +4525,8 @@ function PredictorView({ equipo, info, R, RD, metaUFSafe }) {
       ,React.createElement("div",{style:{background:"#E5E7EB",borderRadius:99,height:7,margin:"10px 0",overflow:"hidden"}}
         ,React.createElement("div",{style:{width:pct+"%",height:"100%",background:clr,borderRadius:99}})
       )
-      ,React.createElement("div",{style:{fontSize:12,fontWeight:700,color:clr,marginBottom:6}},
-        llega ? "✅ Llega a la meta" : "⚠️ No llega a la meta"
-      )
       ,React.createElement("div",{style:{borderTop:"1px solid "+brd,paddingTop:8,opacity:0.9}})
-      ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginBottom:4,textTransform:"uppercase"}},llega ? llega ? "Para lograrlo necesitas:" : "Para llegar a tu meta necesitarías:" : "¡Aún puedes! Con este esfuerzo:")
+      ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginBottom:4,textTransform:"uppercase"}},"UF/día requerida:")
       ,React.createElement("div",{style:{display:"flex",gap:4,justifyContent:"center",flexWrap:"wrap"}}
         ,React.createElement("span",{style:{background:llega?"#DCFCE7":"#FEE2E2",color:clr,borderRadius:99,padding:"3px 8px",fontSize:9,fontWeight:900}},ufDiaCal+" UF/día cal.")
         ,React.createElement("span",{style:{background:llega?"#DCFCE7":"#FEE2E2",color:clr,borderRadius:99,padding:"3px 8px",fontSize:9,fontWeight:900}},ufDiaHab+" UF/día háb.")
