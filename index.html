@@ -4461,10 +4461,10 @@ function PredictorPersonalView({ equipo, form, RD, info }) {
       ,React.createElement("span",{style:{fontSize:11,color:"#92400E",fontWeight:700}},"🎯 Tu meta comprometida:")
       ,React.createElement("span",{style:{fontSize:16,fontWeight:900,color:"#C9A84C"}},fmtUF2(metaV)+" UF")
     )
-    ,React.createElement(ScenCardV,{
+    ,pExtrV>=metaV&&React.createElement(ScenCardV,{
       label:"Optimista (Efecto "+vSel.nombre.split(" ")[0]+" en su Última Semana) "+(((vSel.rep||[]).reduce(function(s,r){return s+(r.mujeres||0);},0)>(vSel.rep||[]).reduce(function(s,r){return s+(r.hombres||0);},0))?"🏃‍♀️":"🏃‍♂️"),
       val:pExtrV,
-      desc:pExtrV>=metaV?"¡Si duplicas tu promedio de UF diarias superarías tu propia meta! 🔥":"Si duplicas tu promedio de UF diarias no llegarías a la meta"
+      desc:"¡Si duplicas tu promedio de UF diarias superarías tu propia meta! 🔥"
     })
     ,React.createElement("div",{style:{background:llegaV?"#F0FDF4":"#FEF9C3",borderRadius:10,padding:"12px 14px",border:"1.5px solid "+(llegaV?"#86EFAC":"#FCD34D"),fontSize:12,fontWeight:700,color:llegaV?"#166534":"#92400E"}}
       ,llegaV
