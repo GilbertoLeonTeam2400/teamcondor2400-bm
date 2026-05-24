@@ -4430,6 +4430,7 @@ function PredictorPersonalView({ equipo, form, RD, info }) {
         ,React.createElement("div",{style:{background:"#F0FDF4",borderRadius:12,padding:"8px",textAlign:"center",border:"1.5px solid #16A34A"}}
           ,React.createElement("div",{style:{fontSize:13,fontWeight:900,color:"#15803D"}},"Solo necesitas")
           ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:"#15803D",lineHeight:1.1}},parseFloat(Math.max(0,metaV-ufV).toFixed(3))+" UF")
+          ,React.createElement("div",{style:{fontSize:9,color:"#15803D",fontWeight:700,marginTop:2}},"para llegar a tu meta!!!")
           ,React.createElement("div",{style:{fontSize:9,color:"#15803D",fontWeight:800,marginTop:3}},"¡Esto es nada para ti CRACK! ¡VAMOS!")
         )
       )
@@ -4463,7 +4464,7 @@ function PredictorPersonalView({ equipo, form, RD, info }) {
     ,React.createElement(ScenCardV,{
       label:"Optimista (Efecto "+vSel.nombre.split(" ")[0]+" en su Última Semana) "+(((vSel.rep||[]).reduce(function(s,r){return s+(r.mujeres||0);},0)>(vSel.rep||[]).reduce(function(s,r){return s+(r.hombres||0);},0))?"🏃‍♀️":"🏃‍♂️"),
       val:pExtrV,
-      desc:pExtrV>=metaV?"¡Si duplicas tu promedio de UF diarias superarías tu meta! 🔥":"Si duplicas tu promedio de UF diarias no llegarías a la meta"
+      desc:pExtrV>=metaV?"¡Si duplicas tu promedio de UF diarias superarías tu propia meta! 🔥":"Si duplicas tu promedio de UF diarias no llegarías a la meta"
     })
     ,React.createElement("div",{style:{background:llegaV?"#F0FDF4":"#FEF9C3",borderRadius:10,padding:"12px 14px",border:"1.5px solid "+(llegaV?"#86EFAC":"#FCD34D"),fontSize:12,fontWeight:700,color:llegaV?"#166534":"#92400E"}}
       ,llegaV
