@@ -6138,7 +6138,9 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                   )
                   , React.createElement('div', { style: {position:"relative",height:14,background:"rgba(255,255,255,.1)",borderRadius:99,border:"1px solid rgba(255,255,255,.12)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3065}}
                     , React.createElement('div', { style: {position:"absolute",left:0,top:0,height:"100%",width:Math.min(metaUFSafe>0?(totUF/metaUFSafe)*100:0,100)+"%",background:"linear-gradient(90deg,#8B1020,#C9A84C)",borderRadius:99,transition:"width 1s ease"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3066}} )
-                    , proyEq>0&&React.createElement('div', { style: {position:"absolute",top:-5,bottom:-5,left:Math.min((proyEq/metaUFSafe)*100,100)+"%",width:2,background:"rgba(255,255,255,.7)",borderRadius:99}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3067}})
+                    , proyEq>0&&React.createElement('div', { style: {position:"absolute",top:-5,bottom:-5,left:Math.min((proyEq/metaUFSafe)*100,100)+"%",width:2,background:"rgba(255,255,255,.7)",borderRadius:99}}
+                       , React.createElement('div', { style: {position:"absolute",top:-22,left:"50%",transform:"translateX(-50%)",whiteSpace:"nowrap",background:"transparent",color:"rgba(255,255,255,.55)",fontSize:9,fontWeight:700,pointerEvents:"none",letterSpacing:"0.05em"}}, fmtUF2(proyEq)+" UF")
+                     )
                     , React.createElement('div', { style: {position:"absolute",right:Math.max(0,100-Math.min(metaUFSafe>0?(totUF/metaUFSafe)*100:0,96))+"%",top:"50%",transform:"translate(50%,-50%)",background:metaUFSafe>0&&(totUF/metaUFSafe)*100>=100?"#4ADE80":metaUFSafe>0&&(totUF/metaUFSafe)*100>=60?"#C9A84C":"#FCA5A5",color:"#1a0a0a",fontWeight:900,fontSize:10,borderRadius:99,padding:"2px 6px",whiteSpace:"nowrap",boxShadow:"0 2px 6px rgba(0,0,0,.4)",pointerEvents:"none"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3068}}
                       , metaUFSafe>0?Math.round((totUF/metaUFSafe)*100)+"%":"0%"
                     )
