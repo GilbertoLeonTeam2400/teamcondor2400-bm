@@ -4398,15 +4398,17 @@ function PredictorPersonalView({ equipo, form, RD, info }) {
         ,React.createElement("div",{style:{width:pct+"%",height:"100%",background:props.val>=metaV?"#16A34A":props.c||"#374151",borderRadius:99}})
       )
       ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginBottom:4}},pct+"% · "+(props.val>=metaV?"✅ Llega":"⚠️ No llega"))
+      ,React.createElement("div",{style:{borderTop:"1px solid #E5E7EB",marginTop:6,paddingTop:6}})
+      ,React.createElement("div",{style:{fontSize:8,color:"#6B7280",marginBottom:3,textTransform:"uppercase"}},"Para lograrlo necesitas:")
       ,React.createElement("div",{style:{display:"flex",gap:3,justifyContent:"center",flexWrap:"wrap"}}
-        ,React.createElement("span",{style:{background:"#EFF6FF",color:"#1D4ED8",borderRadius:99,padding:"2px 6px",fontSize:8,fontWeight:700}},dCal+" UF/día cal.")
-        ,React.createElement("span",{style:{background:"#F0FDF4",color:"#15803D",borderRadius:99,padding:"2px 6px",fontSize:8,fontWeight:700}},dHab+" UF/día háb.")
+        ,React.createElement("span",{style:{background:"#EFF6FF",color:"#1D4ED8",borderRadius:99,padding:"2px 6px",fontSize:8,fontWeight:900}},dCal+" UF/día cal.")
+        ,React.createElement("span",{style:{background:"#F0FDF4",color:"#15803D",borderRadius:99,padding:"2px 6px",fontSize:8,fontWeight:900}},dHab+" UF/día háb.")
       )
     );
   }
 
   return React.createElement("div",{style:{background:"#fff",borderRadius:18,padding:"20px 16px",boxShadow:"0 4px 20px rgba(0,0,0,.06)",marginTop:16}}
-    ,React.createElement("div",{style:{fontSize:16,fontWeight:900,color:RD,marginBottom:3}},"🎯 Proyecciones de Cierre")
+    ,React.createElement("div",{style:{fontSize:16,fontWeight:900,color:RD,marginBottom:3}},"📈 Proyecciones de Cierre")
     ,React.createElement("div",{style:{fontSize:11,color:"#6B7280",marginBottom:16}},
       "Tu ritmo — "+diaHoy2+" días transcurridos ("+dhTransc+" hábiles) · "+diasRest2+" restantes ("+dhRest+" hábiles)"
     )
@@ -4489,9 +4491,11 @@ function PredictorView({ equipo, info, R, RD, metaUFSafe }) {
         ,React.createElement("div",{style:{width:pct+"%",height:"100%",background:props.val>=meta?"#16A34A":props.c||"#374151",borderRadius:99}})
       )
       ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",marginBottom:6}},pct+"% de la meta · "+(props.val>=meta?"✅ Llega":"⚠️ No llega"))
+      ,React.createElement("div",{style:{borderTop:"1px solid #E5E7EB",marginTop:8,paddingTop:8}})
+      ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginBottom:4,textTransform:"uppercase",letterSpacing:"0.05em"}},"Para lograrlo necesitas:")
       ,React.createElement("div",{style:{display:"flex",gap:4,justifyContent:"center",flexWrap:"wrap"}}
-        ,React.createElement("span",{style:{background:"#EFF6FF",color:"#1D4ED8",borderRadius:99,padding:"2px 7px",fontSize:9,fontWeight:700}},ufDiaCal+" UF/día cal.")
-        ,React.createElement("span",{style:{background:"#F0FDF4",color:"#15803D",borderRadius:99,padding:"2px 7px",fontSize:9,fontWeight:700}},ufDiaHab+" UF/día háb.")
+        ,React.createElement("span",{style:{background:"#EFF6FF",color:"#1D4ED8",borderRadius:99,padding:"3px 8px",fontSize:9,fontWeight:900}},ufDiaCal+" UF/día cal.")
+        ,React.createElement("span",{style:{background:"#F0FDF4",color:"#15803D",borderRadius:99,padding:"3px 8px",fontSize:9,fontWeight:900}},ufDiaHab+" UF/día háb.")
       )
     );
   }
