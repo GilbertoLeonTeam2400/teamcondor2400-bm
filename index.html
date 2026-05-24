@@ -5318,9 +5318,9 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
   const SUP_GRUPOS = {
     dashboard: [["dashboard","📊 Dashboard"],["calEjec","📅 Calendario Ejecutivos"]],
     equipo:    [["gestion","👥 Gestionar Equipo"]],
-    metas:     [["meta","🎯 Meta del Equipo"],["uflineales","📈 UF's Lineales"]],
+    metas:     [["meta","🎯 Meta del Equipo"]],
     contenido: [["gestPremios","🏆 Gestionar Premios"],["gestDocs","📂 Gestionar Docs"]],
-    analisis:  [["clasificacion","📊 Clasificación AGV"],["agentes0","🚨 Agentes en 0"],["dpsanalisis","📊 Análisis Reporte Diario de Métricas"],["historialMetricas","📋 Ver Historial Métricas por Ejecutivo"],["tendencias","📈 Tendencias y Gráficos"],["predictor","🎯 Predictor Cierre de Mes"],["correlacion","🔗 Correlación DPS→UF"],["alertas","🚨 Alertas del Equipo"],["planagv","📋 Plan de Trabajo AGV"]],
+    analisis:  [["clasificacion","📊 Clasificación AGV"],["agentes0","🚨 Agentes en 0"],["dpsanalisis","📊 Análisis Reporte Diario de Métricas"],["historialMetricas","📋 Ver Historial Métricas por Ejecutivo"],["tendencias","📈 Tendencias y Gráficos"],["predictor","🎯 Predictor Cierre de Mes"],["correlacion","🔗 Correlación DPS→UF"],["alertas","🚨 Alertas del Equipo"],["planagv","📋 Plan de Trabajo AGV"],["uflineales","📈 UF's Lineales"]],
   };
   const [bulk,     setBulk]     = useState({});
   const [bulkOk,   setBulkOk]   = useState(false);
@@ -8841,10 +8841,12 @@ function Top5Badge({ nombre, hallMeses, histV }) {
 function ProdEditableInner({ v, equipo, setEquipo, guardarProductividad, guardandoProd, info }) {
   const RD = "#C41230", R = "#E9192A";
   const [localUF,  setLocalUF]  = React.useState(v.uf);
-  const [localDPS, setLocalDPS] = React.useState(v.dps);
-  const [localCon, setLocalCon] = React.useState((v.rep||[]).reduce(function(s,r){return s+(r.conecta||0);},0));
-  const [localHom, setLocalHom] = React.useState((v.rep||[]).reduce(function(s,r){return s+(r.hombres||0);},0));
-  const [localMuj, setLocalMuj] = React.useState((v.rep||[]).reduce(function(s,r){return s+(r.mujeres||0);},0));
+  // DPS, Conecta, H/M → desde historial (fuente: Excel PDF diario del supervisor)
+  var _h = (v.historial&&v.historial[info.mesKey])||{};
+  const [localDPS, setLocalDPS] = React.useState((parseInt(_h.dpsVenta)||0)+(parseInt(_h.dpsSinVenta)||0)+(parseInt(_h.dpsPendiente)||0)+(parseInt(_h.dpsRechazado)||0)||v.dps);
+  const [localCon, setLocalCon] = React.useState(parseInt(_h.conecta)||0||(v.rep||[]).reduce(function(s,r){return s+(r.conecta||0);},0));
+  const [localHom, setLocalHom] = React.useState(parseInt(_h.nHombres)||0||(v.rep||[]).reduce(function(s,r){return s+(r.hombres||0);},0));
+  const [localMuj, setLocalMuj] = React.useState(parseInt(_h.nMujeres)||0||(v.rep||[]).reduce(function(s,r){return s+(r.mujeres||0);},0));
   const localTotT    = localHom + localMuj;
   const localPctH    = localTotT>0 ? Math.round((localHom/localTotT)*100) : 0;
   const localPctM    = localTotT>0 ? Math.round((localMuj/localTotT)*100) : 0;
@@ -8916,7 +8918,8 @@ function ProdEditableInner({ v, equipo, setEquipo, guardarProductividad, guardan
           var dpsRec   = _hist.dpsRechazado||0;
           var dpsTotal = dpsCv+dpsSv+dpsPen+dpsRec || localDPS;
           var tasaCierre = dpsTotal>0 ? Math.round((dpsCv/dpsTotal)*100) : 0;
-          var cttosDig = _hist.cttosDig||0;
+          // Contratos digitados = cierres que ellos mismos registraron (tiempo real)
+          var cttosDig = _dc.length || _rep.reduce(function(s,r){return s+(r.cierres||0);},0);
           // Previsión — fuente: registros propios del ejecutivo
           var fonasaC = _dc.filter(function(c){return (c.origen||c.prevision)==="fonasa";}).length;
           var isapreC = _dc.filter(function(c){return (c.origen||c.prevision)==="isapre";}).length;
