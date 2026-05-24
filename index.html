@@ -4382,11 +4382,10 @@ function PredictorPersonalView({ equipo, form, RD, info }) {
   var faltaV = Math.max(0, metaV-ufV);
   var ritmoNecV = diasRest2>0 ? parseFloat((faltaV/diasRest2).toFixed(2)) : 0;
   var ritmoNecHV = dhRest>0 ? parseFloat((faltaV/dhRest).toFixed(2)) : 0;
-  var pRealV = parseFloat((ufV + ritmoV*diasRest2).toFixed(2));
-  var pOptV  = parseFloat((ufV + ritmoV*diasRest2*1.3).toFixed(2));
-  var pConsV = parseFloat((ufV + ritmoV*diasRest2*0.7).toFixed(2));
+  var pConsV = parseFloat((ufV + ritmoV*diasRest2*1.3).toFixed(2));  // antes optimista
+  var pOptV  = parseFloat((ufV + ritmoV*diasRest2*1.5).toFixed(2));  // +50% ritmo
   var pExtrV = parseFloat((ufV * 2).toFixed(2));
-  var llegaV = pRealV >= metaV;
+  var llegaV = pConsV >= metaV;
 
   function ScenCardV(props){
     var pct=Math.min(100,Math.round((props.val/metaV)*100));
@@ -4429,16 +4428,15 @@ function PredictorPersonalView({ equipo, form, RD, info }) {
         ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginTop:2,textTransform:"uppercase"}},"Nec. cal./háb.")
       )
     )
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}
-      ,React.createElement(ScenCardV,{label:"🚀 Optimista (+30%)",val:pOptV,c:"#16A34A",bg:"#F0FDF4",brd:"#86EFAC"})
-      ,React.createElement(ScenCardV,{label:"📊 Realista",val:pRealV,c:llegaV?"#16A34A":"#D97706",bg:llegaV?"#F0FDF4":"#FFFBEB",brd:llegaV?"#86EFAC":"#FCD34D"})
-      ,React.createElement(ScenCardV,{label:"📉 Conservador (-30%)",val:pConsV,c:"#DC2626",bg:"#FFF1F2",brd:"#FCA5A5"})
-      ,React.createElement(ScenCardV,{label:"🔥 Extremo (Efecto Última Semana)",val:pExtrV,c:"#7C3AED",bg:"#F5F3FF",brd:"#C4B5FD"})
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}
+      ,React.createElement(ScenCardV,{label:"📉 Conservador (+30%)",val:pConsV,c:"#16A34A",bg:"#F0FDF4",brd:"#86EFAC"})
+      ,React.createElement(ScenCardV,{label:"🚀 Optimista (+50%)",val:pOptV,c:"#2563EB",bg:"#EFF6FF",brd:"#BFDBFE"})
+      ,React.createElement(ScenCardV,{label:"🔥 Extremo (Efecto Última Semana)",val:pExtrV,c:"#C9A84C",bg:"#FFFBEB",brd:"#FCD34D"})
     )
     ,React.createElement("div",{style:{background:llegaV?"#F0FDF4":"#FEF9C3",borderRadius:10,padding:"12px 14px",border:"1.5px solid "+(llegaV?"#86EFAC":"#FCD34D"),fontSize:12,fontWeight:700,color:llegaV?"#166534":"#92400E"}}
       ,llegaV
-        ? "✅ ¡Vas al ritmo para llegar a tu meta! ¡Mantén el impulso!"
-        : "⚠️ Necesitas "+ritmoNecV+" UF/día (cal.) o "+ritmoNecHV+" UF/día (háb.) — tu ritmo actual: "+ritmoV+" cal. / "+ritmoHV+" háb."
+        ? "✅ Escenario conservador llega a tu meta. ¡Buen ritmo!"
+        : "⚠️ Necesitas "+ritmoNecV+" UF/día (cal.) o "+ritmoNecHV+" UF/día (háb.) para llegar. Tu ritmo: "+ritmoV+" / "+ritmoHV+" háb."
     )
   );
 }
@@ -4474,12 +4472,11 @@ function PredictorView({ equipo, info, R, RD, metaUFSafe }) {
   var ritmoNecesarioHabil = diasHabilesRestantes>0 ? parseFloat((faltaMeta/diasHabilesRestantes).toFixed(2)) : 0;
 
   // Proyecciones
-  var proyRealista    = parseFloat((totUF + ritmo*diasRestantes).toFixed(2));
-  var proyOptimista   = parseFloat((totUF + ritmo*diasRestantes*1.3).toFixed(2));
-  var proyConservador = parseFloat((totUF + ritmo*diasRestantes*0.7).toFixed(2));
+  var proyConservador = parseFloat((totUF + ritmo*diasRestantes*1.3).toFixed(2));  // antes optimista
+  var proyOptimista   = parseFloat((totUF + ritmo*diasRestantes*1.5).toFixed(2));  // +50% ritmo
   var proyExtremo     = parseFloat((totUF * 2).toFixed(2)); // Efecto Última Semana
 
-  var llegaRealista = proyRealista>=meta;
+  var llegaRealista = proyConservador>=meta;
 
   function ScenCard(props) {
     var pct=Math.min(100,Math.round((props.val/meta)*100));
@@ -4525,17 +4522,16 @@ function PredictorView({ equipo, info, R, RD, metaUFSafe }) {
     )
     // Escenarios
     ,React.createElement("div",{style:{fontSize:13,fontWeight:700,color:"#374151",marginBottom:10}},"Escenarios de cierre:")
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}
-      ,React.createElement(ScenCard,{label:"🚀 Optimista (+30%)",val:proyOptimista,c:"#16A34A",bg:"#F0FDF4",brd:"#86EFAC"})
-      ,React.createElement(ScenCard,{label:"📊 Realista",val:proyRealista,c:llegaRealista?"#16A34A":"#D97706",bg:llegaRealista?"#F0FDF4":"#FFFBEB",brd:llegaRealista?"#86EFAC":"#FCD34D"})
-      ,React.createElement(ScenCard,{label:"📉 Conservador (-30%)",val:proyConservador,c:"#DC2626",bg:"#FFF1F2",brd:"#FCA5A5"})
-      ,React.createElement(ScenCard,{label:"🔥 Extremo (Efecto Última Semana)",val:proyExtremo,c:"#7C3AED",bg:"#F5F3FF",brd:"#C4B5FD"})
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:16}}
+      ,React.createElement(ScenCard,{label:"📉 Conservador (+30%)",val:proyConservador,c:"#16A34A",bg:"#F0FDF4",brd:"#86EFAC"})
+      ,React.createElement(ScenCard,{label:"🚀 Optimista (+50%)",val:proyOptimista,c:"#2563EB",bg:"#EFF6FF",brd:"#BFDBFE"})
+      ,React.createElement(ScenCard,{label:"🔥 Extremo (Efecto Última Semana)",val:proyExtremo,c:"#C9A84C",bg:"#FFFBEB",brd:"#FCD34D"})
     )
     // Mensaje
     ,React.createElement("div",{style:{background:llegaRealista?"#F0FDF4":"#FEF9C3",borderRadius:12,padding:"14px 16px",border:"1.5px solid "+(llegaRealista?"#86EFAC":"#FCD34D"),fontSize:13,fontWeight:700,color:llegaRealista?"#166534":"#92400E"}}
       ,llegaRealista
-        ? "✅ Al ritmo actual el equipo LLEGARÁ a la meta. ¡Mantén el impulso!"
-        : "⚠️ Al ritmo actual el equipo NO llega. Necesitas "+ritmoNecesario+" UF/día (calendario) o "+ritmoNecesarioHabil+" UF/día (hábil) — ritmo actual: "+ritmo+" cal. / "+ritmoHabil+" háb."
+        ? "✅ Escenario conservador llega a la meta. ¡Buen ritmo!"
+        : "⚠️ Necesitas "+ritmoNecesario+" UF/día (cal.) o "+ritmoNecesarioHabil+" UF/día (háb.) para llegar. Ritmo actual: "+ritmo+" / "+ritmoHabil+" háb."
     )
   );
 }
