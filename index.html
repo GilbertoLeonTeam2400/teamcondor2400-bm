@@ -4388,21 +4388,27 @@ function PredictorPersonalView({ equipo, form, RD, info }) {
   var llegaV = pConsV >= metaV;
 
   function ScenCardV(props){
+    var llega=props.val>=metaV;
     var pct=Math.min(100,Math.round((props.val/metaV)*100));
     var dCal=diasRest2>0?parseFloat((Math.max(0,props.val-ufV)/diasRest2).toFixed(2)):0;
     var dHab=dhRest>0?parseFloat((Math.max(0,props.val-ufV)/dhRest).toFixed(2)):0;
-    return React.createElement("div",{style:{background:props.val>=metaV?"#F0FDF4":props.bg||"#F8FAFC",borderRadius:14,padding:"14px",border:"1.5px solid "+(props.val>=metaV?"#86EFAC":props.brd||"#E5E7EB"),textAlign:"center"}}
-      ,React.createElement("div",{style:{fontSize:10,fontWeight:700,color:props.c||"#374151",marginBottom:3}},props.label)
-      ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:props.val>=metaV?"#16A34A":props.c||"#374151"}},props.val+" UF")
-      ,React.createElement("div",{style:{background:"#E5E7EB",borderRadius:99,height:5,margin:"6px 0",overflow:"hidden"}}
-        ,React.createElement("div",{style:{width:pct+"%",height:"100%",background:props.val>=metaV?"#16A34A":props.c||"#374151",borderRadius:99}})
+    var bg=llega?"#F0FDF4":"#FFF1F2";
+    var brd=llega?"#16A34A":"#DC2626";
+    var clr=llega?"#16A34A":"#DC2626";
+    return React.createElement("div",{style:{background:bg,borderRadius:12,padding:"12px",border:"2.5px solid "+brd,textAlign:"center"}}
+      ,React.createElement("div",{style:{fontSize:10,fontWeight:700,color:"#374151",marginBottom:4}},props.label)
+      ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:clr,lineHeight:1}},props.val+" UF")
+      ,React.createElement("div",{style:{background:"#E5E7EB",borderRadius:99,height:5,margin:"8px 0",overflow:"hidden"}}
+        ,React.createElement("div",{style:{width:pct+"%",height:"100%",background:clr,borderRadius:99}})
       )
-      ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginBottom:4}},pct+"% · "+(props.val>=metaV?"✅ Llega":"⚠️ No llega"))
-      ,React.createElement("div",{style:{borderTop:"1px solid #E5E7EB",marginTop:6,paddingTop:6}})
+      ,React.createElement("div",{style:{fontSize:12,fontWeight:900,color:clr,marginBottom:6,padding:"3px 0",borderRadius:6,background:llega?"rgba(22,163,74,.1)":"rgba(220,38,38,.1)"}},
+        llega?"✅ ¡LLEGA!":"❌ NO LLEGA"
+      )
+      ,React.createElement("div",{style:{borderTop:"1px solid "+brd,paddingTop:6}})
       ,React.createElement("div",{style:{fontSize:8,color:"#6B7280",marginBottom:3,textTransform:"uppercase"}},"Para lograrlo necesitas:")
       ,React.createElement("div",{style:{display:"flex",gap:3,justifyContent:"center",flexWrap:"wrap"}}
-        ,React.createElement("span",{style:{background:"#EFF6FF",color:"#1D4ED8",borderRadius:99,padding:"2px 6px",fontSize:8,fontWeight:900}},dCal+" UF/día cal.")
-        ,React.createElement("span",{style:{background:"#F0FDF4",color:"#15803D",borderRadius:99,padding:"2px 6px",fontSize:8,fontWeight:900}},dHab+" UF/día háb.")
+        ,React.createElement("span",{style:{background:llega?"#DCFCE7":"#FEE2E2",color:clr,borderRadius:99,padding:"2px 6px",fontSize:8,fontWeight:900}},dCal+" UF/día cal.")
+        ,React.createElement("span",{style:{background:llega?"#DCFCE7":"#FEE2E2",color:clr,borderRadius:99,padding:"2px 6px",fontSize:8,fontWeight:900}},dHab+" UF/día háb.")
       )
     );
   }
@@ -4412,22 +4418,33 @@ function PredictorPersonalView({ equipo, form, RD, info }) {
     ,React.createElement("div",{style:{fontSize:11,color:"#6B7280",marginBottom:16}},
       "Tu ritmo — "+diaHoy2+" días transcurridos ("+dhTransc+" hábiles) · "+diasRest2+" restantes ("+dhRest+" hábiles)"
     )
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:16}}
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:8}}
       ,React.createElement("div",{style:{background:"#FFF8E7",borderRadius:12,padding:"10px",textAlign:"center",border:"1px solid #FCD34D"}}
-        ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:"#C9A84C"}},ufV.toFixed(3)+" UF")
-        ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginTop:2,textTransform:"uppercase"}},"Actual")
+        ,React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#C9A84C"}},ufV.toFixed(3))
+        ,React.createElement("div",{style:{fontSize:9,color:"#92400E",fontWeight:700,marginTop:2}},"UF Actual")
+        ,React.createElement("div",{style:{fontSize:8,color:"#6B7280",marginTop:1}},"Lo que llevas hoy")
       )
-      ,React.createElement("div",{style:{background:"#EFF6FF",borderRadius:12,padding:"10px",textAlign:"center",border:"1px solid #BFDBFE"}}
-        ,React.createElement("div",{style:{fontSize:16,fontWeight:900,color:"#2563EB"}},ritmoV+" UF")
-        ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginTop:2,textTransform:"uppercase"}},"Ritmo/día cal.")
+      ,React.createElement("div",{style:{background:"#F8FAFC",borderRadius:12,padding:"10px",textAlign:"center",border:"1px solid #E5E7EB"}}
+        ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:"#374151"}},ritmoV)
+        ,React.createElement("div",{style:{fontSize:9,color:"#374151",fontWeight:700,marginTop:2}},"Ritmo Diario Cal.")
+        ,React.createElement("div",{style:{fontSize:8,color:"#6B7280",marginTop:1}},"UF/día según días corridos")
       )
-      ,React.createElement("div",{style:{background:"#F0FDF4",borderRadius:12,padding:"10px",textAlign:"center",border:"1px solid #86EFAC"}}
-        ,React.createElement("div",{style:{fontSize:16,fontWeight:900,color:"#15803D"}},ritmoHV+" UF")
-        ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginTop:2,textTransform:"uppercase"}},"Ritmo/día háb.")
+      ,React.createElement("div",{style:{background:"#F8FAFC",borderRadius:12,padding:"10px",textAlign:"center",border:"1px solid #E5E7EB"}}
+        ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:"#374151"}},ritmoHV)
+        ,React.createElement("div",{style:{fontSize:9,color:"#374151",fontWeight:700,marginTop:2}},"Ritmo Diario Háb.")
+        ,React.createElement("div",{style:{fontSize:8,color:"#6B7280",marginTop:1}},"UF/día según días hábiles")
       )
-      ,React.createElement("div",{style:{background:llegaV?"#F0FDF4":"#FFF1F2",borderRadius:12,padding:"10px",textAlign:"center",border:"1px solid "+(llegaV?"#86EFAC":"#FCA5A5")}}
-        ,React.createElement("div",{style:{fontSize:12,fontWeight:900,color:llegaV?"#16A34A":"#DC2626"}},ritmoNecV+" / "+ritmoNecHV)
-        ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginTop:2,textTransform:"uppercase"}},"Nec. cal./háb.")
+    )
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}
+      ,React.createElement("div",{style:{background:llegaV?"#F0FDF4":"#FFF1F2",borderRadius:12,padding:"10px",textAlign:"center",border:"1.5px solid "+(llegaV?"#86EFAC":"#FCA5A5")}}
+        ,React.createElement("div",{style:{fontSize:20,fontWeight:900,color:llegaV?"#16A34A":"#DC2626"}},ritmoNecV)
+        ,React.createElement("div",{style:{fontSize:9,fontWeight:700,color:llegaV?"#15803D":"#B91C1C",marginTop:2}},"UF/día necesaria (cal.)")
+        ,React.createElement("div",{style:{fontSize:8,color:"#6B7280",marginTop:1}},"Para tu meta con días corridos")
+      )
+      ,React.createElement("div",{style:{background:llegaV?"#F0FDF4":"#FFF1F2",borderRadius:12,padding:"10px",textAlign:"center",border:"1.5px solid "+(llegaV?"#86EFAC":"#FCA5A5")}}
+        ,React.createElement("div",{style:{fontSize:20,fontWeight:900,color:llegaV?"#16A34A":"#DC2626"}},ritmoNecHV)
+        ,React.createElement("div",{style:{fontSize:9,fontWeight:700,color:llegaV?"#15803D":"#B91C1C",marginTop:2}},"UF/día necesaria (háb.)")
+        ,React.createElement("div",{style:{fontSize:8,color:"#6B7280",marginTop:1}},"Para tu meta con días hábiles")
       )
     )
     ,React.createElement("div",{style:{background:"#FFF8E7",borderRadius:10,padding:"8px 14px",marginBottom:10,display:"flex",alignItems:"center",gap:8,border:"1px solid #FCD34D"}}
@@ -4485,21 +4502,27 @@ function PredictorView({ equipo, info, R, RD, metaUFSafe }) {
   var llegaRealista = proyConservador>=meta;
 
   function ScenCard(props) {
-    var pct=Math.min(100,Math.round((props.val/meta)*100));
+    var llega = props.val >= meta;
+    var pct = Math.min(100,Math.round((props.val/meta)*100));
     var ufDiaCal = diasRestantes>0 ? parseFloat((Math.max(0,props.val-totUF)/diasRestantes).toFixed(2)) : 0;
     var ufDiaHab = diasHabilesRestantes>0 ? parseFloat((Math.max(0,props.val-totUF)/diasHabilesRestantes).toFixed(2)) : 0;
-    return React.createElement("div",{style:{background:props.val>=meta?"#F0FDF4":props.bg||"#F8FAFC",borderRadius:14,padding:"16px",border:"1.5px solid "+(props.val>=meta?"#86EFAC":props.brd||"#E5E7EB"),textAlign:"center"}}
-      ,React.createElement("div",{style:{fontSize:11,fontWeight:700,color:props.c||"#374151",marginBottom:4}},props.label)
-      ,React.createElement("div",{style:{fontSize:24,fontWeight:900,color:props.val>=meta?"#16A34A":props.c||"#374151"}},props.val+" UF")
-      ,React.createElement("div",{style:{background:"#E5E7EB",borderRadius:99,height:6,margin:"8px 0",overflow:"hidden"}}
-        ,React.createElement("div",{style:{width:pct+"%",height:"100%",background:props.val>=meta?"#16A34A":props.c||"#374151",borderRadius:99}})
+    var bg = llega ? "#F0FDF4" : "#FFF1F2";
+    var brd = llega ? "#16A34A" : "#DC2626";
+    var clr = llega ? "#16A34A" : "#DC2626";
+    return React.createElement("div",{style:{background:bg,borderRadius:14,padding:"16px",border:"2.5px solid "+brd,textAlign:"center"}}
+      ,React.createElement("div",{style:{fontSize:11,fontWeight:700,color:"#374151",marginBottom:6}},props.label)
+      ,React.createElement("div",{style:{fontSize:28,fontWeight:900,color:clr,lineHeight:1}},props.val+" UF")
+      ,React.createElement("div",{style:{background:"#E5E7EB",borderRadius:99,height:7,margin:"10px 0",overflow:"hidden"}}
+        ,React.createElement("div",{style:{width:pct+"%",height:"100%",background:clr,borderRadius:99}})
       )
-      ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",marginBottom:6}},pct+"% de la meta · "+(props.val>=meta?"✅ Llega":"⚠️ No llega"))
-      ,React.createElement("div",{style:{borderTop:"1px solid #E5E7EB",marginTop:8,paddingTop:8}})
-      ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginBottom:4,textTransform:"uppercase",letterSpacing:"0.05em"}},"Para lograrlo necesitas:")
+      ,React.createElement("div",{style:{fontSize:14,fontWeight:900,color:clr,marginBottom:8,padding:"4px 0",borderRadius:8,background:llega?"rgba(22,163,74,.1)":"rgba(220,38,38,.1)"}},
+        llega ? "✅ ¡LLEGA A LA META!" : "❌ NO LLEGA"
+      )
+      ,React.createElement("div",{style:{borderTop:"1px solid "+brd,paddingTop:8,opacity:0.9}})
+      ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginBottom:4,textTransform:"uppercase"}},"Para lograrlo necesitas:")
       ,React.createElement("div",{style:{display:"flex",gap:4,justifyContent:"center",flexWrap:"wrap"}}
-        ,React.createElement("span",{style:{background:"#EFF6FF",color:"#1D4ED8",borderRadius:99,padding:"3px 8px",fontSize:9,fontWeight:900}},ufDiaCal+" UF/día cal.")
-        ,React.createElement("span",{style:{background:"#F0FDF4",color:"#15803D",borderRadius:99,padding:"3px 8px",fontSize:9,fontWeight:900}},ufDiaHab+" UF/día háb.")
+        ,React.createElement("span",{style:{background:llega?"#DCFCE7":"#FEE2E2",color:clr,borderRadius:99,padding:"3px 8px",fontSize:9,fontWeight:900}},ufDiaCal+" UF/día cal.")
+        ,React.createElement("span",{style:{background:llega?"#DCFCE7":"#FEE2E2",color:clr,borderRadius:99,padding:"3px 8px",fontSize:9,fontWeight:900}},ufDiaHab+" UF/día háb.")
       )
     );
   }
@@ -4509,23 +4532,35 @@ function PredictorView({ equipo, info, R, RD, metaUFSafe }) {
     ,React.createElement("div",{style:{fontSize:12,color:"#6B7280",marginBottom:20}},
       "Ritmo actual basado en "+diaHoy+" días transcurridos ("+diasHabilesTranscurridos+" hábiles) · "+diasRestantes+" días restantes ("+diasHabilesRestantes+" hábiles)"
     )
-    // Estado actual — fila con días calendario Y días hábiles
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:20}}
+    // Fila 1: UF Actual + Ritmo cal + Ritmo háb
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:10}}
       ,React.createElement("div",{style:{background:"#FFF8E7",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid #FCD34D"}}
-        ,React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#C9A84C"}},totUF.toFixed(2)+" UF")
-        ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginTop:3,textTransform:"uppercase"}},"UF Actual")
+        ,React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#C9A84C"}},totUF.toFixed(2))
+        ,React.createElement("div",{style:{fontSize:10,color:"#92400E",fontWeight:700,marginTop:3}},"UF Actual")
+        ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginTop:1}},"Total UF del equipo al día de hoy")
       )
-      ,React.createElement("div",{style:{background:"#EFF6FF",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid #BFDBFE"}}
-        ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:"#2563EB"}},ritmo+" UF")
-        ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginTop:3,textTransform:"uppercase"}},"Ritmo/día cal.")
+      ,React.createElement("div",{style:{background:"#F8FAFC",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid #E5E7EB"}}
+        ,React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#374151"}},ritmo)
+        ,React.createElement("div",{style:{fontSize:10,color:"#374151",fontWeight:700,marginTop:3}},"Ritmo Diario Cal.")
+        ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginTop:1}},"UF por día según días corridos del mes")
       )
-      ,React.createElement("div",{style:{background:"#F0FDF4",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid #86EFAC"}}
-        ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:"#15803D"}},ritmoHabil+" UF")
-        ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginTop:3,textTransform:"uppercase"}},"Ritmo/día háb.")
+      ,React.createElement("div",{style:{background:"#F8FAFC",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid #E5E7EB"}}
+        ,React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#374151"}},ritmoHabil)
+        ,React.createElement("div",{style:{fontSize:10,color:"#374151",fontWeight:700,marginTop:3}},"Ritmo Diario Háb.")
+        ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginTop:1}},"UF por día según días hábiles trabajados")
       )
-      ,React.createElement("div",{style:{background:llegaRealista?"#F0FDF4":"#FFF1F2",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid "+(llegaRealista?"#86EFAC":"#FCA5A5")}}
-        ,React.createElement("div",{style:{fontSize:14,fontWeight:900,color:llegaRealista?"#16A34A":"#DC2626"}},ritmoNecesario+" / "+ritmoNecesarioHabil+" UF")
-        ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginTop:3,textTransform:"uppercase"}},"Nec. cal. / háb.")
+    )
+    // Fila 2: Necesario cal + Necesario háb
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}
+      ,React.createElement("div",{style:{background:llegaRealista?"#F0FDF4":"#FFF1F2",borderRadius:12,padding:"12px",textAlign:"center",border:"1.5px solid "+(llegaRealista?"#86EFAC":"#FCA5A5")}}
+        ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:llegaRealista?"#16A34A":"#DC2626"}},ritmoNecesario)
+        ,React.createElement("div",{style:{fontSize:10,fontWeight:700,color:llegaRealista?"#15803D":"#B91C1C",marginTop:3}},"UF/día necesaria (calendario)")
+        ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginTop:1}},"Para llegar a la meta con los días corridos que restan")
+      )
+      ,React.createElement("div",{style:{background:llegaRealista?"#F0FDF4":"#FFF1F2",borderRadius:12,padding:"12px",textAlign:"center",border:"1.5px solid "+(llegaRealista?"#86EFAC":"#FCA5A5")}}
+        ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:llegaRealista?"#16A34A":"#DC2626"}},ritmoNecesarioHabil)
+        ,React.createElement("div",{style:{fontSize:10,fontWeight:700,color:llegaRealista?"#15803D":"#B91C1C",marginTop:3}},"UF/día necesaria (hábil)")
+        ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginTop:1}},"Para llegar a la meta considerando solo días hábiles")
       )
     )
     // Escenarios
