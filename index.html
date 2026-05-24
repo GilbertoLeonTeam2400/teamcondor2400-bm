@@ -4362,7 +4362,87 @@ function TendenciasView({ equipo, info, R, RD }) {
   );
 }
 
-// ── Predictor Cierre de Mes ──────────────────────────────────────────────────
+// ── Proyecciones de Cierre ──────────────────────────────────────────────────
+function PredictorPersonalView({ equipo, form, RD, info }) {
+  var vSel = equipo.find(function(e){ return String(e.id)===String(form.vid); });
+  if(!vSel) return null;
+  var metaV = parseFloat(vSel.metaUF)||18;
+  var ufV = parseFloat(vSel.uf)||0;
+  var hoy2 = new Date();
+  var diaHoy2 = hoy2.getDate();
+  var diasMes2 = new Date(hoy2.getFullYear(), hoy2.getMonth()+1, 0).getDate();
+  var diasRest2 = diasMes2 - diaHoy2;
+  var dhTotal=0,dhTransc=0,dhRest=0;
+  for(var _d=1;_d<=diasMes2;_d++){
+    var _w=new Date(hoy2.getFullYear(),hoy2.getMonth(),_d).getDay();
+    if(_w>=1&&_w<=5){dhTotal++;if(_d<=diaHoy2)dhTransc++;else dhRest++;}
+  }
+  var ritmoV = diaHoy2>0 ? parseFloat((ufV/diaHoy2).toFixed(2)) : 0;
+  var ritmoHV = dhTransc>0 ? parseFloat((ufV/dhTransc).toFixed(2)) : 0;
+  var faltaV = Math.max(0, metaV-ufV);
+  var ritmoNecV = diasRest2>0 ? parseFloat((faltaV/diasRest2).toFixed(2)) : 0;
+  var ritmoNecHV = dhRest>0 ? parseFloat((faltaV/dhRest).toFixed(2)) : 0;
+  var pRealV = parseFloat((ufV + ritmoV*diasRest2).toFixed(2));
+  var pOptV  = parseFloat((ufV + ritmoV*diasRest2*1.3).toFixed(2));
+  var pConsV = parseFloat((ufV + ritmoV*diasRest2*0.7).toFixed(2));
+  var pExtrV = parseFloat((ufV * 2).toFixed(2));
+  var llegaV = pRealV >= metaV;
+
+  function ScenCardV(props){
+    var pct=Math.min(100,Math.round((props.val/metaV)*100));
+    var dCal=diasRest2>0?parseFloat((Math.max(0,props.val-ufV)/diasRest2).toFixed(2)):0;
+    var dHab=dhRest>0?parseFloat((Math.max(0,props.val-ufV)/dhRest).toFixed(2)):0;
+    return React.createElement("div",{style:{background:props.val>=metaV?"#F0FDF4":props.bg||"#F8FAFC",borderRadius:14,padding:"14px",border:"1.5px solid "+(props.val>=metaV?"#86EFAC":props.brd||"#E5E7EB"),textAlign:"center"}}
+      ,React.createElement("div",{style:{fontSize:10,fontWeight:700,color:props.c||"#374151",marginBottom:3}},props.label)
+      ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:props.val>=metaV?"#16A34A":props.c||"#374151"}},props.val+" UF")
+      ,React.createElement("div",{style:{background:"#E5E7EB",borderRadius:99,height:5,margin:"6px 0",overflow:"hidden"}}
+        ,React.createElement("div",{style:{width:pct+"%",height:"100%",background:props.val>=metaV?"#16A34A":props.c||"#374151",borderRadius:99}})
+      )
+      ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginBottom:4}},pct+"% · "+(props.val>=metaV?"✅ Llega":"⚠️ No llega"))
+      ,React.createElement("div",{style:{display:"flex",gap:3,justifyContent:"center",flexWrap:"wrap"}}
+        ,React.createElement("span",{style:{background:"#EFF6FF",color:"#1D4ED8",borderRadius:99,padding:"2px 6px",fontSize:8,fontWeight:700}},dCal+" UF/día cal.")
+        ,React.createElement("span",{style:{background:"#F0FDF4",color:"#15803D",borderRadius:99,padding:"2px 6px",fontSize:8,fontWeight:700}},dHab+" UF/día háb.")
+      )
+    );
+  }
+
+  return React.createElement("div",{style:{background:"#fff",borderRadius:18,padding:"20px 16px",boxShadow:"0 4px 20px rgba(0,0,0,.06)",marginTop:16}}
+    ,React.createElement("div",{style:{fontSize:16,fontWeight:900,color:RD,marginBottom:3}},"🎯 Proyecciones de Cierre")
+    ,React.createElement("div",{style:{fontSize:11,color:"#6B7280",marginBottom:16}},
+      "Tu ritmo — "+diaHoy2+" días transcurridos ("+dhTransc+" hábiles) · "+diasRest2+" restantes ("+dhRest+" hábiles)"
+    )
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:16}}
+      ,React.createElement("div",{style:{background:"#FFF8E7",borderRadius:12,padding:"10px",textAlign:"center",border:"1px solid #FCD34D"}}
+        ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:"#C9A84C"}},ufV.toFixed(3)+" UF")
+        ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginTop:2,textTransform:"uppercase"}},"Actual")
+      )
+      ,React.createElement("div",{style:{background:"#EFF6FF",borderRadius:12,padding:"10px",textAlign:"center",border:"1px solid #BFDBFE"}}
+        ,React.createElement("div",{style:{fontSize:16,fontWeight:900,color:"#2563EB"}},ritmoV+" UF")
+        ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginTop:2,textTransform:"uppercase"}},"Ritmo/día cal.")
+      )
+      ,React.createElement("div",{style:{background:"#F0FDF4",borderRadius:12,padding:"10px",textAlign:"center",border:"1px solid #86EFAC"}}
+        ,React.createElement("div",{style:{fontSize:16,fontWeight:900,color:"#15803D"}},ritmoHV+" UF")
+        ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginTop:2,textTransform:"uppercase"}},"Ritmo/día háb.")
+      )
+      ,React.createElement("div",{style:{background:llegaV?"#F0FDF4":"#FFF1F2",borderRadius:12,padding:"10px",textAlign:"center",border:"1px solid "+(llegaV?"#86EFAC":"#FCA5A5")}}
+        ,React.createElement("div",{style:{fontSize:12,fontWeight:900,color:llegaV?"#16A34A":"#DC2626"}},ritmoNecV+" / "+ritmoNecHV)
+        ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginTop:2,textTransform:"uppercase"}},"Nec. cal./háb.")
+      )
+    )
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}
+      ,React.createElement(ScenCardV,{label:"🚀 Optimista (+30%)",val:pOptV,c:"#16A34A",bg:"#F0FDF4",brd:"#86EFAC"})
+      ,React.createElement(ScenCardV,{label:"📊 Realista",val:pRealV,c:llegaV?"#16A34A":"#D97706",bg:llegaV?"#F0FDF4":"#FFFBEB",brd:llegaV?"#86EFAC":"#FCD34D"})
+      ,React.createElement(ScenCardV,{label:"📉 Conservador (-30%)",val:pConsV,c:"#DC2626",bg:"#FFF1F2",brd:"#FCA5A5"})
+      ,React.createElement(ScenCardV,{label:"🔥 Extremo (Efecto Última Semana)",val:pExtrV,c:"#7C3AED",bg:"#F5F3FF",brd:"#C4B5FD"})
+    )
+    ,React.createElement("div",{style:{background:llegaV?"#F0FDF4":"#FEF9C3",borderRadius:10,padding:"12px 14px",border:"1.5px solid "+(llegaV?"#86EFAC":"#FCD34D"),fontSize:12,fontWeight:700,color:llegaV?"#166534":"#92400E"}}
+      ,llegaV
+        ? "✅ ¡Vas al ritmo para llegar a tu meta! ¡Mantén el impulso!"
+        : "⚠️ Necesitas "+ritmoNecV+" UF/día (cal.) o "+ritmoNecHV+" UF/día (háb.) — tu ritmo actual: "+ritmoV+" cal. / "+ritmoHV+" háb."
+    )
+  );
+}
+
 function PredictorView({ equipo, info, R, RD, metaUFSafe }) {
   var hoy = new Date();
   var diaHoy = hoy.getDate();
@@ -4420,7 +4500,7 @@ function PredictorView({ equipo, info, R, RD, metaUFSafe }) {
   }
 
   return React.createElement("div",{style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}
-    ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:RD,marginBottom:4}},"🎯 Predictor Cierre de Mes")
+    ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:RD,marginBottom:4}},"📈 Proyecciones de Cierre")
     ,React.createElement("div",{style:{fontSize:12,color:"#6B7280",marginBottom:20}},
       "Ritmo actual basado en "+diaHoy+" días transcurridos ("+diasHabilesTranscurridos+" hábiles) · "+diasRestantes+" días restantes ("+diasHabilesRestantes+" hábiles)"
     )
@@ -5357,7 +5437,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
     equipo:    [["gestion","👥 Gestionar Equipo"]],
     metas:     [["meta","🎯 Meta del Equipo"]],
     contenido: [["gestPremios","🏆 Gestionar Premios"],["gestDocs","📂 Gestionar Docs"]],
-    analisis:  [["clasificacion","📊 Clasificación AGV"],["agentes0","🚨 Agentes en 0"],["dpsanalisis","📊 Análisis Reporte Diario de Métricas"],["historialMetricas","📋 Ver Historial Métricas por Ejecutivo"],["tendencias","📈 Tendencias y Gráficos"],["predictor","🎯 Predictor Cierre de Mes"],["correlacion","🔗 Correlación DPS→UF"],["alertas","🚨 Alertas del Equipo"],["planagv","📋 Plan de Trabajo AGV"],["uflineales","📈 UF's Lineales"]],
+    analisis:  [["clasificacion","📊 Clasificación AGV"],["agentes0","🚨 Agentes en 0"],["dpsanalisis","📊 Análisis Reporte Diario de Métricas"],["historialMetricas","📋 Ver Historial Métricas por Ejecutivo"],["tendencias","📈 Tendencias y Gráficos"],["predictor","📈 Proyecciones de Cierre"],["correlacion","🔗 Correlación DPS→UF"],["alertas","🚨 Alertas del Equipo"],["planagv","📋 Plan de Trabajo AGV"],["uflineales","📈 UF's Lineales"]],
   };
   const [bulk,     setBulk]     = useState({});
   const [bulkOk,   setBulkOk]   = useState(false);
@@ -5971,7 +6051,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
 
   const TABS = [
     {k:"equipo",        l:"🏆 Equipo"},
-    {k:"formulario",    l:"📋 Mis Cierres y Actividad Diaria"},
+    {k:"formulario",    l:"📋 Mis Cierres"},
     {k:"calculadora",   l:"🎯 Mi Meta de este Mes!"},
     {k:"historial",     l:"🎯 Mi Desempeño y Plan de Éxito"},
     {k:"crm",           l:"📒 Mi Agenda y Gestión de Clientes"},
@@ -6793,20 +6873,6 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                       )
                     )
                   )
-                  , form.vid !== "" && pinFormOk && (function(){
-                      var vAct = equipo.find(function(e){return e.id===Number(form.vid);});
-                      var reps = vAct ? (vAct.rep||[]).filter(function(r){
-                        return r.uf && parseFloat(r.uf)>0;
-                      }).sort(function(a,b){return (b.fecha||"").localeCompare(a.fecha||"");}) : [];
-                      var totalUFMes = vAct ? (vAct.uf||0) : 0;
-                      return React.createElement("div",null
-                        , React.createElement(SemaforoCRM, {vid:form.vid, crmData:crmData})
-                        , reps.length ? React.createElement(CierresEditables, {
-                            vAct:vAct, reps:reps, totalUFMes:totalUFMes,
-                            equipo:equipo, setEquipo:setEquipo, RD:RD, fmtUF2:fmtUF2
-                          }) : null
-                      );
-                    })()
                   /* ── Sección 1: Cierres del día ── */
                   , form.vid !== "" && pinFormOk && React.createElement('div', { style: {display:"flex",alignItems:"center",gap:10,marginBottom:10} }
                     , (function(){
@@ -6854,175 +6920,14 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                     , React.createElement(NuevoCierreForm, { BTN: BTN, INP: INP, RD: RD, cierresHoy: cierresHoy, setCierresHoy: setCierresHoy, crmData: crmData, TODAY: TODAY, onGuardar: guardarCierreInmediato })
                   )
 
-                  , form.vid !== "" && pinFormOk && (
-                    React.createElement('div', null
-                  , React.createElement('div', { style: {display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16} }
-                    , React.createElement('div', { style: {fontSize:13,fontWeight:800,color:RD,textTransform:"uppercase",letterSpacing:"0.1em"} }, "2. Actividad del día")
-                    , React.createElement('button', {
-                        onClick: function(){setPinFormOk(false);setPinFormulario("");},
-                        style: {background:"#FEE2E2",color:"#B91C1C",border:"none",borderRadius:10,padding:"6px 14px",fontSize:12,cursor:"pointer",fontFamily:"inherit",fontWeight:700}
-                      }, "🔒 Cerrar sesion")
-                  )
-                  , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3242}}
-
-                    , React.createElement('div', { style: {background:"#F8FAFC",borderRadius:12,padding:"12px 14px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3244}}
-                      , React.createElement('label', { style: Object.assign({},LBL,{fontSize:11,marginBottom:4}), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3245}}, "Contactos efectivos" )
-                      , React.createElement('input', { type: "number", min: "0", value: form.contactos, onChange: function(e){setForm(Object.assign({},form,{contactos:e.target.value}));}, onFocus: function(e){if(e.target.value==="0")setForm(Object.assign({},form,{contactos:""}));}, style: Object.assign({},INP), placeholder: "0", __self: this, __source: {fileName: _jsxFileName, lineNumber: 3246}} )
-                    )
-
-                    , React.createElement('div', { style: {background:"#F8FAFC",borderRadius:12,padding:"12px 14px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3249}}
-                      , React.createElement('label', { style: Object.assign({},LBL,{fontSize:11,marginBottom:4}), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3250}}, "Cotizaciones enviadas" )
-                      , React.createElement('input', { type: "number", min: "0", value: form.cot, onChange: function(e){setForm(Object.assign({},form,{cot:e.target.value}));}, onFocus: function(e){if(e.target.value==="0")setForm(Object.assign({},form,{cot:""}));}, style: Object.assign({},INP), placeholder: "0", __self: this, __source: {fileName: _jsxFileName, lineNumber: 3251}} )
-                    )
-
-                    , React.createElement('div', { style: {background:"#F0FDF4",borderRadius:12,padding:"12px 14px",border:"2px solid rgba(22,163,74,.25)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3254}}
-                      , React.createElement('label', { style: Object.assign({},LBL,{color:"#16A34A",fontSize:11,marginBottom:4}), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3255}}, "💚 DPS realizadas hoy *"   )
-                      , React.createElement('input', { type: "number", min: "0", value: form.dps, onChange: function(e){setForm(Object.assign({},form,{dps:e.target.value}));}, onFocus: function(e){if(e.target.value==="0"){setForm(Object.assign({},form,{dps:""}));e.target.select();}}, onClick: function(e){if(e.target.value==="0"){setForm(Object.assign({},form,{dps:""}));e.target.select();}}, onBlur: function(e){if(e.target.value===""||e.target.value==="0")setForm(Object.assign({},form,{dps:"0"}));}, style: Object.assign({},INP,{fontWeight:900,fontSize:22,color:"#16A34A"}), placeholder: "0", __self: this, __source: {fileName: _jsxFileName, lineNumber: 3256}} )
-                      , React.createElement('div', { style: {fontSize:10,color:"#16A34A",marginTop:3}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3257}}, "Número de DPS tomadas hoy — campo obligatorio"   )
-                    )
-
-
-                  )
-
-                  /* ── Sección 3: Notas ── */
-                  , React.createElement('div', { style: {fontSize:13,fontWeight:800,color:RD,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:10}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3305}}, "3. Notas del día"   )
-                  , React.createElement('div', { style: {marginBottom:20}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3306}}
-                    , React.createElement('textarea', { value: form.nota, onChange: function(e){setForm(Object.assign({},form,{nota:e.target.value}));},
-                      style: Object.assign({},INP,{minHeight:70,resize:"vertical"}),
-                      placeholder: "Clientes interesados, dificultades, oportunidades..."   , __self: this, __source: {fileName: _jsxFileName, lineNumber: 3307}} )
-                  )
-                  )
-                  )
-
-                  
-                )
-              )
-            )
-
-            , form.vid !== "" && pinFormOk && (function(){
-              var v = equipo.find(function(t){return t.id===Number(form.vid);});
-              if (!v || (v.rep||[]).length === 0) return null;
-              var tot = {
-                contactos: (v.rep||[]).reduce(function(s,r){return s+(r.contactos||0);},0),
-                cot:       (v.rep||[]).reduce(function(s,r){return s+(r.cot||0);},0),
-                cierres:   (v.rep||[]).reduce(function(s,r){return s+(r.cierres||0);},0),
-                uf: v.uf, dps: v.dps,
-              };
-              var efect   = tot.contactos>0 ? Math.round((tot.cierres/tot.contactos)*100) : 0;
-              var convCot = tot.cot>0        ? Math.round((tot.cierres/tot.cot)*100)        : 0;
-              var pctMeta = v.metaUF>0        ? Math.round((tot.uf/v.metaUF)*100)            : 0;
-              return (
-                React.createElement('div', { style: {marginTop:20}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3332}}
-                  , React.createElement('div', { style: {background:"#fff",borderRadius:18,padding:"22px 24px",boxShadow:"0 4px 20px rgba(233,7,41,.09)",border:"1px solid rgba(233,7,41,.1)",marginBottom:14}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3333}}
-                    , React.createElement('div', { style: {display:"flex",alignItems:"center",gap:10,marginBottom:18}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3334}}
-                      , React.createElement('div', { style: {background:R,borderRadius:10,padding:"6px 14px",color:"#fff",fontWeight:900,fontSize:12}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3335}}, "ESTE MES" )
-                      , React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3336}}
-                        , React.createElement('div', { style: {fontSize:16,fontWeight:900,color:RD}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3337}}, "Mi productividad acumulada"  )
-                        , React.createElement('div', { style: {fontSize:12,color:"#9CA3AF",marginTop:1,textTransform:"capitalize"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3338}}, info.mes)
-                      )
-                    )
-                    , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3341}}
-                      , [
-                        {l:"Contactos efectivos",  v:tot.contactos, c:"#3B82F6", bg:"#EFF6FF", bm:null},
-                        {l:"Cotizaciones enviadas", v:tot.cot,       c:"#F59E0B", bg:"#FFFBEB", bm:null},
-                        {l:"Contratos cerrados",   v:tot.cierres,   c:"#16A34A", bg:"#F0FDF4", bm:null},
-                        {l:"DPS reportadas (diario)",v:tot.dps,     c:"#8B5CF6", bg:"#F5F3FF", bm:bmProp?bmProp.dps:null},
-                      ].map(function(k){
-                        var diff = k.bm ? bmDiff(k.v, k.bm) : null;
-                        return (
-                          React.createElement('div', { key: k.l, style: {background:k.bg,borderRadius:12,padding:"14px 16px",border:"1px solid "+k.c+"33"} }
-                            , React.createElement('div', { style: {fontSize:28,fontWeight:900,color:k.c,lineHeight:1}}, k.v)
-                            , React.createElement('div', { style: {fontSize:12,color:"#6B7280",marginTop:4}}, k.l)
-                            , diff && React.createElement('div', {style:{fontSize:10,fontWeight:700,color:diff.color,marginTop:3}}, diff.txt+" vs bm")
-                          )
-                        );
-                      })
-                    )
-                    , React.createElement('div', { style: {background:"linear-gradient(135deg,"+RD+","+R+")",borderRadius:14,padding:"18px 20px",color:"#fff",marginBottom:14}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3356}}
-                      , React.createElement('div', { style: {display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3357}}
-                        , React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3358}}
-                          , React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.7)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3359}}, "UF cerradas este mes"   )
-                          , React.createElement('div', { style: {fontSize:42,fontWeight:900,lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3360}}, fmtUF2(tot.uf))
-                          , React.createElement('div', { style: {fontSize:12,color:"rgba(255,255,255,.65)",marginTop:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3361}}, "de "+v.metaUF+" UF meta mensual")
-                        )
-                        , React.createElement('div', { style: {textAlign:"right"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3363}}
-                          , React.createElement('div', { style: {fontSize:36,fontWeight:900,color:"#FCD34D"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3364}}, pctMeta+"%")
-                          , React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.65)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3365}}, "de tu meta"  )
-                        )
-                      )
-                      , React.createElement('div', { style: {background:"rgba(255,255,255,.2)",borderRadius:99,height:8,overflow:"hidden"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3368}}
-                        , React.createElement('div', { style: {width:Math.min(pctMeta,100)+"%",height:"100%",background:"rgba(255,255,255,.9)",borderRadius:99}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3369}} )
-                      )
-                    )
-                    , React.createElement('div', { style: {background:"#F8FAFC",borderRadius:12,padding:"14px 16px",border:"1px solid #E5E7EB"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3372}}
-                      , React.createElement('div', { style: {fontSize:13,fontWeight:800,color:RD,marginBottom:10}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3373}}, "Indices de efectividad"  )
-                      , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3374}}
-                        , React.createElement('div', { style: {background:"#fff",borderRadius:10,padding:"10px 12px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3375}}
-                          , React.createElement('div', { style: {fontSize:10,color:"#9CA3AF"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3376}}, "Contacto a cierre"  )
-                          , React.createElement('div', { style: {fontSize:22,fontWeight:900,color:efect>=15?"#16A34A":efect>=8?"#D97706":"#DC2626"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3377}}, efect+"%")
-                          , React.createElement('div', { style: {fontSize:10,color:"#9CA3AF",marginTop:2}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3378}}, tot.cierres+" de "+tot.contactos)
-                        )
-                        , React.createElement('div', { style: {background:"#fff",borderRadius:10,padding:"10px 12px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3380}}
-                          , React.createElement('div', { style: {fontSize:10,color:"#9CA3AF"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3381}}, "Cotizacion a cierre"  )
-                          , React.createElement('div', { style: {fontSize:22,fontWeight:900,color:convCot>=30?"#16A34A":convCot>=15?"#D97706":"#DC2626"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3382}}, convCot+"%")
-                          , React.createElement('div', { style: {fontSize:10,color:"#9CA3AF",marginTop:2}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3383}}, tot.cierres+" de "+tot.cot)
-                        )
-                      )
-                    )
-                  )
-                  /* Panel personal: hombre/mujer + cumplimiento */
-                  , (function(){
-                    var myH = (v.rep||[]).reduce(function(s,r){return s+(r.hombres||0);},0);
-                    var myM = (v.rep||[]).reduce(function(s,r){return s+(r.mujeres||0);},0);
-                    var myC = (v.rep||[]).reduce(function(s,r){return s+(r.conecta||0);},0);
-                    var myT = myH + myM;
-                    var myPctH = myT > 0 ? Math.round((myH/myT)*100) : 0;
-                    var myPctM = myT > 0 ? Math.round((myM/myT)*100) : 0;
-                    var cumpl = v.metaUF > 0 ? Math.round((v.uf/v.metaUF)*100) : 0;
-                    var colCumpl = cumpl >= 100 ? "#16A34A" : cumpl >= 60 ? "#D97706" : "#DC2626";
-                    if (myT === 0 && myC === 0) return null;
-                    return (
-                      React.createElement('div', { style: {background:"#fff",borderRadius:16,padding:"18px 22px",boxShadow:"0 4px 16px rgba(233,7,41,.09)",border:"1px solid rgba(233,7,41,.1)",marginBottom:14}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3400}}
-                        , React.createElement('div', { style: {fontSize:15,fontWeight:900,color:RD,marginBottom:14}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3401}}, "Mi distribucion y cumplimiento"   )
-                        , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:14}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3402}}
-                          , React.createElement('div', { style: {background:"linear-gradient(135deg,#1D4ED8,#3B82F6)",borderRadius:12,padding:"14px 12px",color:"#fff",textAlign:"center"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3403}}
-                            , React.createElement('div', { style: {fontSize:10,color:"rgba(255,255,255,.7)",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3404}}, "Titulares Hombre" )
-                            , React.createElement('div', { style: {fontSize:32,fontWeight:900,lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3405}}, myPctH+"%")
-                            , React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.65)",marginTop:3}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3406}}, myH+" contratos")
-                          )
-                          , React.createElement('div', { style: {background:"linear-gradient(135deg,#9D174D,#EC4899)",borderRadius:12,padding:"14px 12px",color:"#fff",textAlign:"center"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3408}}
-                            , React.createElement('div', { style: {fontSize:10,color:"rgba(255,255,255,.7)",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3409}}, "Titulares Mujer" )
-                            , React.createElement('div', { style: {fontSize:32,fontWeight:900,lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3410}}, myPctM+"%")
-                            , React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.65)",marginTop:3}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3411}}, myM+" contratos")
-                          )
-                          , React.createElement('div', { style: {background:"linear-gradient(135deg,#065F46,#059669)",borderRadius:12,padding:"14px 12px",color:"#fff",textAlign:"center"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3413}}
-                            , React.createElement('div', { style: {fontSize:10,color:"rgba(255,255,255,.7)",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3414}}, "Planes Conecta" )
-                            , React.createElement('div', { style: {fontSize:32,fontWeight:900,lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3415}}, myC)
-                            , React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.65)",marginTop:3}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3416}}, myT>0?Math.round((myC/myT)*100)+"% del total":"este mes")
-                          )
-                        )
-                        , React.createElement('div', { style: {background:BG,borderRadius:12,padding:"14px 16px",border:"1px solid rgba(233,7,41,.12)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3419}}
-                          , React.createElement('div', { style: {display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3420}}
-                            , React.createElement('span', { style: {fontSize:14,fontWeight:800,color:RD}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3421}}, "Cumplimiento de mi meta"   )
-                            , React.createElement('span', { style: {fontSize:22,fontWeight:900,color:colCumpl}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3422}}, cumpl+"%")
-                          )
-                          , React.createElement('div', { style: {background:"#E5E7EB",borderRadius:99,height:10,overflow:"hidden",marginBottom:6}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3424}}
-                            , React.createElement('div', { style: {width:Math.min(cumpl,100)+"%",height:"100%",background:colCumpl,borderRadius:99,transition:"width .7s ease"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3425}} )
-                          )
-                          , React.createElement('div', { style: {fontSize:12,color:"#6B7280"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3427}}
-                            , fmtUF2(v.uf)+" UF de "+v.metaUF+" UF meta mensual - "+fmtUF2(Math.max(0,v.metaUF-v.uf))+" UF para completar"
-                          )
-                        )
-                      )
-                    );
-                  })()
+                  , form.vid !== "" && pinFormOk && React.createElement(PredictorPersonalView, {equipo:equipo, form:form, RD:RD, info:info})
                   , React.createElement(HistorialTresMeses, { vid: Number(form.vid), info: info, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3434}} )
                 )
-              );
-            })()
 
           )
         )
+      )
+    )
 
                 /* ===== MI HISTORIAL ===== */
         , tab==="historial" && (
@@ -8492,11 +8397,11 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
             React.createElement('div', { style: {fontSize:20,fontWeight:900,color:"#16A34A",marginBottom:8} }, "¡Contrato cerrado!"),
             React.createElement('div', { style: {fontSize:14,color:"#374151",lineHeight:1.6,marginBottom:20} },
               "Recuerda indicar este logro en ",
-              React.createElement('strong', null, '"Mis Cierres y Actividad Diaria"'),
+              React.createElement('strong', null, '"Mis Cierres"'),
               " para que esta victoria sume a tu tablero y al del equipo."
             ),
             React.createElement('div', { style: {background:"#FFF7ED",border:"1px solid #FED7AA",borderRadius:12,padding:"12px 16px",marginBottom:20,fontSize:13,color:"#92400E",fontWeight:600} },
-              "📋 Ve a la pestaña → Mis Cierres y Actividad Diaria → Agrega el cierre con la UF correspondiente"
+              "📋 Ve a la pestaña → Mis Cierres → Agrega el cierre con la UF correspondiente"
             ),
             React.createElement('button', {
               onClick: function(){setCierreRecordatorio(false);},
