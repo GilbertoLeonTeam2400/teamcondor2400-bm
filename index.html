@@ -4430,6 +4430,10 @@ function PredictorPersonalView({ equipo, form, RD, info }) {
         ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",marginTop:2,textTransform:"uppercase"}},"Nec. cal./háb.")
       )
     )
+    ,React.createElement("div",{style:{background:"#FFF8E7",borderRadius:10,padding:"8px 14px",marginBottom:10,display:"flex",alignItems:"center",gap:8,border:"1px solid #FCD34D"}}
+      ,React.createElement("span",{style:{fontSize:11,color:"#92400E",fontWeight:700}},"🎯 Tu meta comprometida:")
+      ,React.createElement("span",{style:{fontSize:16,fontWeight:900,color:"#C9A84C"}},fmtUF2(metaV)+" UF")
+    )
     ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}
       ,React.createElement(ScenCardV,{label:"📉 Conservador (+30%)",val:pConsV,c:"#16A34A",bg:"#F0FDF4",brd:"#86EFAC"})
       ,React.createElement(ScenCardV,{label:"🚀 Optimista (+50%)",val:pOptV,c:"#2563EB",bg:"#EFF6FF",brd:"#BFDBFE"})
@@ -6780,6 +6784,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                       , React.createElement('div', { style: {textAlign:"center",minWidth:72} }
                         , React.createElement('div', { style: {fontSize:34,fontWeight:900,lineHeight:1} }, fmtUF2(ufPersonal))
                         , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.65)",textTransform:"uppercase",letterSpacing:"0.1em",marginTop:3} }, "UF Logradas!")
+                        , React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.5)",marginTop:4} }, "Meta: "+fmtUF2(metaPersonal)+" UF")
                       )
                       , React.createElement('div', { style: {flex:1} }
                         , React.createElement('div', { style: {display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:6,fontWeight:600} }
