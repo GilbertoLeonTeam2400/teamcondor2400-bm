@@ -6965,6 +6965,16 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                       )
                     )
 
+                    /* Lista cierres del mes */
+                    , (function(){
+                        var _vAct = equipo.find(function(v){ return v.id===Number(form.vid); });
+                        var _reps = _vAct ? (_vAct.rep||[]) : [];
+                        var _totUF = _vAct ? (_vAct.uf||0) : 0;
+                        return _vAct ? React.createElement(CierresEditables, {
+                          vAct: _vAct, reps: _reps, totalUFMes: _totUF,
+                          equipo: equipo, setEquipo: setEquipo, RD: RD, fmtUF2: fmtUF2
+                        }) : null;
+                      })()
                     /* Formulario nuevo cierre */
                     , React.createElement(NuevoCierreForm, { BTN: BTN, INP: INP, RD: RD, cierresHoy: cierresHoy, setCierresHoy: setCierresHoy, crmData: crmData, TODAY: TODAY, onGuardar: guardarCierreInmediato })
                   )
