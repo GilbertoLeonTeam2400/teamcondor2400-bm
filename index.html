@@ -4368,6 +4368,16 @@ function PredictorPersonalView({ equipo, form, RD, info }) {
   if(!vSel) return null;
   var metaV = parseFloat(vSel.metaUF)||18;
   var ufV = parseFloat(vSel.uf)||0;
+  // Load frozen base from Firebase if in week 4
+  React.useEffect(function(){
+    var _mesKey = info.mesKey;
+    var _key = "UFB_" + _mesKey + "_" + String(vSel.id);
+    if(!localStorage.getItem(_key) && window.__fbDb && window.__fbDoc && window.__fbGetDoc) {
+      window.__fbGetDoc(window.__fbDoc(window.__fbDb,"baseExtremo",_mesKey+"_"+String(vSel.id)))
+        .then(function(snap){ if(snap.exists&&snap.data&&snap.data().uf) localStorage.setItem(_key, String(snap.data().uf)); })
+        .catch(function(){});
+    }
+  }, [vSel.id]);
   var hoy2 = new Date();
   var diaHoy2 = hoy2.getDate();
   var diasMes2 = new Date(hoy2.getFullYear(), hoy2.getMonth()+1, 0).getDate();
@@ -4384,7 +4394,33 @@ function PredictorPersonalView({ equipo, form, RD, info }) {
   var ritmoNecHV = dhRest>0 ? parseFloat((faltaV/dhRest).toFixed(2)) : 0;
   var pConsV = parseFloat((ufV + ritmoV*diasRest2*1.3).toFixed(2));  // antes optimista
   var pOptV  = parseFloat((ufV + ritmoV*diasRest2*1.5).toFixed(2));  // +50% ritmo
-  var pExtrV = parseFloat((ufV * 2).toFixed(2));
+  // ── Efecto Última Semana: base congelada al domingo de semana 3 ──
+  // Calcular el lunes de la semana 4 (últimos 7 días del mes)
+  var lunesS4 = new Date(hoy2.getFullYear(), hoy2.getMonth(), diasMes2 - 6);
+  // Ajustar al lunes real
+  while(lunesS4.getDay() !== 1) { lunesS4.setDate(lunesS4.getDate() + 1); }
+  var esSemana4 = hoy2 >= lunesS4;
+  // Base congelada: si semana 4, usar ufBaseExtremo de Firebase; si no, usar ufV actual
+  var ufBaseKey = "UFB_" + info.mesKey + "_" + String(vSel.id);
+  var ufBaseGuardada = parseFloat(localStorage.getItem(ufBaseKey)||"0");
+  var ufBase;
+  if(esSemana4) {
+    if(!ufBaseGuardada || ufBaseGuardada <= 0) {
+      // Primera vez en semana 4: congelar valor actual
+      ufBase = ufV;
+      localStorage.setItem(ufBaseKey, String(ufV));
+      // Guardar en Firebase también
+      if(window.__fbDb && window.__fbDoc && window.__fbSetDoc) {
+        var _bDoc = window.__fbDoc(window.__fbDb, "baseExtremo", info.mesKey+"_"+String(vSel.id));
+        window.__fbSetDoc(_bDoc, {uf: ufV, ejecutivoId: vSel.id, mes: info.mesKey, guardado: Date.now()}).catch(function(){});
+      }
+    } else {
+      ufBase = ufBaseGuardada;
+    }
+  } else {
+    ufBase = ufV; // Semanas 1-3: usar valor actual
+  }
+  var pExtrV = parseFloat((ufBase * 2).toFixed(2));
   var llegaV = pConsV >= metaV;
 
   function ScenCardV(props){
