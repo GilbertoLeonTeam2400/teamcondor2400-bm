@@ -7236,7 +7236,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                   React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3466}}
                     , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3467}}
                       /* Posición actual este mes */
-                      , (function(){
+                      , tab==="desempeno" && (function(){
                         var ranking = equipo.slice().sort(function(a,b){return b.uf-a.uf;});
                         var pos = ranking.findIndex(function(e){return e.id===histV.id;}) + 1;
                         var enTop5 = pos >= 1 && pos <= 5 && histV.uf > 0;
@@ -7260,7 +7260,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                         );
                       })()
                       /* Top5 del año */
-                      , React.createElement(Top5Badge, { nombre: histV.nombre, hallMeses: HALL_MESES, histV: histV })
+                      , tab==="desempeno" && React.createElement(Top5Badge, { nombre: histV.nombre, hallMeses: HALL_MESES, histV: histV })
                     )
                     , tab==="desempeno" && React.createElement(ProdEditableInner, { v: histV, equipo: equipo, setEquipo: setEquipo, guardarProductividad: guardarProductividad, guardandoProd: guardandoProd, info: info, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3495}} )
                     , tab==="planexito" && histV && React.createElement(PlanEjecutivoView, { v: histV, info: info, R: R, RD: RD })
