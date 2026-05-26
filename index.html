@@ -6264,7 +6264,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
     {k:"equipo",        l:"🏆 Equipo"},
     {k:"formulario",    l:"📋 Mis Cierres"},
     {k:"calculadora",   l:"🎯 Mi Meta de este Mes!"},
-    {k:"historial",     l:"🎯 Mi Desempeño y Plan de Éxito"},
+    {k:"desempeno",     l:"📊 Mi Desempeño"},
+    {k:"planexito",     l:"🎯 Mi Plan de Éxito"},
     {k:"crm",           l:"📒 Mi Agenda y Gestión de Clientes"},
     {k:"reconocimiento",l:"🌟 Reconocimientos"},
     {k:"infodocs",      l:"📌 Info y Docs Importantes"},
@@ -6382,7 +6383,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                   setEnviado(false);
                 }
                 // Auto-logout cuando sale de historial
-                if(tab==="historial" && t.k!=="historial" && histAcc) {
+                if((tab==="desempeno"||tab==="planexito") && t.k!=="desempeno" && t.k!=="planexito" && histAcc) {
                   histLogout();
                 }
                 // Auto-logout cuando sale de CRM
@@ -7153,7 +7154,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
     )
 
                 /* ===== MI HISTORIAL ===== */
-        , tab==="historial" && (
+        , (tab==="desempeno"||tab==="planexito") && (
           React.createElement('div', { style: {maxWidth:700,margin:"0 auto"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3444}}
             , !histAcc?(
               React.createElement('div', { style: {background:"#fff",borderRadius:20,padding:36,boxShadow:"0 4px 24px rgba(233,7,41,.1)",border:"1px solid rgba(233,7,41,.12)",maxWidth:400,margin:"0 auto",textAlign:"center"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3446}}
@@ -7214,7 +7215,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                       /* Top5 del año */
                       , React.createElement(Top5Badge, { nombre: histV.nombre, hallMeses: HALL_MESES, histV: histV })
                     )
-                    , React.createElement(ProdEditableInner, { v: histV, equipo: equipo, setEquipo: setEquipo, guardarProductividad: guardarProductividad, guardandoProd: guardandoProd, info: info, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3495}} )
+                    , tab==="desempeno" && React.createElement(ProdEditableInner, { v: histV, equipo: equipo, setEquipo: setEquipo, guardarProductividad: guardarProductividad, guardandoProd: guardandoProd, info: info, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3495}} )
+                    , tab==="planexito" && histV && React.createElement(PlanEjecutivoView, { v: histV, info: info, R: R, RD: RD })
                   )
                 )
               )
@@ -9228,7 +9230,6 @@ function ProdEditableInner({ v, equipo, setEquipo, guardarProductividad, guardan
       )
       , React.createElement(HistorialPersonal, { histV: v, histLogout: function(){}, info: info, hallMeses: HALL_MESES, equipo: equipo })
       , React.createElement(RachasView, { v: v, info: info })
-      , React.createElement(PlanEjecutivoView, { v: v, info: info, R: R, RD: RD })
     )
   );
 }
