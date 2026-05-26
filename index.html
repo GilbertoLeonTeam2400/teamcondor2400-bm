@@ -7234,9 +7234,9 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                 )
                 , histV && (
                   React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3466}}
-                    , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3467}}
+                    , tab==="desempeno" && React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3467}}
                       /* Posición actual este mes */
-                      , tab==="desempeno" && (function(){
+                      , (function(){
                         var ranking = equipo.slice().sort(function(a,b){return b.uf-a.uf;});
                         var pos = ranking.findIndex(function(e){return e.id===histV.id;}) + 1;
                         var enTop5 = pos >= 1 && pos <= 5 && histV.uf > 0;
@@ -7260,7 +7260,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                         );
                       })()
                       /* Top5 del año */
-                      , tab==="desempeno" && React.createElement(Top5Badge, { nombre: histV.nombre, hallMeses: HALL_MESES, histV: histV })
+                      , React.createElement(Top5Badge, { nombre: histV.nombre, hallMeses: HALL_MESES, histV: histV })
                     )
                     , tab==="desempeno" && React.createElement(ProdEditableInner, { v: histV, equipo: equipo, setEquipo: setEquipo, guardarProductividad: guardarProductividad, guardandoProd: guardandoProd, tab: tab, info: info, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3495}} )
                     , tab==="planexito" && histV && React.createElement(PlanEjecutivoView, { v: histV, info: info, R: R, RD: RD })
@@ -9275,8 +9275,8 @@ function ProdEditableInner({ v, equipo, setEquipo, guardarProductividad, guardan
             style: {background:"#C41230",color:"#fff",border:"none",borderRadius:10,padding:"10px 24px",fontSize:14,cursor:"pointer",fontFamily:"inherit",fontWeight:700}
           }, "🔒 Cerrar sesion")
       )
-      , tab==="desempeno" && React.createElement(HistorialPersonal, { histV: v, histLogout: function(){}, info: info, hallMeses: HALL_MESES, equipo: equipo })
-      , tab==="desempeno" && React.createElement(RachasView, { v: v, info: info })
+      , React.createElement(HistorialPersonal, { histV: v, histLogout: function(){}, info: info, hallMeses: HALL_MESES, equipo: equipo })
+      , React.createElement(RachasView, { v: v, info: info })
     )
   );
 }
