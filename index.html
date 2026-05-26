@@ -3314,6 +3314,7 @@ function PlanEjecutivoView({ v, info, R, RD }) {
   var [plan, setPlan] = React.useState(null);
   var [calInput, setCalInput] = React.useState("");
   var [calFecha, setCalFecha] = React.useState("");
+  var [diaSeleccionado, setDiaSeleccionado] = React.useState(null);
   var [editNota, setEditNota] = React.useState(false);
   var [notaEjec, setNotaEjec] = React.useState("");
   var [guardado, setGuardado] = React.useState(false);
@@ -3448,57 +3449,28 @@ function PlanEjecutivoView({ v, info, R, RD }) {
               ,React.createElement("button",{onClick:function(){setEditandoAccion(null);},style:{background:"#F3F4F6",border:"none",borderRadius:6,padding:"4px 8px",fontSize:11,cursor:"pointer"}},"✕")
             )
           : React.createElement("span",{onClick:function(){setAccionExpandida(abierto?null:accKey);},style:{fontSize:12,color:done?"#166534":"#374151",textDecoration:done?"line-through":"none",flex:1,lineHeight:1.4}},accKey)
-        // Consistencia semanas
-        ,!editando&&React.createElement("div",{style:{display:"flex",gap:3,flexShrink:0}}
+        // Semanas - solo indicador de estado en header
+        ,!editando&&React.createElement("div",{style:{display:"flex",gap:4,flexShrink:0}}
           ,[1,2,3,4].map(function(s){
               var diasSem=["L","M","X","J","V"];
               var semData=sems[s];
               var diasObj = typeof semData==="object"&&semData!==null ? semData : (semData?{L:"completado",M:"completado",X:"completado",J:"completado",V:"completado"}:{});
               var estadoColor={"completado":"#16A34A","incompleto":"#D97706","sin_avance":"#DC2626"};
               var estadoLabel={"completado":"✓","incompleto":"~","sin_avance":"✗"};
-              // Calcular estado semana automáticamente
-              var comp=0,inc=0,sv=0,vacios=0;
-              diasSem.forEach(function(d){
-                var e=diasObj[d];
-                if(e==="completado") comp++;
-                else if(e==="incompleto") inc++;
-                else if(e==="sin_avance") sv++;
-                else vacios++;
-              });
+              var comp=0,inc=0,sv=0;
+              diasSem.forEach(function(d){var e=diasObj[d];if(e==="completado")comp++;else if(e==="incompleto")inc++;else if(e==="sin_avance")sv++;});
               var marcados=comp+inc+sv;
-              var estadoSem = marcados===0 ? null : (comp>=4?"completado":comp+inc>=3?"incompleto":"sin_avance");
-              var semColor = estadoSem?estadoColor[estadoSem]:"#E5E7EB";
-              var semLabel = estadoSem?estadoLabel[estadoSem]:"S"+s;
-              return React.createElement("div",{key:s,style:{display:"flex",flexDirection:"column",gap:2,alignItems:"center"}}
-                // Indicador semana (automático)
-                ,React.createElement("div",{
-                  title:"Semana "+s+(estadoSem?" — "+estadoSem.replace("_"," "):" — sin datos"),
-                  style:{width:20,height:20,borderRadius:4,background:semColor,
-                    fontSize:8,color:estadoSem?"#fff":"#9CA3AF",display:"flex",alignItems:"center",
-                    justifyContent:"center",fontWeight:900,border:"1.5px solid "+(estadoSem?semColor:"#D1D5DB")}
-                },semLabel)
-                // Días L-M-X-J-V
-                ,React.createElement("div",{style:{display:"flex",gap:1}}
-                  ,diasSem.map(function(d){
-                    var estado=diasObj[d]||null;
-                    var ciclo=function(){
-                      var nxt=estado==="completado"?"incompleto":estado==="incompleto"?"sin_avance":estado==="sin_avance"?null:"completado";
-                      var newDias=Object.assign({},diasObj);
-                      if(nxt===null) delete newDias[d]; else newDias[d]=nxt;
-                      var newSems=Object.assign({},sems); newSems[s]=newDias;
-                      var newSA=Object.assign({},semanasAcciones); newSA[accKey]=newSems;
-                      savePlanField({semanasAcciones:newSA});
-                    };
-                    return React.createElement("div",{key:d,onClick:ciclo,
-                      title:d+" S"+s+(estado?" — "+estado.replace("_"," "):" — sin marcar"),
-                      style:{width:11,height:14,borderRadius:2,background:estado?estadoColor[estado]:"#E5E7EB",
-                        fontSize:6,color:estado?"#fff":"#9CA3AF",display:"flex",alignItems:"center",
-                        justifyContent:"center",fontWeight:900,cursor:"pointer",userSelect:"none"}},
-                      estado?estadoLabel[estado]:d[0]
-                    );
-                  })
-                )
-              );
+              var estadoSem=marcados===0?null:(comp>=4?"completado":comp+inc>=3?"incompleto":"sin_avance");
+              var semColor=estadoSem?estadoColor[estadoSem]:"#E5E7EB";
+              var semLabel=estadoSem?estadoLabel[estadoSem]:"S"+s;
+              return React.createElement("div",{key:s,
+                title:"Semana "+s+(estadoSem?" — "+estadoSem.replace("_"," "):" — sin datos"),
+                style:{width:22,height:22,borderRadius:4,background:semColor,fontSize:9,
+                  color:estadoSem?"#fff":"#9CA3AF",display:"flex",alignItems:"center",
+                  justifyContent:"center",fontWeight:900,border:"1.5px solid "+(estadoSem?semColor:"#D1D5DB"),
+                  cursor:"pointer"},
+                onClick:function(e){e.stopPropagation();setAccionExpandida(abierto?null:accKey);}
+              },semLabel);
             })
         )
         // Editar / expandir
@@ -3514,13 +3486,51 @@ function PlanEjecutivoView({ v, info, R, RD }) {
           ,[1,2,3,4].map(function(sem){
               var marcada=sems[sem]||false;
               var com=sems["com"+sem]||"";
-              return React.createElement("div",{key:sem,style:{background:marcada?"#DCFCE7":"#fff",borderRadius:10,padding:"10px 12px",border:"1.5px solid "+(marcada?"#86EFAC":"#E5E7EB")}}
-                ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6,marginBottom:6}}
-                  ,React.createElement("div",{onClick:function(){toggleSemana(accKey,sem);},style:{width:18,height:18,borderRadius:4,border:"2px solid "+(marcada?"#16A34A":"#D1D5DB"),background:marcada?"#16A34A":"#fff",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}
-                    ,marcada&&React.createElement("span",{style:{color:"#fff",fontSize:11,fontWeight:900}},"✓")
+              // Calcular estado de los días para esta semana
+              var _semData2=sems[sem];
+              var _diasObj2=typeof _semData2==="object"&&_semData2!==null?_semData2:(_semData2?{L:"completado",M:"completado",X:"completado",J:"completado",V:"completado"}:{});
+              var _ec={"completado":"#16A34A","incompleto":"#D97706","sin_avance":"#DC2626"};
+              var _el={"completado":"✓","incompleto":"~","sin_avance":"✗"};
+              var _comp2=0,_inc2=0,_sv2=0;
+              ["L","M","X","J","V"].forEach(function(d){var e=_diasObj2[d];if(e==="completado")_comp2++;else if(e==="incompleto")_inc2++;else if(e==="sin_avance")_sv2++;});
+              var _marc2=_comp2+_inc2+_sv2;
+              var _estSem2=_marc2===0?null:(_comp2>=4?"completado":_comp2+_inc2>=3?"incompleto":"sin_avance");
+              var _colSem2=_estSem2?_ec[_estSem2]:"#E5E7EB";
+              return React.createElement("div",{key:sem,style:{background:_estSem2==="completado"?"#DCFCE7":_estSem2==="incompleto"?"#FFFBEB":_estSem2==="sin_avance"?"#FFF1F2":"#fff",borderRadius:10,padding:"10px 12px",border:"1.5px solid "+(_estSem2?_colSem2:"#E5E7EB")}}
+                // Semana header con estado automático
+                ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6,marginBottom:8}}
+                  ,React.createElement("div",{style:{width:22,height:22,borderRadius:4,background:_colSem2,
+                    display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,
+                    fontSize:10,color:_estSem2?"#fff":"#9CA3AF",fontWeight:900,border:"1.5px solid "+(_estSem2?_colSem2:"#D1D5DB")}},
+                    _estSem2?_el[_estSem2]:"S"+sem
                   )
-                  ,React.createElement("span",{style:{fontSize:12,fontWeight:700,color:marcada?"#16A34A":"#374151"}},"Semana "+sem)
-                  ,marcada&&React.createElement("span",{style:{fontSize:10,color:"#16A34A",fontWeight:700}},"✅ Cumplida")
+                  ,React.createElement("span",{style:{fontSize:12,fontWeight:700,color:_estSem2?_colSem2:"#374151"}},"Semana "+sem)
+                  ,_estSem2&&React.createElement("span",{style:{fontSize:10,color:_colSem2,fontWeight:700}},
+                    _estSem2==="completado"?"✅ Cumplida":_estSem2==="incompleto"?"⚠️ Incompleta":"❌ Sin avance"
+                  )
+                )
+                // Días L-M-X-J-V debajo del header de semana
+                ,React.createElement("div",{style:{display:"flex",gap:4,marginBottom:8}}
+                  ,["L","M","X","J","V"].map(function(d){
+                    var estado=_diasObj2[d]||null;
+                    var ciclo=function(){
+                      var nxt=estado==="completado"?"incompleto":estado==="incompleto"?"sin_avance":estado==="sin_avance"?null:"completado";
+                      var newDias=Object.assign({},_diasObj2);
+                      if(nxt===null) delete newDias[d]; else newDias[d]=nxt;
+                      var newSems=Object.assign({},sems); newSems[sem]=newDias;
+                      var newSA=Object.assign({},semanasAcciones); newSA[accKey]=newSems;
+                      savePlanField({semanasAcciones:newSA});
+                    };
+                    return React.createElement("div",{key:d,onClick:ciclo,
+                      title:d+" — Semana "+sem+(estado?" — "+estado.replace("_"," "):" — sin marcar"),
+                      style:{flex:1,height:28,borderRadius:4,background:estado?_ec[estado]:"#F3F4F6",
+                        fontSize:11,color:estado?"#fff":"#9CA3AF",display:"flex",alignItems:"center",
+                        justifyContent:"center",fontWeight:900,cursor:"pointer",userSelect:"none",
+                        border:"1.5px solid "+(estado?_ec[estado]:"#E5E7EB"),flexDirection:"column",gap:1}}
+                      ,React.createElement("span",{style:{fontSize:8,opacity:0.8}},d)
+                      ,estado&&React.createElement("span",{style:{fontSize:10}},_el[estado])
+                    );
+                  })
                 )
                 ,React.createElement(SemComentario,{accKey:accKey,sem:sem,com:com,onSave:saveComentarioSem})
               );
@@ -3671,7 +3681,10 @@ function PlanEjecutivoView({ v, info, R, RD }) {
                   style:{minHeight:40,borderRadius:6,padding:"3px",background:esHoy?"#FFF8E7":esFinde?"#F9FAFB":"#fff",
                     border:"1.5px solid "+(esHoy?"#FCD34D":esFinde?"#F3F4F6":"#E5E7EB"),
                     position:"relative",cursor:acts.length?"pointer":"default"},
-                  onClick:function(){ if(calFecha!==fechaStr) setCalFecha(fechaStr); }
+                  onClick:function(){
+                    setCalFecha(fechaStr);
+                    setDiaSeleccionado(function(prev){ return prev===fechaStr?null:fechaStr; });
+                  }
                 }
                   ,React.createElement("div",{style:{fontSize:10,fontWeight:esHoy?900:600,color:esHoy?"#92400E":esFinde?"#D1D5DB":"#374151",textAlign:"center"}},d)
                   ,acts.slice(0,2).map(function(act,ai){
@@ -3683,6 +3696,40 @@ function PlanEjecutivoView({ v, info, R, RD }) {
                   ,acts.length>2&&React.createElement("div",{style:{fontSize:7,color:"#6B7280",textAlign:"center"}},"+"+(acts.length-2))
                 );
               })
+            );
+          })
+        );
+      })()
+
+      // ── Detalle día seleccionado ──
+      ,diaSeleccionado && diaSeleccionado !== (new Date()).toISOString().slice(0,10) && (function(){
+        var actsDay = calendario.filter(function(c){ return c.fecha===diaSeleccionado; });
+        if(!actsDay.length) return React.createElement("div",{style:{marginTop:12,padding:"12px 14px",background:"#F9FAFB",borderRadius:10,fontSize:12,color:"#9CA3AF",fontStyle:"italic",textAlign:"center"}},
+          "Sin actividades el "+new Date(diaSeleccionado+"T12:00:00").toLocaleDateString("es-CL",{weekday:"long",day:"numeric",month:"long"})
+        );
+        return React.createElement("div",{style:{marginTop:12,background:"#EFF6FF",borderRadius:12,padding:"14px",border:"1.5px solid #BFDBFE"}}
+          ,React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}
+            ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:"#1D4ED8"}},
+              "📅 "+new Date(diaSeleccionado+"T12:00:00").toLocaleDateString("es-CL",{weekday:"long",day:"numeric",month:"long"})
+            )
+            ,React.createElement("button",{onClick:function(){setDiaSeleccionado(null);},style:{background:"none",border:"none",cursor:"pointer",color:"#6B7280",fontSize:16}},"✕")
+          )
+          ,actsDay.map(function(act,i){
+            var ri=calendario.indexOf(act);
+            var col=act.estado==="completada"?"#16A34A":act.estado==="incompleto"?"#D97706":act.estado==="sin_avance"?"#DC2626":"#6B7280";
+            return React.createElement("div",{key:i,style:{display:"flex",alignItems:"center",gap:8,marginBottom:6,padding:"8px 10px",borderRadius:8,background:"#fff",border:"1.5px solid "+col}}
+              ,React.createElement("div",{style:{flex:1}}
+                ,React.createElement("div",{style:{fontSize:12,fontWeight:700,color:"#1F2937"}},act.texto)
+                ,act.canal&&React.createElement("div",{style:{fontSize:10,color:"#6B7280",marginTop:1}},"🔭 "+act.canal)
+              )
+              ,React.createElement("select",{value:act.estado||"",onChange:function(e){setEstadoActividad(ri,e.target.value);},
+                style:{fontSize:10,borderRadius:6,border:"1.5px solid "+col,padding:"3px 6px",fontFamily:"inherit",background:"#fff",color:col,fontWeight:700}}
+                ,React.createElement("option",{value:""},"— Estado")
+                ,React.createElement("option",{value:"completada"},"✅ Completado")
+                ,React.createElement("option",{value:"incompleto"},"⚠️ Incompleto")
+                ,React.createElement("option",{value:"sin_avance"},"❌ Sin avance")
+              )
+              ,React.createElement("button",{onClick:function(){removeActividad(ri);},style:{background:"none",border:"none",cursor:"pointer",color:"#DC2626",fontSize:14,opacity:.6}},"✕")
             );
           })
         );
@@ -9228,8 +9275,8 @@ function ProdEditableInner({ v, equipo, setEquipo, guardarProductividad, guardan
             style: {background:"#C41230",color:"#fff",border:"none",borderRadius:10,padding:"10px 24px",fontSize:14,cursor:"pointer",fontFamily:"inherit",fontWeight:700}
           }, "🔒 Cerrar sesion")
       )
-      , React.createElement(HistorialPersonal, { histV: v, histLogout: function(){}, info: info, hallMeses: HALL_MESES, equipo: equipo })
-      , React.createElement(RachasView, { v: v, info: info })
+      , tab==="desempeno" && React.createElement(HistorialPersonal, { histV: v, histLogout: function(){}, info: info, hallMeses: HALL_MESES, equipo: equipo })
+      , tab==="desempeno" && React.createElement(RachasView, { v: v, info: info })
     )
   );
 }
