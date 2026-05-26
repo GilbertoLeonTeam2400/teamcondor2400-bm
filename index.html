@@ -3453,15 +3453,31 @@ function PlanEjecutivoView({ v, info, R, RD }) {
           ,[1,2,3,4].map(function(s){
               var diasSem=["L","M","X","J","V"];
               var semData=sems[s];
-              // Compatibilidad: si era boolean, convertir
               var diasObj = typeof semData==="object"&&semData!==null ? semData : (semData?{L:"completado",M:"completado",X:"completado",J:"completado",V:"completado"}:{});
               var estadoColor={"completado":"#16A34A","incompleto":"#D97706","sin_avance":"#DC2626"};
               var estadoLabel={"completado":"✓","incompleto":"~","sin_avance":"✗"};
-              // Resumen semana
-              var tots={completado:0,incompleto:0,sin_avance:0,vacio:0};
-              diasSem.forEach(function(d){ var e=diasObj[d]; if(e) tots[e]=(tots[e]||0)+1; else tots.vacio++; });
+              // Calcular estado semana automáticamente
+              var comp=0,inc=0,sv=0,vacios=0;
+              diasSem.forEach(function(d){
+                var e=diasObj[d];
+                if(e==="completado") comp++;
+                else if(e==="incompleto") inc++;
+                else if(e==="sin_avance") sv++;
+                else vacios++;
+              });
+              var marcados=comp+inc+sv;
+              var estadoSem = marcados===0 ? null : (comp>=4?"completado":comp+inc>=3?"incompleto":"sin_avance");
+              var semColor = estadoSem?estadoColor[estadoSem]:"#E5E7EB";
+              var semLabel = estadoSem?estadoLabel[estadoSem]:"S"+s;
               return React.createElement("div",{key:s,style:{display:"flex",flexDirection:"column",gap:2,alignItems:"center"}}
-                ,React.createElement("div",{style:{fontSize:8,color:"#9CA3AF",fontWeight:700}},"S"+s)
+                // Indicador semana (automático)
+                ,React.createElement("div",{
+                  title:"Semana "+s+(estadoSem?" — "+estadoSem.replace("_"," "):" — sin datos"),
+                  style:{width:20,height:20,borderRadius:4,background:semColor,
+                    fontSize:8,color:estadoSem?"#fff":"#9CA3AF",display:"flex",alignItems:"center",
+                    justifyContent:"center",fontWeight:900,border:"1.5px solid "+(estadoSem?semColor:"#D1D5DB")}
+                },semLabel)
+                // Días L-M-X-J-V
                 ,React.createElement("div",{style:{display:"flex",gap:1}}
                   ,diasSem.map(function(d){
                     var estado=diasObj[d]||null;
@@ -3473,8 +3489,9 @@ function PlanEjecutivoView({ v, info, R, RD }) {
                       var newSA=Object.assign({},semanasAcciones); newSA[accKey]=newSems;
                       savePlanField({semanasAcciones:newSA});
                     };
-                    return React.createElement("div",{key:d,onClick:ciclo,title:d+" S"+s+(estado?" - "+estado:" - sin marcar"),
-                      style:{width:12,height:16,borderRadius:2,background:estado?estadoColor[estado]:"#E5E7EB",
+                    return React.createElement("div",{key:d,onClick:ciclo,
+                      title:d+" S"+s+(estado?" — "+estado.replace("_"," "):" — sin marcar"),
+                      style:{width:11,height:14,borderRadius:2,background:estado?estadoColor[estado]:"#E5E7EB",
                         fontSize:6,color:estado?"#fff":"#9CA3AF",display:"flex",alignItems:"center",
                         justifyContent:"center",fontWeight:900,cursor:"pointer",userSelect:"none"}},
                       estado?estadoLabel[estado]:d[0]
@@ -3889,6 +3906,20 @@ function PlanAGVView({ equipo, info, R, RD }) {
   var filtrados=grupFiltro==="todos"?ejecutivos:ejecutivos.filter(function(v){return v.diag.nivel===grupFiltro;});
   var totGrupo={alto:ejecutivos.filter(function(v){return v.diag.nivel==="alto";}).length,medio:ejecutivos.filter(function(v){return v.diag.nivel==="medio";}).length,bajo:ejecutivos.filter(function(v){return v.diag.nivel==="bajo";}).length};
 
+    if(selectedEjec) {
+    var _vSel = equipo.find(function(v){ return v.id===selectedEjec; });
+    if(_vSel) return React.createElement("div",null
+      ,React.createElement("button",{onClick:function(){setSelectedEjec(null);},
+        style:{background:"#F3F4F6",border:"none",borderRadius:8,padding:"8px 16px",fontSize:12,
+          cursor:"pointer",fontWeight:700,marginBottom:16,display:"flex",alignItems:"center",gap:6}}
+        ,"← Volver al Plan del Equipo"
+      )
+      ,React.createElement("div",{style:{fontSize:13,color:"#6B7280",marginBottom:12,fontWeight:600}},
+        "Viendo plan de: "+_vSel.nombre
+      )
+      ,React.createElement(PlanEjecutivoView, {v:_vSel, info:info, R:R, RD:RD})
+    );
+  }
   return React.createElement("div",{style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(233,7,41,.09)"}}
     ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:RD,marginBottom:4}},"📋 Plan de Trabajo AGV")
     ,React.createElement("div",{style:{fontSize:12,color:"#6B7280",marginBottom:20}},"Diagnóstico automático + plan editable por ejecutivo. Se guarda en Firebase automáticamente.")
@@ -3909,7 +3940,7 @@ function PlanAGVView({ equipo, info, R, RD }) {
           return React.createElement("div",{key:v.id,style:{border:"1.5px solid "+(abierto?gc.border:"#E5E7EB"),borderRadius:14,overflow:"hidden"}}
             ,React.createElement("div",{onClick:function(){var n=Object.assign({},expandido);n[v.id]=!abierto;setExpandido(n);},style:{display:"flex",alignItems:"center",gap:12,padding:"14px 18px",cursor:"pointer",background:abierto?gc.bg:"#fff",flexWrap:"wrap"}}
               ,React.createElement("div",{style:{width:42,height:42,borderRadius:"50%",overflow:"hidden",flexShrink:0,border:"2px solid "+gc.border,background:"#f0f0f0",display:"flex",alignItems:"center",justifyContent:"center"}} ,v.fotoUrl?React.createElement("img",{src:v.fotoUrl,style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement("span",{style:{fontSize:12,fontWeight:900,color:gc.color}},initials))
-              ,React.createElement("div",{style:{flex:1,minWidth:100}} ,React.createElement("div",{style:{fontWeight:800,color:"#1F2937",fontSize:14}},v.nombre) ,React.createElement("div",{style:{fontSize:11,color:gc.color,fontWeight:700}},gc.label+" · "+v.diag.tendencia+" · Prom: "+v.prom+" UF"))
+              ,React.createElement("div",{style:{flex:1,minWidth:100}} ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8}} ,React.createElement("div",{style:{fontWeight:800,color:"#1F2937",fontSize:14}},v.nombre) ,React.createElement("button",{onClick:function(e){e.stopPropagation();setSelectedEjec(v.id);},style:{background:"#EFF6FF",color:"#1D4ED8",border:"1px solid #BFDBFE",borderRadius:6,padding:"2px 8px",fontSize:10,cursor:"pointer",fontWeight:700,flexShrink:0}},"👁 Ver Plan")) ,React.createElement("div",{style:{fontSize:11,color:gc.color,fontWeight:700}},gc.label+" · "+v.diag.tendencia+" · Prom: "+v.prom+" UF"))
               ,React.createElement("div",{style:{textAlign:"center",minWidth:60}} ,React.createElement("div",{style:{fontSize:13,fontWeight:900,color:pct===100?"#16A34A":pct>0?"#D97706":"#9CA3AF"}},pct+"%") ,React.createElement("div",{style:{fontSize:9,color:"#9CA3AF"}},totComp+"/"+totAcc+" acciones"))
               ,React.createElement("span",{style:{background:estadoObj.bg,color:estadoObj.c,borderRadius:99,padding:"4px 10px",fontSize:11,fontWeight:700,flexShrink:0}},estadoObj.l)
               ,React.createElement("div",{style:{fontSize:16,color:"#9CA3AF",flexShrink:0}},abierto?"▲":"▼")
