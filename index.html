@@ -7262,7 +7262,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                       /* Top5 del año */
                       , tab==="desempeno" && React.createElement(Top5Badge, { nombre: histV.nombre, hallMeses: HALL_MESES, histV: histV })
                     )
-                    , tab==="desempeno" && React.createElement(ProdEditableInner, { v: histV, equipo: equipo, setEquipo: setEquipo, guardarProductividad: guardarProductividad, guardandoProd: guardandoProd, info: info, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3495}} )
+                    , tab==="desempeno" && React.createElement(ProdEditableInner, { v: histV, equipo: equipo, setEquipo: setEquipo, guardarProductividad: guardarProductividad, guardandoProd: guardandoProd, tab: tab, info: info, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3495}} )
                     , tab==="planexito" && histV && React.createElement(PlanEjecutivoView, { v: histV, info: info, R: R, RD: RD })
                   )
                 )
@@ -9054,7 +9054,7 @@ function Top5Badge({ nombre, hallMeses, histV }) {
 }
 
 // ── Edición de productividad personal ────────────────────────────
-function ProdEditableInner({ v, equipo, setEquipo, guardarProductividad, guardandoProd, info }) {
+function ProdEditableInner({ v, equipo, setEquipo, guardarProductividad, guardandoProd, info, tab }) {
   const RD = "#C41230", R = "#E9192A";
   const [localUF,  setLocalUF]  = React.useState(v.uf);
   // DPS, Conecta, H/M → desde historial (fuente: Excel PDF diario del supervisor)
