@@ -2775,14 +2775,21 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
           // Si vienen como decimales (0.6 en vez de 60%), convertir
           if(pctF > 0 && pctF <= 1) pctF = Math.round(pctF*100);
           if(pctM > 0 && pctM <= 1) pctM = Math.round(pctM*100);
-          // Plan Conecta — columna CONECTA del Excel (suma VCP + VTA ONLINE + PRESEN HUELLA + VENTA SMART)
+          // Plan Conecta = columna CONECTA→M (col 36, solo hombres) del Excel de Banmédica
+          // rawArr[rowIndex][36] — leído directamente por índice para evitar ambigüedad de nombres duplicados
           var conecta = (function(){
-            var v = _fv("CONECTA"); if(v!==null&&v>0) return v;
-            var vcp  = _fv("VCP")||0;
-            var onl  = _fv("VTA ONLINE")||0;
-            var hue  = _fv("PRESEN HUELLA")||0;
-            var sma  = _fv("VENTA SMART")||0;
-            return vcp+onl+hue+sma;
+            // Buscar la fila original en rawArr usando el nombre del ejecutivo
+            var nombreBuscar = nombre;
+            var conectaVal = 0;
+            for (var ri2 = headerRow+1; ri2 < rawArr.length; ri2++) {
+              var rr = rawArr[ri2];
+              var rnombre = String(rr[9]||"").trim().toUpperCase();
+              if (rnombre === nombreBuscar) {
+                conectaVal = parseInt(rr[36])||0;
+                break;
+              }
+            }
+            return conectaVal;
           })();
 
           return { nombre:nombre, dpsConVenta:dpsConVenta, dpsSinVenta:dpsSinVenta, dpsPendiente:dpsPendiente, dpsRechazado:dpsRechazado, dpsTotal:dpsTotal, uf:uf, nBenef:nBenef, cttosDig:cttosDig, pctF:pctF, pctM:pctM, conecta:conecta };
