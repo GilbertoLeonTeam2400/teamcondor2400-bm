@@ -4736,18 +4736,39 @@ function PredictorView({ equipo, info, R, RD, metaUFSafe }) {
   var ritmoHabil = diasHabilesTranscurridos>0 ? parseFloat((totUF/diasHabilesTranscurridos).toFixed(2)) : 0;
   var ritmoNecesarioHabil = diasHabilesRestantes>0 ? parseFloat((faltaMeta/diasHabilesRestantes).toFixed(2)) : 0;
 
-  // Proyecciones
-  var proyConservador = parseFloat((totUF + ritmo*diasRestantes*1.3).toFixed(2));  // antes optimista
-  var proyOptimista   = parseFloat((totUF + ritmo*diasRestantes*1.5).toFixed(2));  // +50% ritmo
-  var proyExtremo     = parseFloat((totUF * 2).toFixed(2)); // Efecto Última Semana
+  // Detectar semana 4 — en semana 4 congelar proyecciones
+  var semEnCursoP = diaHoy <= 7 ? 1 : diaHoy <= 14 ? 2 : diaHoy <= 21 ? 3 : 4;
+  var esSemana4P = semEnCursoP >= 4;
+  var diasRestantesProyeccion = esSemana4P ? 0 : diasRestantes;
+  var diasHabilesRestantesProyeccion = esSemana4P ? 0 : diasHabilesRestantes;
+
+  // Base congelada para Extremo: se guarda al inicio de semana 4
+  var ufBaseEquipoKey = "UFB_EQUIPO_" + (hoy.getFullYear()) + "_" + String(hoy.getMonth()+1).padStart(2,"0");
+  var ufBaseEquipoGuardada = parseFloat(localStorage.getItem(ufBaseEquipoKey)||"0");
+  var ufBaseExtremo;
+  if(esSemana4P) {
+    if(!ufBaseEquipoGuardada || ufBaseEquipoGuardada <= 0) {
+      ufBaseExtremo = totUF;
+      localStorage.setItem(ufBaseEquipoKey, String(totUF));
+    } else {
+      ufBaseExtremo = ufBaseEquipoGuardada;
+    }
+  } else {
+    ufBaseExtremo = totUF;
+  }
+
+  // Proyecciones — congeladas en semana 4
+  var proyConservador = parseFloat((totUF + ritmo*diasRestantesProyeccion*1.3).toFixed(2));
+  var proyOptimista   = parseFloat((totUF + ritmo*diasRestantesProyeccion*1.5).toFixed(2));
+  var proyExtremo     = parseFloat((ufBaseExtremo * 2).toFixed(2)); // Efecto Última Semana — congelado al inicio S4
 
   var llegaRealista = proyConservador>=meta;
 
   function ScenCard(props) {
     var llega = props.val >= meta;
     var pct = Math.min(100,Math.round((props.val/meta)*100));
-    var ufDiaCal = diasRestantes>0 ? parseFloat((Math.max(0,props.val-totUF)/diasRestantes).toFixed(2)) : 0;
-    var ufDiaHab = diasHabilesRestantes>0 ? parseFloat((Math.max(0,props.val-totUF)/diasHabilesRestantes).toFixed(2)) : 0;
+    var ufDiaCal = diasRestantesProyeccion>0 ? parseFloat((Math.max(0,props.val-totUF)/diasRestantesProyeccion).toFixed(2)) : 0;
+    var ufDiaHab = diasHabilesRestantesProyeccion>0 ? parseFloat((Math.max(0,props.val-totUF)/diasHabilesRestantesProyeccion).toFixed(2)) : 0;
     var bg = llega ? "#F0FDF4" : "#FFF1F2";
     var brd = llega ? "#16A34A" : "#DC2626";
     var clr = llega ? "#16A34A" : "#DC2626";
