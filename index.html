@@ -8890,12 +8890,14 @@ function ReconocidosEspeciales({ equipo, info, RD, R }) {
       ufSem:parseFloat(ufSem.toFixed(3)), dpsSem:dpsSem, cttosSem:cttosSem, conectaSem:conectaSem};
   });
 
-  // Stats del mes para Estrellas del Mes
+  // Stats del mes para Estrellas Destacadas en KPI's Importantes
+  // Se alimenta del reporte de análisis del supervisor (v.uf, v.dps, v.historial)
   var statsMes = equipo.map(function(v){
+    var hMes = ((v.historial||{})[mesKey]||{});
     return {id:v.id, nombre:v.nombre, fotoUrl:v.fotoUrl,
       ufMes:parseFloat(v.uf)||0, dpsMes:getDpsMes(v),
-      cttosMes:parseInt(((v.historial||{})[mesKey]||{}).cttosDig)||0,
-      conectaMes:(v.rep||[]).reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0)};
+      cttosMes:parseInt(hMes.cttosDig)||0,
+      conectaMes:parseInt(hMes.conecta)||0};
   });
 
   var mesHasData = statsMes.some(function(s){return s.ufMes>0||s.dpsMes>0;});
@@ -8955,34 +8957,17 @@ function ReconocidosEspeciales({ equipo, info, RD, R }) {
 
   return React.createElement("div",{style:{background:"#fff",borderRadius:20,padding:"24px 22px",boxShadow:"0 4px 24px rgba(233,7,41,.09)",border:"1px solid rgba(233,7,41,.1)",marginBottom:16}}
     ,React.createElement("div",{style:{fontSize:20,fontWeight:900,color:RD,marginBottom:4}},"⭐ Reconocimientos Especiales")
-    ,React.createElement("div",{style:{fontSize:13,color:"#6B7280",marginBottom:22}},"Solo aparecen quienes tienen actividad real — ¡bien ganado!")
+    ,React.createElement("div",{style:{marginBottom:22}})
 
-    // ── Estrellas del Mes ──
+    // ── Estrellas Destacadas en KPI's Importantes ──
     ,cM.length>0&&React.createElement("div",{style:{marginBottom:24}}
       ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}}
         ,React.createElement("div",{style:{width:4,height:20,background:RD,borderRadius:99}})
-        ,React.createElement("div",{style:{fontSize:14,fontWeight:900,color:RD}},"🏆 Estrellas del Mes")
+        ,React.createElement("div",{style:{fontSize:14,fontWeight:900,color:RD}},"🏆 Estrellas Destacadas en KPI's Importantes")
         ,React.createElement("div",{style:{flex:1,height:1,background:"#F3F4F6"}})
         ,React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",fontWeight:700}},mL.toUpperCase())
       )
       ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:10}},cM.map(Card))
-    )
-
-    // ── Estrellas de la Semana ──
-    ,(cSTop.length>0||cSBot.length>0)&&React.createElement("div",null
-      ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}}
-        ,React.createElement("div",{style:{width:4,height:20,background:"#2563EB",borderRadius:99}})
-        ,React.createElement("div",{style:{fontSize:14,fontWeight:900,color:"#2563EB"}},"⚡ Estrellas de la Semana 🔥")
-        ,React.createElement("div",{style:{flex:1,height:1,background:"#F3F4F6"}})
-        ,React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",fontWeight:700}},semLabel.toUpperCase())
-      )
-      ,cSTop.length>0&&React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat("+Math.min(cSTop.length,3)+",1fr)",gap:10,marginBottom:10}},cSTop.map(Card))
-      ,cSBot.length>0&&React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}},cSBot.map(Card))
-    )
-    // Si nadie tiene datos de la semana aún
-    ,(cSTop.length===0&&cSBot.length===0)&&React.createElement("div",{style:{background:"#F8FAFC",borderRadius:14,padding:"16px 18px",border:"1px dashed #E5E7EB",textAlign:"center"}}
-      ,React.createElement("div",{style:{fontSize:13,fontWeight:700,color:"#9CA3AF",marginBottom:4}},"⚡ Estrellas de la Semana 🔥")
-      ,React.createElement("div",{style:{fontSize:12,color:"#9CA3AF"}},"Aún no hay actividad registrada esta semana ("+semLabel+"). ¡El primero en mover será reconocido!")
     )
   );
 }
