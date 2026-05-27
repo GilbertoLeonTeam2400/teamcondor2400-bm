@@ -6775,7 +6775,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
               /* TOP 10 DEL MES — Reconocimiento celebratorio */
               , (function(){
                 try {
-                var top10sorted = equipo.filter(function(v){return v && v.nombre && v.uf>0;}).sort(function(a,b){return b.uf-a.uf;}).slice(0,10);
+                var top10sorted = equipo.filter(function(v){return v && v.nombre && v.uf>0;}).sort(function(a,b){return b.uf-a.uf;});
                 if (top10sorted.length === 0) return null;
 
                 var CONFIGS = [
@@ -6788,7 +6788,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                 // Podio top-3 (fila horizontal)
                 var podio = top10sorted.slice(0,3);
                 // Lista 4-10
-                var resto = top10sorted.slice(3,10);
+                var resto = top10sorted.slice(3);
                 var restoEmojis = ["4️⃣","5️⃣","6️⃣","7️⃣","8️⃣","9️⃣","🔟"];
 
                 function getInitials(nombre) {
@@ -6833,7 +6833,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                       })
                   )
 
-                  // ── Fila 4-6 (3 centrados) + Fila 7-10 (4 como base) ──
+                  // ── Fila 4-6 (3 centrados) + Fila 7-10 (4 como base) + Fila 11+ (6 por fila) ──
                   , resto.length > 0 && React.createElement('div', { style: {borderTop:"1px solid rgba(201,168,76,.15)",paddingTop:18} }
                     // Fila 4-6: 3 centrados en PC / columna en celular
                     , React.createElement('div', { className:"top10-fila3", style: {display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"8px 12px",marginBottom:10,maxWidth:860,margin:"0 auto 10px"} }
@@ -6855,8 +6855,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                           );
                         })
                     )
-                    // Fila 7-10: 4 como base — mismo tamaño que la fila de 3
-                    , React.createElement('div', { className:"top10-fila4", style: {display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"8px 12px",maxWidth:860,margin:"0 auto"} }
+                    // Fila 7-10: 4 como base
+                    , React.createElement('div', { className:"top10-fila4", style: {display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"8px 12px",maxWidth:860,margin:"0 auto 10px"} }
                       , resto.slice(3,7).map(function(v, i) {
                           var initials = getInitials(v.nombre);
                           var primerNombre = v.nombre.split(' ')[0];
@@ -6874,6 +6874,27 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                             )
                           );
                         })
+                    )
+                    // Fila 11+: 6 por fila, tarjetas más compactas
+                    , resto.length > 7 && React.createElement('div', { style: {borderTop:"1px solid rgba(201,168,76,.08)",paddingTop:10,marginTop:4} }
+                      , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:"6px 8px",maxWidth:860,margin:"0 auto"} }
+                        , resto.slice(7).map(function(v, i) {
+                            var initials = getInitials(v.nombre);
+                            var primerNombre = v.nombre.split(' ')[0];
+                            var apellido = v.nombre.split(' ').slice(1,2).join(' ');
+                            var pos = i + 11;
+                            return React.createElement('div', { key: v.id, style: {display:"flex",flexDirection:"column",alignItems:"center",gap:4,background:"rgba(255,255,255,.03)",borderRadius:10,padding:"8px 6px",border:"1px solid rgba(201,168,76,.1)",textAlign:"center"} }
+                              , React.createElement('div', { style: {fontSize:11,fontWeight:800,color:"rgba(201,168,76,.5)",letterSpacing:"0.05em",lineHeight:1} }, pos+"°")
+                              , React.createElement('div', { style: {width:36,height:36,borderRadius:"50%",overflow:"hidden",border:"1.5px solid rgba(201,168,76,.25)",background:v.fotoUrl?"#000":"rgba(201,168,76,.08)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0} }
+                                , v.fotoUrl
+                                  ? React.createElement('img', { src: v.fotoUrl, style: {width:"100%",height:"100%",objectFit:"cover"} })
+                                  : React.createElement('span', { style: {fontSize:13,fontWeight:900,color:"rgba(201,168,76,.5)"} }, initials)
+                              )
+                              , React.createElement('div', { style: {fontSize:11,fontWeight:800,color:"rgba(255,255,255,.6)",lineHeight:1.1} }, primerNombre)
+                              , apellido && React.createElement('div', { style: {fontSize:9,color:"rgba(201,168,76,.4)",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"} }, apellido)
+                            );
+                          })
+                      )
                     )
                   )
                 );
