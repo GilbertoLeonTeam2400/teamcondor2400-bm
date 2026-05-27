@@ -6878,22 +6878,22 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                     )
                     // Fila 11+: 6 por fila, mismo estilo que fila 7-10 pero más compacto para que quepan
                     , resto.length > 7 && React.createElement('div', { style: {borderTop:"1px solid rgba(201,168,76,.08)",paddingTop:10,marginTop:4} }
-                      , React.createElement('div', { className:"top10-fila6", style: {display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:"6px 8px",maxWidth:860,margin:"0 auto"} }
+                      , React.createElement('div', { className:"top10-fila6", style: {display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:"8px 10px",maxWidth:860,margin:"0 auto"} }
                         , resto.slice(7).map(function(v, i) {
                             var initials = getInitials(v.nombre);
                             var primerNombre = v.nombre.split(' ')[0];
                             var apellido = v.nombre.split(' ').slice(1,2).join(' ');
                             var pos = i + 11;
-                            return React.createElement('div', { key: v.id, style: {display:"flex",alignItems:"center",gap:8,background:"rgba(255,255,255,.05)",borderRadius:12,padding:"9px 12px",border:"1px solid rgba(201,168,76,.15)",minWidth:0} }
-                              , React.createElement('div', { style: {fontSize:13,fontWeight:800,color:"rgba(201,168,76,.7)",minWidth:22,textAlign:"center",flexShrink:0} }, pos+"°")
-                              , React.createElement('div', { style: {width:40,height:40,borderRadius:"50%",overflow:"hidden",flexShrink:0,border:"2px solid rgba(201,168,76,.4)",background:v.fotoUrl?"#000":"rgba(201,168,76,.12)",display:"flex",alignItems:"center",justifyContent:"center"} }
+                            return React.createElement('div', { key: v.id, style: {display:"flex",alignItems:"center",gap:8,background:"rgba(255,255,255,.05)",borderRadius:12,padding:"10px 10px",border:"1px solid rgba(201,168,76,.15)",minWidth:0,overflow:"hidden"} }
+                              , React.createElement('div', { style: {fontSize:"clamp(10px,1.1vw,13px)",fontWeight:800,color:"rgba(201,168,76,.7)",minWidth:20,textAlign:"center",flexShrink:0} }, pos+"°")
+                              , React.createElement('div', { style: {width:"clamp(30px,3vw,40px)",height:"clamp(30px,3vw,40px)",borderRadius:"50%",overflow:"hidden",flexShrink:0,border:"2px solid rgba(201,168,76,.4)",background:v.fotoUrl?"#000":"rgba(201,168,76,.12)",display:"flex",alignItems:"center",justifyContent:"center"} }
                                 , v.fotoUrl
                                   ? React.createElement('img', { src: v.fotoUrl, style: {width:"100%",height:"100%",objectFit:"cover"} })
-                                  : React.createElement('span', { style: {fontSize:14,fontWeight:900,color:REST_COLOR} }, initials)
+                                  : React.createElement('span', { style: {fontSize:"clamp(11px,1.3vw,14px)",fontWeight:900,color:REST_COLOR} }, initials)
                               )
-                              , React.createElement('div', { style: {minWidth:0} }
-                                , React.createElement('div', { style: {fontSize:13,fontWeight:800,color:"#fff",lineHeight:1.1} }, primerNombre)
-                                , apellido && React.createElement('div', { style: {fontSize:10,color:"rgba(201,168,76,.7)",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginTop:2} }, apellido)
+                              , React.createElement('div', { style: {minWidth:0,overflow:"hidden"} }
+                                , React.createElement('div', { style: {fontSize:"clamp(10px,1.1vw,13px)",fontWeight:800,color:"#fff",lineHeight:1.1,wordBreak:"break-word"} }, primerNombre)
+                                , apellido && React.createElement('div', { style: {fontSize:"clamp(8px,0.9vw,10px)",color:"rgba(201,168,76,.7)",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginTop:2,wordBreak:"break-word"} }, apellido)
                               )
                             );
                           })
