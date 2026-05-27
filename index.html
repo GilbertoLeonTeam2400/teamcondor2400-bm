@@ -2775,8 +2775,17 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
           // Si vienen como decimales (0.6 en vez de 60%), convertir
           if(pctF > 0 && pctF <= 1) pctF = Math.round(pctF*100);
           if(pctM > 0 && pctM <= 1) pctM = Math.round(pctM*100);
+          // Plan Conecta — columna CONECTA del Excel (suma VCP + VTA ONLINE + PRESEN HUELLA + VENTA SMART)
+          var conecta = (function(){
+            var v = _fv("CONECTA"); if(v!==null&&v>0) return v;
+            var vcp  = _fv("VCP")||0;
+            var onl  = _fv("VTA ONLINE")||0;
+            var hue  = _fv("PRESEN HUELLA")||0;
+            var sma  = _fv("VENTA SMART")||0;
+            return vcp+onl+hue+sma;
+          })();
 
-          return { nombre:nombre, dpsConVenta:dpsConVenta, dpsSinVenta:dpsSinVenta, dpsPendiente:dpsPendiente, dpsRechazado:dpsRechazado, dpsTotal:dpsTotal, uf:uf, nBenef:nBenef, cttosDig:cttosDig, pctF:pctF, pctM:pctM };
+          return { nombre:nombre, dpsConVenta:dpsConVenta, dpsSinVenta:dpsSinVenta, dpsPendiente:dpsPendiente, dpsRechazado:dpsRechazado, dpsTotal:dpsTotal, uf:uf, nBenef:nBenef, cttosDig:cttosDig, pctF:pctF, pctM:pctM, conecta:conecta };
         }).filter(function(f){ return f.nombre.length > 0; });
 
         setPreview(mapeados);
@@ -2827,6 +2836,7 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
         pctF:        match.pctF>0 ? match.pctF : (mesExistente.pctF||0),
         pctM:        match.pctM>0 ? match.pctM : (mesExistente.pctM||0),
         ufDig:       match.uf>0 ? match.uf : (mesExistente.ufDig||0),
+        conecta:     match.conecta>0 ? match.conecta : (mesExistente.conecta||0),
       };
       hist[mesKey] = mes;
       var _mn=(function(){var n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");})();
@@ -3057,6 +3067,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
   var tasaCierre=totTotal>0?Math.round((totConVenta/totTotal)*100):0;
   var totBenef=datos.reduce(function(s,d){return s+d.nBenef;},0);
   var totCttos=datos.reduce(function(s,d){return s+d.cttosDig;},0);
+  var totConectaMes=datos.reduce(function(s,d){return s+(d.conecta||0);},0);
   var totConecta=datos.reduce(function(s,d){return s+d.conecta;},0);
   // Promedio % sexo ponderado por cttos
   // Usar _sexBase como denominador (rep[] para mes actual, cttosDig para histórico)
@@ -3175,10 +3186,11 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
       ,[{l:"Total DPS",v:totTotal,c:"#374151",bg:"#F9FAFB"},{l:"DPS Con Venta",v:totConVenta,c:"#16A34A",bg:"#F0FDF4"},{l:"DPS Sin Venta",v:totSinVenta,c:"#2563EB",bg:"#EFF6FF"},{l:"DPS Pendientes",v:totPendiente,c:"#D97706",bg:"#FFFBEB"},{l:"DPS Rechazadas",v:totRechazado,c:"#DC2626",bg:"#FFF1F2"},{l:"Tasa Cierre DPS",v:tasaCierre+"%",c:tasaCierre>=50?"#16A34A":tasaCierre>=30?"#D97706":"#DC2626",bg:tasaCierre>=50?"#F0FDF4":tasaCierre>=30?"#FFFBEB":"#FFF1F2"}]
         .map(function(k){return React.createElement("div",{key:k.l,style:{background:k.bg,borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #E5E7EB"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:k.c}},k.v) ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},k.l));})
     )
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:20}}
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}
       ,React.createElement("div",{style:{background:"#FFF8E7",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #FCD34D"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:"#C9A84C"}},totUF.toFixed(2)+" UF") ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"Total UF"))
       ,React.createElement("div",{style:{background:"#F0FDFA",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #A7F3D0"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:"#0891B2"}},totBenef) ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"N° Beneficiarios"))
       ,React.createElement("div",{style:{background:"#F0FDF4",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #86EFAC"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:"#059669"}},totCttos) ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"Contratos Digitados"))
+      ,React.createElement("div",{style:{background:"#ECFDF5",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #6EE7B7"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:"#059669"}},totConectaMes) ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"💚 Planes Conecta"))
     )
 
     // Tabla editable
