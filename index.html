@@ -19,6 +19,7 @@
     @media (max-width: 600px) {
       .top10-fila3 { grid-template-columns: 1fr !important; }
       .top10-fila4 { grid-template-columns: 1fr !important; }
+      .top10-fila6 { grid-template-columns: repeat(2,1fr) !important; }
       /* Pipeline DPS: forzar scroll horizontal en celular */
       .pipeline-dps-wrap { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
       .pipeline-dps-grid { min-width: 320px !important; grid-template-columns: repeat(5,minmax(60px,1fr)) !important; }
@@ -6877,7 +6878,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                     )
                     // Fila 11+: 6 por fila, mismo estilo que fila 7-10 pero más compacto para que quepan
                     , resto.length > 7 && React.createElement('div', { style: {borderTop:"1px solid rgba(201,168,76,.08)",paddingTop:10,marginTop:4} }
-                      , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:"6px 8px",maxWidth:860,margin:"0 auto"} }
+                      , React.createElement('div', { className:"top10-fila6", style: {display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:"6px 8px",maxWidth:860,margin:"0 auto"} }
                         , resto.slice(7).map(function(v, i) {
                             var initials = getInitials(v.nombre);
                             var primerNombre = v.nombre.split(' ')[0];
