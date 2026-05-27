@@ -6884,16 +6884,16 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                             var primerNombre = v.nombre.split(' ')[0];
                             var apellido = v.nombre.split(' ').slice(1,2).join(' ');
                             var pos = i + 11;
-                            return React.createElement('div', { key: v.id, style: {display:"flex",alignItems:"center",gap:10,background:"rgba(255,255,255,.05)",borderRadius:12,padding:"10px 14px",border:"1px solid rgba(201,168,76,.15)"} }
-                              , React.createElement('div', { style: {fontSize:"clamp(14px,2vw,20px)",minWidth:26,textAlign:"center",flexShrink:0} }, pos+"°")
-                              , React.createElement('div', { style: {width:"clamp(36px,4vw,46px)",height:"clamp(36px,4vw,46px)",borderRadius:"50%",overflow:"hidden",flexShrink:0,border:"2px solid rgba(201,168,76,.4)",background:v.fotoUrl?"#000":"rgba(201,168,76,.12)",display:"flex",alignItems:"center",justifyContent:"center"} }
+                            return React.createElement('div', { key: v.id, style: {display:"flex",alignItems:"center",gap:6,background:"rgba(255,255,255,.05)",borderRadius:12,padding:"8px 8px",border:"1px solid rgba(201,168,76,.15)",overflow:"hidden"} }
+                              , React.createElement('div', { style: {fontSize:12,fontWeight:800,color:"rgba(201,168,76,.7)",minWidth:16,textAlign:"center",flexShrink:0} }, pos+"°")
+                              , React.createElement('div', { style: {width:36,height:36,borderRadius:"50%",overflow:"hidden",flexShrink:0,border:"2px solid rgba(201,168,76,.4)",background:v.fotoUrl?"#000":"rgba(201,168,76,.12)",display:"flex",alignItems:"center",justifyContent:"center"} }
                                 , v.fotoUrl
                                   ? React.createElement('img', { src: v.fotoUrl, style: {width:"100%",height:"100%",objectFit:"cover"} })
-                                  : React.createElement('span', { style: {fontSize:"clamp(12px,1.6vw,15px)",fontWeight:900,color:REST_COLOR} }, initials)
+                                  : React.createElement('span', { style: {fontSize:13,fontWeight:900,color:REST_COLOR} }, initials)
                               )
-                              , React.createElement('div', { style: {minWidth:0} }
-                                , React.createElement('div', { style: {fontSize:"clamp(13px,1.6vw,16px)",fontWeight:800,color:"#fff",lineHeight:1.1} }, primerNombre)
-                                , apellido && React.createElement('div', { style: {fontSize:"clamp(10px,1.1vw,12px)",color:"rgba(201,168,76,.7)",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.05em",marginTop:2} }, apellido)
+                              , React.createElement('div', { style: {minWidth:0,overflow:"hidden"} }
+                                , React.createElement('div', { style: {fontSize:13,fontWeight:800,color:"#fff",lineHeight:1.1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"} }, primerNombre)
+                                , apellido && React.createElement('div', { style: {fontSize:10,color:"rgba(201,168,76,.7)",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginTop:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"} }, apellido)
                               )
                             );
                           })
