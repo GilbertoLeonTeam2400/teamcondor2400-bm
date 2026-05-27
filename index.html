@@ -2778,17 +2778,22 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
           // Plan Conecta = columna CONECTA→M (col 36, solo hombres) del Excel de Banmédica
           // rawArr[rowIndex][36] — leído directamente por índice para evitar ambigüedad de nombres duplicados
           var conecta = (function(){
-            // Buscar la fila original en rawArr usando el nombre del ejecutivo
+            // Leer conecta directo del objeto f usando el índice original de la fila
+            // Col 36 = CONECTA M (planes conecta hombres)
+            // Como sheet_to_json puede renombrar columnas duplicadas, usamos rawArr por índice
             var nombreBuscar = nombre;
             var conectaVal = 0;
             for (var ri2 = headerRow+1; ri2 < rawArr.length; ri2++) {
               var rr = rawArr[ri2];
-              var rnombre = String(rr[9]||"").trim().toUpperCase();
-              if (rnombre === nombreBuscar) {
+              var rnombre = String(rr[9]||"").trim().toUpperCase().replace(/\s+/g," ");
+              var nbuscar2 = nombreBuscar.replace(/\s+/g," ");
+              if (rnombre === nbuscar2) {
                 conectaVal = parseInt(rr[36])||0;
+                console.log("[CONECTA] "+nombre+" -> col36="+rr[36]+" -> "+conectaVal);
                 break;
               }
             }
+            if(conectaVal===0) console.log("[CONECTA] No encontrado: "+nombre);
             return conectaVal;
           })();
 
@@ -3039,7 +3044,10 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
       // pctF=Mujer, pctM=Hombre (correcto)
       pctF=totSexReps>0?Math.round((totMu/totSexReps)*100):0;
       pctM=totSexReps>0?Math.round((totH/totSexReps)*100):0;
-      conecta=reps.reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0);
+      // Conecta: usar historial del Excel si existe (oficial), si no usar cierres del día
+      var conectaReps=reps.reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0);
+      var conectaHist=parseInt(h.conecta)||0;
+      conecta = conectaHist > 0 ? conectaHist : conectaReps;
     } else {
       pctF=parseInt(h.pctF)||0;
       pctM=parseInt(h.pctM)||0;
