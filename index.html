@@ -5456,11 +5456,9 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
   );
 }
 
- function App() {
-  const info = useMemo(hoyInfo, []);
-
-  // === ESTADO ACCESO MAESTRO ===
-  const [masterOk, setMasterOk] = useState(function(){ return window.__masterOk(); });
+ // === COMPONENTE LOGIN MAESTRO (separado para no violar reglas de hooks) ===
+ function MasterLogin({ onSuccess }) {
+  var R2 = "#B4001E";
   const [masterInput, setMasterInput] = useState("");
   const [masterError, setMasterError] = useState("");
   const [masterBloq, setMasterBloq] = useState(0);
@@ -5474,59 +5472,66 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
     }
   }, [masterBloq]);
 
-  function handleMasterLogin(){
+  function handleLogin(){
     var res = window.__masterCheck(masterInput);
-    if(res.ok){ setMasterOk(true); setMasterError(""); }
+    if(res.ok){ onSuccess(); }
     else if(res.bloqueado){ setMasterBloq(res.resta); setMasterError(""); }
     else { setMasterError("Clave incorrecta. Intento " + res.intentos + " de 3."); }
   }
 
-  if(!masterOk){
-    var R2 = "#B4001E";
-    return React.createElement("div", {
-      style:{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",
-             background:"linear-gradient(135deg,#B4001E 0%,#8B0016 50%,#6B0010 100%)",
-             fontFamily:"'DM Sans',system-ui,sans-serif"}
+  return React.createElement("div", {
+    style:{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",
+           background:"linear-gradient(135deg,#B4001E 0%,#8B0016 50%,#6B0010 100%)",
+           fontFamily:"'DM Sans',system-ui,sans-serif"}
+  },
+    React.createElement("div", {
+      style:{background:"rgba(255,255,255,0.97)",borderRadius:20,padding:"44px 40px",
+             maxWidth:380,width:"90%",boxShadow:"0 20px 60px rgba(0,0,0,0.4)",textAlign:"center"}
     },
-      React.createElement("div", {
-        style:{background:"rgba(255,255,255,0.97)",borderRadius:20,padding:"44px 40px",
-               maxWidth:380,width:"90%",boxShadow:"0 20px 60px rgba(0,0,0,0.4)",textAlign:"center"}
-      },
-        React.createElement("div", {style:{marginBottom:8}},
-          React.createElement("img", {src:CONDOR_SRC, style:{height:64,objectFit:"contain"}, alt:"logo"})
-        ),
-        React.createElement("div", {style:{fontSize:22,fontWeight:900,color:R2,letterSpacing:1,marginBottom:4}}, "EQUIPO 2400"),
-        React.createElement("div", {style:{fontSize:13,color:"#555",marginBottom:28,fontWeight:500}}, "Banmédica — Acceso Privado"),
-        React.createElement("div", {style:{fontSize:13,color:"#333",marginBottom:10,textAlign:"left",fontWeight:600}}, "Código de acceso"),
-        React.createElement("input", {
-          type:"password",
-          value:masterInput,
-          onChange:function(e){setMasterInput(e.target.value); setMasterError("");},
-          onKeyDown:function(e){if(e.key==="Enter" && !masterBloq) handleMasterLogin();},
-          placeholder:"Ingresa el código...",
-          disabled: masterBloq > 0,
-          style:{width:"100%",padding:"12px 16px",borderRadius:10,border:"2px solid "+(masterError?"#e74c3c":"#ddd"),
-                 fontSize:15,outline:"none",marginBottom:12,boxSizing:"border-box",
-                 background: masterBloq>0?"#f5f5f5":"#fff"}
-        }),
-        masterBloq > 0
-          ? React.createElement("div", {style:{background:"#fff3cd",border:"1px solid #ffc107",borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:13,color:"#856404"}},
-              "⏳ Demasiados intentos. Espera ", React.createElement("strong",null, masterBloq + "s"), " para intentar nuevamente.")
-          : masterError
-            ? React.createElement("div", {style:{background:"#fdecea",border:"1px solid #e74c3c",borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:13,color:"#c0392b"}}, "⚠️ "+masterError)
-            : React.createElement("div", {style:{height:14,marginBottom:14}}),
-        React.createElement("button", {
-          onClick: handleMasterLogin,
-          disabled: masterBloq > 0 || masterInput.length === 0,
-          style:{width:"100%",padding:"13px",background: masterBloq>0?"#aaa":R2,color:"#fff",border:"none",
-                 borderRadius:10,fontSize:15,fontWeight:700,cursor: masterBloq>0?"not-allowed":"pointer",
-                 letterSpacing:0.5,transition:"background 0.2s"}
-        }, "INGRESAR"),
-        React.createElement("div", {style:{marginTop:20,fontSize:11,color:"#aaa"}}, "🔒 Acceso restringido — Uso interno Equipo 2400")
-      )
-    );
+      React.createElement("div", {style:{marginBottom:8}},
+        React.createElement("img", {src:CONDOR_SRC, style:{height:64,objectFit:"contain"}, alt:"logo"})
+      ),
+      React.createElement("div", {style:{fontSize:22,fontWeight:900,color:R2,letterSpacing:1,marginBottom:4}}, "EQUIPO 2400"),
+      React.createElement("div", {style:{fontSize:13,color:"#555",marginBottom:28,fontWeight:500}}, "Banmédica — Acceso Privado"),
+      React.createElement("div", {style:{fontSize:13,color:"#333",marginBottom:10,textAlign:"left",fontWeight:600}}, "Código de acceso"),
+      React.createElement("input", {
+        type:"password",
+        value:masterInput,
+        onChange:function(e){setMasterInput(e.target.value); setMasterError("");},
+        onKeyDown:function(e){if(e.key==="Enter" && !masterBloq) handleLogin();},
+        placeholder:"Ingresa el código...",
+        disabled: masterBloq > 0,
+        style:{width:"100%",padding:"12px 16px",borderRadius:10,border:"2px solid "+(masterError?"#e74c3c":"#ddd"),
+               fontSize:15,outline:"none",marginBottom:12,boxSizing:"border-box",
+               background: masterBloq>0?"#f5f5f5":"#fff"}
+      }),
+      masterBloq > 0
+        ? React.createElement("div", {style:{background:"#fff3cd",border:"1px solid #ffc107",borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:13,color:"#856404"}},
+            "⏳ Demasiados intentos. Espera ", React.createElement("strong",null, masterBloq + "s"), " para intentar nuevamente.")
+        : masterError
+          ? React.createElement("div", {style:{background:"#fdecea",border:"1px solid #e74c3c",borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:13,color:"#c0392b"}}, "⚠️ "+masterError)
+          : React.createElement("div", {style:{height:14,marginBottom:14}}),
+      React.createElement("button", {
+        onClick: handleLogin,
+        disabled: masterBloq > 0 || masterInput.length === 0,
+        style:{width:"100%",padding:"13px",background: masterBloq>0?"#aaa":R2,color:"#fff",border:"none",
+               borderRadius:10,fontSize:15,fontWeight:700,cursor: masterBloq>0?"not-allowed":"pointer",
+               letterSpacing:0.5,transition:"background 0.2s"}
+      }, "INGRESAR"),
+      React.createElement("div", {style:{marginTop:20,fontSize:11,color:"#aaa"}}, "🔒 Acceso restringido — Uso interno Equipo 2400")
+    )
+  );
+ }
+ // === FIN COMPONENTE LOGIN MAESTRO ===
+
+ function App() {
+  const info = useMemo(hoyInfo, []);
+
+  const [masterOk, setMasterOk] = useState(function(){ return window.__masterOk(); });
+
+  if(!masterOk){
+    return React.createElement(MasterLogin, { onSuccess: function(){ setMasterOk(true); } });
   }
-  // === FIN PANTALLA ACCESO MAESTRO ===
 
   //  Team state (loaded from storage) 
   const DATOS_PRUEBA = {};
