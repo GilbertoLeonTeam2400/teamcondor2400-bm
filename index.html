@@ -3269,63 +3269,6 @@ var ACCIONES_BASE_DEFAULT = [
 ];
 
 // ── Vista Plan de Trabajo para el Ejecutivo ───────────────────────────────────
-// ── Rachas y Consistencia ────────────────────────────────────────────────────
-function RachasView({ v, info }) {
-  var reps = v.rep||[];
-  var hoy = new Date(); hoy.setHours(0,0,0,0);
-
-  // Racha de días consecutivos reportando
-  var fechasRep = reps.map(function(r){return r.fecha||"";}).filter(Boolean).sort().reverse();
-  var rachaActual = 0;
-  var d = new Date(hoy);
-  for(var i=0;i<30;i++){
-    var ds=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
-    if(fechasRep.indexOf(ds)>=0){ rachaActual++; d.setDate(d.getDate()-1); }
-    else if(i===0){ d.setDate(d.getDate()-1); } // hoy puede no haber reportado aún
-    else break;
-  }
-
-  // Racha máxima del mes
-  var fechasMes = reps.filter(function(r){return (r.fecha||"").startsWith(info.mesKey);}).map(function(r){return r.fecha;}).sort();
-  var maxRacha=0, cur=0, prevD=null;
-  fechasMes.forEach(function(f){
-    var fd=new Date(f);
-    if(prevD){ var diff=(fd-prevD)/(24*3600*1000); cur=diff===1?cur+1:1; }else{ cur=1; }
-    if(cur>maxRacha) maxRacha=cur;
-    prevD=fd;
-  });
-
-  // Días reportados este mes
-  var diasReportados = fechasMes.length;
-  var diasHabilesTranscurridos = info.elapsed||1;
-  var pctConsistencia = diasHabilesTranscurridos>0?Math.min(100,Math.round((diasReportados/diasHabilesTranscurridos)*100)):0;
-
-  // Logro de acciones del plan (desde Firebase plan)
-  var motivRacha = rachaActual>=10?"🔥 ¡Racha épica! "+rachaActual+" días seguidos":
-    rachaActual>=5?"💪 ¡"+rachaActual+" días seguidos! Sigue así":
-    rachaActual>=2?"⚡ "+rachaActual+" días consecutivos — ¡construye el hábito!":
-    rachaActual===1?"🌱 Hoy reportaste — ¡mañana también!":"📋 Aún no has reportado hoy";
-
-  return React.createElement("div",{style:{background:"#fff",borderRadius:16,padding:"20px",marginBottom:16,boxShadow:"0 2px 12px rgba(0,0,0,.06)"}}
-    ,React.createElement("div",{style:{fontSize:14,fontWeight:900,color:"#1F2937",marginBottom:14}},"🔥 Mi Consistencia")
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}
-      ,React.createElement("div",{style:{background:"linear-gradient(135deg,#FEF9C3,#FEF08A)",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #FCD34D"}}
-        ,React.createElement("div",{style:{fontSize:28,fontWeight:900,color:"#92400E"}},rachaActual)
-        ,React.createElement("div",{style:{fontSize:10,color:"#78350F",textTransform:"uppercase",marginTop:3}},"🔥 Racha actual (días)")
-      )
-      ,React.createElement("div",{style:{background:"linear-gradient(135deg,#DCFCE7,#BBF7D0)",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #86EFAC"}}
-        ,React.createElement("div",{style:{fontSize:28,fontWeight:900,color:"#166534"}},diasReportados)
-        ,React.createElement("div",{style:{fontSize:10,color:"#15803D",textTransform:"uppercase",marginTop:3}},"📋 Días reportados")
-      )
-      ,React.createElement("div",{style:{background:"linear-gradient(135deg,#EFF6FF,#DBEAFE)",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #BFDBFE"}}
-        ,React.createElement("div",{style:{fontSize:28,fontWeight:900,color:"#1D4ED8"}},pctConsistencia+"%")
-        ,React.createElement("div",{style:{fontSize:10,color:"#1E40AF",textTransform:"uppercase",marginTop:3}},"⚡ Consistencia")
-      )
-    )
-    ,React.createElement("div",{style:{background:"#F8FAFC",borderRadius:10,padding:"10px 14px",fontSize:12,color:"#374151",fontWeight:600}},motivRacha)
-  );
-}
-
 function ActividadCard({ act, ri, col, onEstado, onNota, onRemove }) {
   var [editandoNota, setEditandoNota] = React.useState(false);
   var [notaLocal, setNotaLocal] = React.useState(act.nota||"");
@@ -7431,7 +7374,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
           React.createElement('div', { style: {maxWidth:700,margin:"0 auto"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3444}}
             , !histAcc?(
               React.createElement('div', { style: {background:"#fff",borderRadius:20,padding:36,boxShadow:"0 4px 24px rgba(233,7,41,.1)",border:"1px solid rgba(233,7,41,.12)",maxWidth:400,margin:"0 auto",textAlign:"center"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3446}}
-                , React.createElement('div', { style: {fontSize:22,fontWeight:900,color:RD,marginBottom:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3447}}, "Mi Productividad" )
+                , React.createElement('div', { style: {fontSize:22,fontWeight:900,color:RD,marginBottom:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3447}}, "Mi Plan de Éxito" )
                 , React.createElement('div', { style: {color:"#6B7280",fontSize:13,marginBottom:24,lineHeight:1.6}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3448}}, "Selecciona tu nombre e ingresa tu PIN para ver tu actividad del mes. Tus datos son privados."                )
                 , React.createElement('label', { style: Object.assign({},LBL,{textAlign:"left"}), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3449}}, "Tu nombre" )
                 , React.createElement('select', { value: histVid, onChange: function(e){setHistVid(e.target.value);setHistAcc(false);}, style: Object.assign({},INP,{marginBottom:14}), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3450}}
@@ -7454,7 +7397,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                           ,vH&&vH.fotoUrl?React.createElement('img',{src:vH.fotoUrl,style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement('span',{style:{fontSize:13,fontWeight:900,color:RD}},ini)
                         );
                       })()
-                    , React.createElement('div', { style: {fontSize:20,fontWeight:900,color:RD} }, "Mi Productividad" )
+                    , React.createElement('div', { style: {fontSize:20,fontWeight:900,color:RD} }, "Mi Plan de Éxito" )
                   )
                   , React.createElement('button', { onClick: histLogout, style: {background:"#FEE2E2",color:R,border:"none",borderRadius:10,padding:"8px 16px",fontSize:13,cursor:"pointer",fontWeight:700} }, "Cerrar sesion" )
                 )
@@ -9451,7 +9394,6 @@ function ProdEditableInner({ v, equipo, setEquipo, guardarProductividad, guardan
           }, "🔒 Cerrar sesion")
       )
       , React.createElement(HistorialPersonal, { histV: v, histLogout: function(){}, info: info, hallMeses: HALL_MESES, equipo: equipo })
-      , React.createElement(RachasView, { v: v, info: info })
     )
   );
 }
