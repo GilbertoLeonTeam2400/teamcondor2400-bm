@@ -3885,6 +3885,7 @@ function PlanAGVView({ equipo, info, R, RD }) {
   },[]);
   var [expandido, setExpandido] = React.useState({});
   var [grupFiltro, setGrupFiltro] = React.useState("todos");
+  var [selectedEjec, setSelectedEjec] = React.useState(null);
 
   function mesesAnt2(v) {
     if (!v.fechaIngreso) return null;
