@@ -3375,6 +3375,98 @@ function RachasView({ v, info }) {
   );
 }
 
+function ActividadCard({ act, ri, col, onEstado, onNota, onRemove }) {
+  var [editandoNota, setEditandoNota] = React.useState(false);
+  var [notaLocal, setNotaLocal] = React.useState(act.nota||"");
+  var [guardadoNota, setGuardadoNota] = React.useState(false);
+
+  React.useEffect(function(){ setNotaLocal(act.nota||""); }, [act.nota]);
+
+  var nombreAct = act.txt || act.texto || "";
+  var placeholder = (function(){
+    var n = nombreAct.toLowerCase();
+    if(n.indexOf("prospect")>=0||n.indexOf("pyme")>=0||n.indexOf("llam")>=0)
+      return "Ej: Hice 20 llamadas, contacté 4 empresas, 2 cotizaciones enviadas. Dificultad: horario de cierre.";
+    if(n.indexOf("referid")>=0||n.indexOf("referral")>=0)
+      return "Ej: Pedí 5 referidos a clientes actuales, 2 confirmaron interés. Seguimiento pendiente con Juan.";
+    if(n.indexOf("cotiz")>=0||n.indexOf("reactivac")>=0)
+      return "Ej: Retomé 3 cotizaciones de abril. 1 decidió esperar, 2 quedaron para llamada esta semana.";
+    if(n.indexOf("clinic")>=0||n.indexOf("terreno")>=0||n.indexOf("visita")>=0)
+      return "Ej: Visité Clínica Bicentenario, 6 contactos nuevos, 1 interesado en Plan Conecta Familia.";
+    if(n.indexOf("dps")>=0)
+      return "Ej: Completé 3 DPS con firma digital. 1 observada por preexistencia. Pendiente resolución.";
+    if(n.indexOf("cierre")>=0||n.indexOf("venta")>=0)
+      return "Ej: Cerré 2.5 UF Plan Conecta Duo. Cliente venía de cotización de marzo. Recomendó a su cuñado.";
+    return "Ej: Describe cómo te fue — qué hiciste, cuántos contactos, resultados obtenidos y próximo paso.";
+  })();
+
+  function guardarNota() {
+    onNota(ri, notaLocal);
+    setEditandoNota(false);
+    setGuardadoNota(true);
+    setTimeout(function(){ setGuardadoNota(false); }, 2000);
+  }
+
+  return React.createElement("div", {style:{marginBottom:10,borderRadius:10,border:"1.5px solid "+col,overflow:"hidden",background:"#fff"}}
+    // Fila superior: nombre + estado + eliminar
+    ,React.createElement("div", {style:{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",background:act.estado==="completada"?"#F0FDF4":act.estado==="incompleto"?"#FFFBEB":act.estado==="sin_avance"?"#FFF1F2":"#fff"}}
+      ,React.createElement("div", {style:{flex:1}}
+        ,React.createElement("div", {style:{fontSize:12,fontWeight:700,color:"#1F2937",marginBottom:act.canal?2:0}}, nombreAct||"Actividad")
+        ,act.canal&&React.createElement("div", {style:{fontSize:10,color:"#6B7280"}}, "🔭 "+act.canal)
+      )
+      ,React.createElement("select", {
+        value:act.estado||"",
+        onChange:function(e){ onEstado(ri, e.target.value); },
+        style:{fontSize:10,borderRadius:6,border:"1.5px solid "+col,padding:"3px 6px",fontFamily:"inherit",background:"#fff",color:col,fontWeight:700}
+      }
+        ,React.createElement("option",{value:""},"— Estado")
+        ,React.createElement("option",{value:"completada"},"✅ Completado")
+        ,React.createElement("option",{value:"incompleto"},"⚠️ Incompleto")
+        ,React.createElement("option",{value:"sin_avance"},"❌ Sin avance")
+      )
+      ,React.createElement("button", {
+        onClick:function(){ onRemove(ri); },
+        style:{background:"none",border:"none",cursor:"pointer",color:"#DC2626",fontSize:14,opacity:.6,flexShrink:0}
+      }, "✕")
+    )
+    // Fila bitácora
+    ,React.createElement("div", {style:{padding:"8px 12px",borderTop:"1px solid #F3F4F6",background:"#FAFAFA"}}
+      ,React.createElement("div", {style:{fontSize:10,fontWeight:700,color:"#6B7280",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.05em"}}, "📝 ¿Cómo te fue?")
+      ,guardadoNota&&React.createElement("div",{style:{fontSize:10,color:"#16A34A",fontWeight:700,marginBottom:4}},"✅ Guardado")
+      ,editandoNota
+        ? React.createElement("div", null
+            ,React.createElement("textarea", {
+              value:notaLocal,
+              onChange:function(e){ setNotaLocal(e.target.value); },
+              autoFocus:true,
+              rows:3,
+              placeholder:placeholder,
+              style:{width:"100%",padding:"8px 10px",borderRadius:8,border:"1.5px solid "+col,
+                     fontSize:12,fontFamily:"inherit",resize:"vertical",boxSizing:"border-box",lineHeight:1.5}
+            })
+            ,React.createElement("div", {style:{display:"flex",gap:6,marginTop:6}}
+              ,React.createElement("button", {
+                onClick:guardarNota,
+                style:{background:"#16A34A",color:"#fff",border:"none",borderRadius:7,
+                       padding:"5px 14px",fontSize:11,cursor:"pointer",fontWeight:700}
+              }, "💾 Guardar")
+              ,React.createElement("button", {
+                onClick:function(){ setEditandoNota(false); setNotaLocal(act.nota||""); },
+                style:{background:"#F3F4F6",color:"#374151",border:"none",borderRadius:7,
+                       padding:"5px 10px",fontSize:11,cursor:"pointer"}
+              }, "Cancelar")
+            )
+          )
+        : React.createElement("div", {
+            onClick:function(){ setEditandoNota(true); },
+            style:{minHeight:36,background:"#fff",borderRadius:8,border:"1.5px dashed #D1D5DB",
+                   padding:"7px 10px",fontSize:12,cursor:"pointer",lineHeight:1.5,
+                   color:act.nota?"#374151":"#9CA3AF",fontStyle:act.nota?"normal":"italic"}
+          }, act.nota||"Toca aquí para registrar tu bitácora del día...")
+    )
+  );
+}
+
 function PlanEjecutivoView({ v, info, R, RD }) {
   var [plan, setPlan] = React.useState(null);
   var [calInput, setCalInput] = React.useState("");
@@ -3483,6 +3575,10 @@ function PlanEjecutivoView({ v, info, R, RD }) {
   function removeActividad(idx) { var nc=calendario.filter(function(_,i){return i!==idx;}); savePlanField({calendario:nc}); }
   function setEstadoActividad(idx, estado) {
     var nc=calendario.map(function(c,i){return i===idx?Object.assign({},c,{estado:estado,done:estado==="completada"}):c;});
+    savePlanField({calendario:nc});
+  }
+  function setNotaActividad(idx, nota) {
+    var nc=calendario.map(function(c,i){return i===idx?Object.assign({},c,{nota:nota}):c;});
     savePlanField({calendario:nc});
   }
 
@@ -3676,20 +3772,7 @@ function PlanEjecutivoView({ v, info, R, RD }) {
             : actHoy.map(function(act,i){
                 var ri=calendario.indexOf(act);
                 var col=act.estado==="completada"?"#16A34A":act.estado==="incompleto"?"#D97706":act.estado==="sin_avance"?"#DC2626":"#6B7280";
-                return React.createElement("div",{key:i,style:{display:"flex",alignItems:"center",gap:8,marginBottom:6,padding:"8px 10px",borderRadius:8,background:"#fff",border:"1.5px solid "+col}}
-                  ,React.createElement("div",{style:{flex:1}}
-                    ,React.createElement("div",{style:{fontSize:12,fontWeight:700,color:"#1F2937"}},act.texto)
-                    ,act.canal&&React.createElement("div",{style:{fontSize:10,color:"#6B7280",marginTop:1}},"🔭 "+act.canal)
-                  )
-                  ,React.createElement("select",{value:act.estado||"",onChange:function(e){setEstadoActividad(ri,e.target.value);},
-                    style:{fontSize:10,borderRadius:6,border:"1.5px solid "+col,padding:"3px 6px",fontFamily:"inherit",background:"#fff",color:col,fontWeight:700}}
-                    ,React.createElement("option",{value:""},"— Estado")
-                    ,React.createElement("option",{value:"completada"},"✅ Completado")
-                    ,React.createElement("option",{value:"incompleto"},"⚠️ Incompleto")
-                    ,React.createElement("option",{value:"sin_avance"},"❌ Sin avance")
-                  )
-                  ,React.createElement("button",{onClick:function(){removeActividad(ri);},style:{background:"none",border:"none",cursor:"pointer",color:"#DC2626",fontSize:14,opacity:.6}},"✕")
-                );
+                return React.createElement(ActividadCard,{key:i,act:act,ri:ri,col:col,onEstado:setEstadoActividad,onNota:setNotaActividad,onRemove:removeActividad});
               })
         );
       })()
@@ -3782,20 +3865,7 @@ function PlanEjecutivoView({ v, info, R, RD }) {
           ,actsDay.map(function(act,i){
             var ri=calendario.indexOf(act);
             var col=act.estado==="completada"?"#16A34A":act.estado==="incompleto"?"#D97706":act.estado==="sin_avance"?"#DC2626":"#6B7280";
-            return React.createElement("div",{key:i,style:{display:"flex",alignItems:"center",gap:8,marginBottom:6,padding:"8px 10px",borderRadius:8,background:"#fff",border:"1.5px solid "+col}}
-              ,React.createElement("div",{style:{flex:1}}
-                ,React.createElement("div",{style:{fontSize:12,fontWeight:700,color:"#1F2937"}},act.texto)
-                ,act.canal&&React.createElement("div",{style:{fontSize:10,color:"#6B7280",marginTop:1}},"🔭 "+act.canal)
-              )
-              ,React.createElement("select",{value:act.estado||"",onChange:function(e){setEstadoActividad(ri,e.target.value);},
-                style:{fontSize:10,borderRadius:6,border:"1.5px solid "+col,padding:"3px 6px",fontFamily:"inherit",background:"#fff",color:col,fontWeight:700}}
-                ,React.createElement("option",{value:""},"— Estado")
-                ,React.createElement("option",{value:"completada"},"✅ Completado")
-                ,React.createElement("option",{value:"incompleto"},"⚠️ Incompleto")
-                ,React.createElement("option",{value:"sin_avance"},"❌ Sin avance")
-              )
-              ,React.createElement("button",{onClick:function(){removeActividad(ri);},style:{background:"none",border:"none",cursor:"pointer",color:"#DC2626",fontSize:14,opacity:.6}},"✕")
-            );
+            return React.createElement(ActividadCard,{key:i,act:act,ri:ri,col:col,onEstado:setEstadoActividad,onNota:setNotaActividad,onRemove:removeActividad});
           })
         );
       })()
@@ -4109,17 +4179,36 @@ function PlanAGVView({ equipo, info, R, RD }) {
                 ,React.createElement("div",null ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:"#374151",marginBottom:8}},"📌 Estado") ,ESTADO_OPTS.map(function(est){return React.createElement("div",{key:est.k,onClick:function(){setEstado(v.id,est.k);},style:{padding:"7px 12px",borderRadius:8,cursor:"pointer",fontSize:12,fontWeight:700,marginBottom:4,background:plan.estado===est.k?est.bg:"#F8FAFC",color:plan.estado===est.k?est.c:"#6B7280",border:"1.5px solid "+(plan.estado===est.k?est.c:"#E5E7EB")}},est.l);}))
                 ,React.createElement(PlanNotaEditor,{vid:v.id,nota:plan.nota||""})
               )
-              // Calendario del ejecutivo (solo lectura para supervisor)
-              ,(plan.calendario&&plan.calendario.length>0)&&React.createElement("div",{style:{marginTop:12,background:"#F0FDF4",borderRadius:12,padding:"12px 16px",border:"1px solid #86EFAC"}}
-                ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:"#16A34A",marginBottom:8}},"📅 Actividades agendadas por el ejecutivo")
-                ,plan.calendario.map(function(act,i){
-                    return React.createElement("div",{key:i,style:{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px solid rgba(134,239,172,.3)"}}
-                      ,React.createElement("span",{style:{fontSize:12,color:act.done?"#16A34A":"#7C3AED",fontWeight:700,flexShrink:0}},act.done?"✅":"📌")
-                      ,act.fecha&&React.createElement("span",{style:{fontSize:11,color:"#6B7280",flexShrink:0}},act.fecha+" —")
-                      ,React.createElement("span",{style:{fontSize:12,color:act.done?"#166534":"#374151",textDecoration:act.done?"line-through":"none"}},act.txt)
+              // Calendario del ejecutivo — vista supervisor con bitácora
+              ,(plan.calendario&&plan.calendario.length>0)&&(function(){
+                var calOrdenado=[].concat(plan.calendario).sort(function(a,b){return (b.fecha||"").localeCompare(a.fecha||"");});
+                var colEst=function(est){return est==="completada"?"#16A34A":est==="incompleto"?"#D97706":est==="sin_avance"?"#DC2626":"#6B7280";};
+                var lblEst=function(est){return est==="completada"?"✅ Completado":est==="incompleto"?"⚠️ Incompleto":est==="sin_avance"?"❌ Sin avance":"⏳ Sin estado";};
+                return React.createElement("div",{style:{marginTop:12,background:"#F8FAFC",borderRadius:12,padding:"14px 16px",border:"1.5px solid #E5E7EB"}}
+                  ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:"#374151",marginBottom:10}},"📅 Bitácora de actividades del ejecutivo")
+                  ,calOrdenado.map(function(act,i){
+                    var col=colEst(act.estado);
+                    var nombreAct=act.txt||act.texto||"";
+                    return React.createElement("div",{key:i,style:{marginBottom:8,borderRadius:9,border:"1.5px solid "+col,overflow:"hidden",background:"#fff"}}
+                      // Fila fecha + nombre + estado
+                      ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:act.estado==="completada"?"#F0FDF4":act.estado==="incompleto"?"#FFFBEB":act.estado==="sin_avance"?"#FFF1F2":"#fff"}}
+                        ,act.fecha&&React.createElement("span",{style:{fontSize:10,color:"#6B7280",flexShrink:0,fontWeight:600}},
+                          new Date(act.fecha+"T12:00:00").toLocaleDateString("es-CL",{weekday:"short",day:"numeric",month:"short"})
+                        )
+                        ,React.createElement("span",{style:{flex:1,fontSize:12,fontWeight:700,color:"#1F2937"}},nombreAct)
+                        ,React.createElement("span",{style:{fontSize:10,fontWeight:700,color:col,flexShrink:0}},lblEst(act.estado))
+                      )
+                      // Fila nota/bitácora
+                      ,React.createElement("div",{style:{padding:"7px 12px",borderTop:"1px solid #F3F4F6",background:"#FAFAFA"}}
+                        ,React.createElement("div",{style:{fontSize:10,fontWeight:700,color:"#9CA3AF",marginBottom:3,textTransform:"uppercase",letterSpacing:"0.04em"}},"📝 Bitácora")
+                        ,act.nota
+                          ? React.createElement("div",{style:{fontSize:12,color:"#374151",lineHeight:1.5}},act.nota)
+                          : React.createElement("div",{style:{fontSize:11,color:"#9CA3AF",fontStyle:"italic"}},"Sin registro del ejecutivo para esta actividad.")
+                      )
                     );
                   })
-              )
+                );
+              })()
             )
           );
         })
