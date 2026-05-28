@@ -5527,12 +5527,6 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
  function App() {
   const info = useMemo(hoyInfo, []);
 
-  const [masterOk, setMasterOk] = useState(function(){ return window.__masterOk(); });
-
-  if(!masterOk){
-    return React.createElement(MasterLogin, { onSuccess: function(){ setMasterOk(true); } });
-  }
-
   //  Team state (loaded from storage) 
   const DATOS_PRUEBA = {};
 
@@ -11377,8 +11371,16 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
 }
 
 
+function AppWrapper() {
+  const [masterOk, setMasterOk] = useState(function(){ return window.__masterOk(); });
+  if(!masterOk){
+    return React.createElement(MasterLogin, { onSuccess: function(){ setMasterOk(true); } });
+  }
+  return React.createElement(App);
+}
+
 const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(React.createElement(App));
+root.render(React.createElement(AppWrapper));
 </script>
 </body>
 </html>
