@@ -34,6 +34,40 @@
       /* Center last 2 cards in a 3-col grid by making them span 1.5 each — use subgrid trick */
       .agv-resumen-grid .agv-card-trend { grid-column: 1 / span 2 !important; }
       .agv-resumen-grid .agv-card-actual { grid-column: 2 / span 2 !important; }
+
+      /* Grids de 3+ columnas → 2 col en móvil */
+      .mob-2col { grid-template-columns: repeat(2,1fr) !important; }
+      /* Grids de 3+ columnas → 1 col en móvil */
+      .mob-1col { grid-template-columns: 1fr !important; }
+      /* Grids de 4 col KPI → 2x2 */
+      .mob-kpi4 { grid-template-columns: repeat(2,1fr) !important; }
+      /* Grids de 6 col → 3x2 */
+      .mob-6col { grid-template-columns: repeat(3,1fr) !important; }
+      /* Tablas anchas: scroll horizontal */
+      .mob-scroll { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+      /* Layout 1fr 320px → columna */
+      .mob-stack { grid-template-columns: 1fr !important; }
+      /* Formulario cierre: 1 col */
+      .mob-form { grid-template-columns: 1fr !important; }
+      /* Cards de proyección: 1 col */
+      .mob-proy { grid-template-columns: 1fr !important; }
+      /* Ritmo + proyección ejecutivo: 1 col */
+      .mob-ritmo { grid-template-columns: 1fr !important; }
+      /* Top5 podio: 1 col en móvil */
+      .mob-podio3 { grid-template-columns: 1fr !important; }
+      .mob-podio2 { grid-template-columns: 1fr !important; }
+      /* Historial ejecutivo: scroll */
+      .mob-hist-scroll { overflow-x: auto !important; }
+      /* Esconder columnas opcionales en móvil */
+      .mob-hide { display: none !important; }
+      /* Análisis supervisor layout */
+      .mob-analisis { grid-template-columns: 1fr !important; }
+      /* Padding reducido en móvil */
+      .mob-pad { padding: 14px 12px !important; }
+      /* Semanas seguimiento: 1 col */
+      .mob-sems { grid-template-columns: 1fr !important; }
+      /* Cierre form grid */
+      .mob-cierre-grid { grid-template-columns: 1fr !important; }
     }
   #__toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);padding:14px 24px;border-radius:14px;font-size:14px;font-weight:700;display:flex;align-items:center;gap:10px;box-shadow:0 8px 32px rgba(0,0,0,.18);z-index:99999;opacity:0;transition:all .3s ease;pointer-events:none;max-width:400px;}
   #__toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
@@ -2302,53 +2336,6 @@ function PanelAlertas({ equipo, proyV }) {
   );
 }
 
-// ── Embudo de conversion del equipo ──────────────────────────────
-function FunnelConversion({ equipo }) {
-  var contactos = equipo.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(r.contactos||0);},0);},0);
-  var cot       = equipo.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(r.cot||0);},0);},0);
-  var cierres   = equipo.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(r.cierres||0);},0);},0);
-  var dps       = equipo.reduce(function(s,v){return s+v.dps;},0);
-
-  var pasos = [
-    { label:"Contactos efectivos", val:contactos, color:"#3B82F6", bg:"#EFF6FF" },
-    { label:"Cotizaciones enviadas",val:cot,       color:"#F59E0B", bg:"#FFFBEB" },
-    { label:"Contratos cerrados",   val:cierres,   color:"#16A34A", bg:"#F0FDF4" },
-    { label:"DPS realizadas",          val:dps,       color:"#8B5CF6", bg:"#F5F3FF" },
-  ];
-  var max = Math.max(contactos, 1);
-
-  return (
-    React.createElement('div', { style: {background:"#fff",borderRadius:18,padding:"22px 24px",boxShadow:"0 4px 20px rgba(233,7,41,.09)",border:"1px solid rgba(233,7,41,.1)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2450}}
-      , React.createElement('div', { style: {fontSize:16,fontWeight:900,color:"#8B0418",marginBottom:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2451}}, "Embudo de conversion del equipo"    )
-      , React.createElement('div', { style: {fontSize:12,color:"#9CA3AF",marginBottom:20}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2452}}, "De contacto inicial a cierre — tasas entre pasos"        )
-      , React.createElement('div', { style: {display:"flex",flexDirection:"column",gap:8}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2453}}
-        , pasos.map(function(p, i) {
-          var width = Math.round((p.val / max) * 100);
-          var conv  = i > 0 && pasos[i-1].val > 0 ? Math.round((p.val / pasos[i-1].val) * 100) : null;
-          return (
-            React.createElement('div', { key: p.label, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2458}}
-              , conv !== null && (
-                React.createElement('div', { style: {textAlign:"center",fontSize:11,color:"#9CA3AF",marginBottom:4,display:"flex",alignItems:"center",justifyContent:"center",gap:6}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2460}}
-                  , React.createElement('span', { style: {color:conv>=30?"#16A34A":conv>=15?"#D97706":"#DC2626",fontWeight:700,background:conv>=30?"#DCFCE7":conv>=15?"#FEF3C7":"#FEE2E2",borderRadius:99,padding:"2px 10px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2461}}, "↓ "
-                     , conv, "% conversion"
-                  )
-                )
-              )
-              , React.createElement('div', { style: {background:p.bg,borderRadius:12,padding:"14px 18px",border:"1px solid "+p.color+"33",position:"relative",overflow:"hidden",marginLeft:String(i*5)+"%",marginRight:String(i*5)+"%",transition:"margin .3s"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2466}}
-                , React.createElement('div', { style: {position:"absolute",top:0,left:0,bottom:0,width:width+"%",background:p.color+"18",borderRadius:12,transition:"width .7s ease"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2467}} )
-                , React.createElement('div', { style: {position:"relative",display:"flex",justifyContent:"space-between",alignItems:"center"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2468}}
-                  , React.createElement('span', { style: {fontWeight:700,color:"#374151",fontSize:14}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2469}}, p.label)
-                  , React.createElement('span', { style: {fontWeight:900,color:p.color,fontSize:26,lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2470}}, p.val)
-                )
-              )
-            )
-          );
-        })
-      )
-    )
-  );
-}
-
 // ── Indicador de conexion Firebase ───────────────────────────────
 function StatusFirebase({ sincronizado, error }) {
   if (!window.__fbDb) return (
@@ -2544,7 +2531,7 @@ function ClasificacionAGVView({ equipo, info, R, RD }) {
       , React.createElement('div', { style:{fontSize:19,fontWeight:900,color:RD,marginBottom:4} }, "📊 Clasificación AGV por Resultados")
       , React.createElement('div', { style:{fontSize:13,color:"#6B7280",marginBottom:16} }, "Basado en el promedio de UF de los últimos 3 meses. El mes actual se muestra como referencia.")
       // Resumen rápido
-      , React.createElement('div', { style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:20} }
+      , React.createElement('div', { style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:20},className:"mob-2col"}
         , GRUPOS.map(function(g){
             return React.createElement('div', { key:g.key, style:{background:g.bg,border:"1px solid "+g.border,borderRadius:12,padding:"14px 18px",textAlign:"center"} }
               , React.createElement('div', { style:{fontSize:28,fontWeight:900,color:g.color} }, g.lista.length)
@@ -2946,13 +2933,13 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
         var _ct=preview.reduce(function(s,p){return s+(p.cttosDig||0);},0);
         return React.createElement("div",{style:{background:"linear-gradient(135deg,#EFF6FF,#DBEAFE)",borderRadius:12,padding:"14px 18px",marginBottom:14,border:"1px solid #93C5FD"}}
           ,React.createElement("div",{style:{fontSize:12,fontWeight:900,color:"#1D4ED8",marginBottom:10}},"📊 Resumen del equipo CC=2400 — "+preview.length+" ejecutivos")
-          ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:8}}
+          ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:8},className:"mob-kpi4"}
             ,React.createElement("div",{style:{textAlign:"center",background:"#fff",borderRadius:8,padding:"8px"}},React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#374151"}},_tv),React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase"}},"Total DPS"))
             ,React.createElement("div",{style:{textAlign:"center",background:"#fff",borderRadius:8,padding:"8px"}},React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#16A34A"}},_cv),React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase"}},"Con Venta"))
             ,React.createElement("div",{style:{textAlign:"center",background:"#fff",borderRadius:8,padding:"8px"}},React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#2563EB"}},_sv),React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase"}},"Sin Venta"))
             ,React.createElement("div",{style:{textAlign:"center",background:"#fff",borderRadius:8,padding:"8px"}},React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#D97706"}},_pv),React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase"}},"Pendientes"))
           )
-          ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}
+          ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8},className:"mob-kpi4"}
             ,React.createElement("div",{style:{textAlign:"center",background:"#fff",borderRadius:8,padding:"8px"}},React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#DC2626"}},_rv),React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase"}},"Rechazadas"))
             ,React.createElement("div",{style:{textAlign:"center",background:"#fff",borderRadius:8,padding:"8px"}},React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#C9A84C"}},_uf+" UF"),React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase"}},"UF Total"))
             ,React.createElement("div",{style:{textAlign:"center",background:"#fff",borderRadius:8,padding:"8px"}},React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#0891B2"}},_nb),React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase"}},"Beneficiarios"))
@@ -3084,10 +3071,8 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
       // pctF=Mujer, pctM=Hombre (correcto)
       pctF=totSexReps>0?Math.round((totMu/totSexReps)*100):0;
       pctM=totSexReps>0?Math.round((totH/totSexReps)*100):0;
-      // Conecta: usar historial del Excel si existe (oficial), si no usar cierres del día
-      var conectaReps=reps.reduce(function(s,r){return s+(parseInt(r.conecta)||0);},0);
-      var conectaHist=parseInt(h.conecta)||0;
-      conecta = conectaHist > 0 ? conectaHist : conectaReps;
+      // Conecta: SOLO desde Excel del supervisor (historial). Los rep[] no alimentan este campo.
+      conecta = parseInt(h.conecta)||0;
     } else {
       pctF=parseInt(h.pctF)||0;
       pctM=parseInt(h.pctM)||0;
@@ -3237,11 +3222,11 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
     )
 
     // KPIs resumen
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:12,marginBottom:16}}
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:12,marginBottom:16},className:"mob-6col"}
       ,[{l:"Total DPS",v:totTotal,c:"#374151",bg:"#F9FAFB"},{l:"DPS Con Venta",v:totConVenta,c:"#16A34A",bg:"#F0FDF4"},{l:"DPS Sin Venta",v:totSinVenta,c:"#2563EB",bg:"#EFF6FF"},{l:"DPS Pendientes",v:totPendiente,c:"#D97706",bg:"#FFFBEB"},{l:"DPS Rechazadas",v:totRechazado,c:"#DC2626",bg:"#FFF1F2"},{l:"Tasa Cierre DPS",v:tasaCierre+"%",c:tasaCierre>=50?"#16A34A":tasaCierre>=30?"#D97706":"#DC2626",bg:tasaCierre>=50?"#F0FDF4":tasaCierre>=30?"#FFFBEB":"#FFF1F2"}]
         .map(function(k){return React.createElement("div",{key:k.l,style:{background:k.bg,borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #E5E7EB"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:k.c}},k.v) ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},k.l));})
     )
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20},className:"mob-kpi4"}
       ,React.createElement("div",{style:{background:"#FFF8E7",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #FCD34D"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:"#C9A84C"}},totUF.toFixed(2)+" UF") ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"Total UF"))
       ,React.createElement("div",{style:{background:"#F0FDFA",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #A7F3D0"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:"#0891B2"}},totBenef) ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"N° Beneficiarios"))
       ,React.createElement("div",{style:{background:"#F0FDF4",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #86EFAC"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:"#059669"}},totCttos) ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"Contratos Digitados"))
@@ -3361,7 +3346,7 @@ function RachasView({ v, info }) {
 
   return React.createElement("div",{style:{background:"#fff",borderRadius:16,padding:"20px",marginBottom:16,boxShadow:"0 2px 12px rgba(0,0,0,.06)"}}
     ,React.createElement("div",{style:{fontSize:14,fontWeight:900,color:"#1F2937",marginBottom:14}},"🔥 Mi Consistencia")
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14},className:"mob-2col"}
       ,React.createElement("div",{style:{background:"linear-gradient(135deg,#FEF9C3,#FEF08A)",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #FCD34D"}}
         ,React.createElement("div",{style:{fontSize:28,fontWeight:900,color:"#92400E"}},rachaActual)
         ,React.createElement("div",{style:{fontSize:10,color:"#78350F",textTransform:"uppercase",marginTop:3}},"🔥 Racha actual (días)")
@@ -3702,7 +3687,7 @@ function PlanEjecutivoView({ v, info, R, RD }) {
       // Panel semanal expandido
       ,abierto&&React.createElement("div",{style:{padding:"12px 14px",background:"#F8FAFC",borderTop:"1px solid #E5E7EB"}}
         ,React.createElement("div",{style:{fontSize:11,fontWeight:700,color:"#374151",marginBottom:8}},"📅 Seguimiento semanal — "+semsMarcadas+"/4 semanas cumplidas")
-        ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8}}
+        ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8},className:"mob-sems"}
           ,[1,2,3,4].map(function(sem){
               var marcada=sems[sem]||false;
               var com=sems["com"+sem]||"";
@@ -4568,7 +4553,7 @@ function BenchmarkView({ benchmark, setBenchmark, equipo, info, R, RD }) {
     ,benchmark && React.createElement("div",{style:{background:"linear-gradient(135deg,#1E3A5F,#1D4ED8)",borderRadius:14,padding:"16px 20px",marginBottom:20,color:"#fff"}}
       ,React.createElement("div",{style:{fontSize:11,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:"0.15em",marginBottom:4}},"📌 Benchmark actual")
       ,React.createElement("div",{style:{fontSize:16,fontWeight:900,marginBottom:12}},benchmark.mesLabel)
-      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}
+      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8},className:"mob-kpi4"}
         ,METRICAS.map(function(m){
           return React.createElement("div",{key:m.l,style:{background:"rgba(255,255,255,.1)",borderRadius:10,padding:"10px",textAlign:"center"}}
             ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:"#fff"}},m.v)
@@ -4594,7 +4579,7 @@ function BenchmarkView({ benchmark, setBenchmark, equipo, info, R, RD }) {
     // Preview
     ,preview&&React.createElement("div",null
       ,React.createElement("div",{style:{fontWeight:700,color:"#374151",marginBottom:10}},"Vista previa — "+preview.mesLabel+":")
-      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:12}}
+      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:12},className:"mob-kpi4"}
         ,[
           {l:"UF Total",v:preview.uf,c:"#C9A84C"},{l:"DPS c/venta",v:preview.dpsCV,c:"#16A34A"},
           {l:"Sin venta",v:preview.dpsSV,c:"#2563EB"},{l:"Pendientes",v:preview.dpsP,c:"#D97706"},
@@ -4847,7 +4832,7 @@ function PredictorPersonalView({ equipo, form, RD, info }) {
     ,React.createElement("div",{style:{fontSize:11,color:"#6B7280",marginBottom:16}},
       "Tu ritmo — "+diaHoy2+" días transcurridos ("+dhTransc+" hábiles) · "+diasRest2+" restantes ("+dhRest+" hábiles)"
     )
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:8}}
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:8},className:"mob-2col"}
       ,React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:6}}
         ,React.createElement("div",{style:{background:"#FFF8E7",borderRadius:12,padding:"8px",textAlign:"center",border:"1px solid #FCD34D"}}
           ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:"#C9A84C"}},ufV.toFixed(3))
@@ -4941,25 +4926,35 @@ function PredictorView({ equipo, info, R, RD, metaUFSafe }) {
   var diasRestantesProyeccion = esSemana4P ? 0 : diasRestantes;
   var diasHabilesRestantesProyeccion = esSemana4P ? 0 : diasHabilesRestantes;
 
-  // Base congelada para Extremo: se guarda al inicio de semana 4
+  // Base congelada al inicio de semana 4 — usada por las 3 cards
   var ufBaseEquipoKey = "UFB_EQUIPO_" + (hoy.getFullYear()) + "_" + String(hoy.getMonth()+1).padStart(2,"0");
   var ufBaseEquipoGuardada = parseFloat(localStorage.getItem(ufBaseEquipoKey)||"0");
-  var ufBaseExtremo;
+  var ufBaseS4; // UF del equipo el lunes de S4 — base congelada
   if(esSemana4P) {
     if(!ufBaseEquipoGuardada || ufBaseEquipoGuardada <= 0) {
-      ufBaseExtremo = totUF;
+      ufBaseS4 = totUF;
       localStorage.setItem(ufBaseEquipoKey, String(totUF));
     } else {
-      ufBaseExtremo = ufBaseEquipoGuardada;
+      ufBaseS4 = ufBaseEquipoGuardada;
     }
   } else {
-    ufBaseExtremo = totUF;
+    ufBaseS4 = totUF;
+    try { localStorage.removeItem(ufBaseEquipoKey); } catch(e) {}
   }
 
-  // Proyecciones — congeladas en semana 4
-  var proyConservador = parseFloat((totUF + ritmo*diasRestantesProyeccion*1.3).toFixed(2));
-  var proyOptimista   = parseFloat((totUF + ritmo*diasRestantesProyeccion*1.5).toFixed(2));
-  var proyExtremo     = parseFloat((ufBaseExtremo * 2).toFixed(2)); // Efecto Última Semana — congelado al inicio S4
+  // Proyecciones:
+  // Semanas 1-3: cálculo normal con ritmo y días restantes
+  // Semana 4: base congelada del lunes × factor (ya no sigue subiendo)
+  var proyConservador, proyOptimista, proyExtremo;
+  if(esSemana4P) {
+    proyConservador = parseFloat((ufBaseS4 * 1.30).toFixed(2));
+    proyOptimista   = parseFloat((ufBaseS4 * 1.50).toFixed(2));
+    proyExtremo     = parseFloat((ufBaseS4 * 2.00).toFixed(2));
+  } else {
+    proyConservador = parseFloat((totUF + ritmo*diasRestantesProyeccion*1.3).toFixed(2));
+    proyOptimista   = parseFloat((totUF + ritmo*diasRestantesProyeccion*1.5).toFixed(2));
+    proyExtremo     = parseFloat((ufBaseS4 * 2).toFixed(2));
+  }
 
   var llegaRealista = proyConservador>=meta;
 
@@ -5025,7 +5020,7 @@ function PredictorView({ equipo, info, R, RD, metaUFSafe }) {
     )
     // Escenarios
     ,React.createElement("div",{style:{fontSize:13,fontWeight:700,color:"#374151",marginBottom:10}},"Escenarios de cierre:")
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:16}}
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:16},className:"mob-proy"}
       ,React.createElement(ScenCard,{label:"📉 Conservador (+30%)",val:proyConservador})
       ,React.createElement(ScenCard,{label:"🚀 Optimista (+50%)",val:proyOptimista})
       ,React.createElement(ScenCard,{label:"🔥 Extremo — +100% ritmo actual (Efecto Última Semana)",val:proyExtremo})
@@ -6178,7 +6173,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
   const xCrack  = equipoValido.length > 0 ? fmtUF2(falta/equipoValido.length) : "0";
   const totHombres = equipoValido.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.hombres)||0);},0);},0);
   const totMujeres = equipoValido.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.mujeres)||0);},0);},0);
-  const totConecta = equipoValido.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.conecta)||0);},0);},0);
+  const totConecta = equipoValido.reduce(function(s,v){return s+(parseInt(((v.historial||{})[info.mesKey]||{}).conecta)||0);},0);
   const totTitulares = totHombres + totMujeres;
   const pctH = totTitulares > 0 ? Math.round((totHombres/totTitulares)*100) : 0;
   const pctM = totTitulares > 0 ? Math.round((totMujeres/totTitulares)*100) : 0;
@@ -6701,6 +6696,22 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
           .header-inner { padding:12px 12px 0 !important; }
           .header-title { font-size:16px !important; }
           .header-logo { width:52px !important; height:44px !important; }
+
+          /* Grids responsive móvil */
+          .mob-2col { grid-template-columns: repeat(2,1fr) !important; }
+          .mob-1col { grid-template-columns: 1fr !important; }
+          .mob-kpi4 { grid-template-columns: repeat(2,1fr) !important; }
+          .mob-6col { grid-template-columns: repeat(3,1fr) !important; }
+          .mob-scroll { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+          .mob-stack { grid-template-columns: 1fr !important; }
+          .mob-form { grid-template-columns: 1fr !important; }
+          .mob-proy { grid-template-columns: 1fr !important; }
+          .mob-ritmo { grid-template-columns: 1fr !important; }
+          .mob-podio3 { grid-template-columns: 1fr !important; }
+          .mob-podio2 { grid-template-columns: 1fr !important; }
+          .mob-sems { grid-template-columns: 1fr !important; }
+          .mob-cierre-grid { grid-template-columns: 1fr !important; }
+          .mob-analisis { grid-template-columns: 1fr !important; }
         }
 
         /* ── DESKTOP (≥641px) ── */
@@ -6984,7 +6995,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
               /* ── Logros del día + Distribución integrados en el tablero ── */
               , React.createElement('div', { style: {borderTop:"1px solid rgba(255,255,255,.12)",margin:"0 22px",padding:"18px 0 0"} }
                 /* Título sección */
-                , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14} }
+                , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,className:"mob-podio2"}
                   /* UF HOY */
                   , React.createElement('div', { style: {background:"rgba(255,255,255,.07)",borderRadius:14,padding:"14px 16px",border:"1px solid rgba(201,168,76,.2)"} }
                     , React.createElement('div', { style: {fontSize:9,color:"rgba(201,168,76,.6)",textTransform:"uppercase",letterSpacing:"0.18em",marginBottom:4,fontWeight:700} }, "UF Cerradas Hoy")
@@ -7035,7 +7046,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                     var totNBenef = equipoValido.reduce(function(s,v){var h=(v.historial||{})[info.mesKey];return s+(h?parseInt(h.nBenef)||0:0);},0);
                     var totCDig   = equipoValido.reduce(function(s,v){var h=(v.historial||{})[info.mesKey];return s+(h?parseInt(h.cttosDig)||0:0);},0);
                     if(totNBenef===0&&totCDig===0) return null;
-                    return React.createElement('div', { style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10} }
+                    return React.createElement('div', { style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10},className:"mob-cierre-grid" }
                       , React.createElement('div', { style:{background:"rgba(8,145,178,.18)",borderRadius:12,padding:"12px 10px",textAlign:"center",border:"1px solid rgba(8,145,178,.35)"} }
                         , React.createElement('div', { style:{fontSize:9,color:"rgba(103,232,249,.8)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:4,fontWeight:700} }, "👥 N° Beneficiarios")
                         , React.createElement('div', { style:{fontSize:"clamp(22px,5vw,32px)",fontWeight:900,lineHeight:1,color:"#67E8F9"} }, totNBenef)
@@ -7361,9 +7372,48 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                   var deberiaLlevar = parseFloat((metaPersonal * proporcion).toFixed(2));
                   var diferencia = parseFloat((ufPersonal - deberiaLlevar).toFixed(2));
                   var adelante = diferencia >= 0;
-                  // Proyección al cierre
+                  // Proyección al cierre — congelada al ritmo del lunes S4
+                  // Calcular lunes inicio semana 4 del mes
+                  var _hoy4 = new Date();
+                  var _anio4 = _hoy4.getFullYear(), _mes4 = _hoy4.getMonth();
+                  var _diasMes4 = new Date(_anio4, _mes4+1, 0).getDate();
+                  // Buscar el lunes de la última semana del mes
+                  var _ls4 = new Date(_anio4, _mes4, _diasMes4);
+                  while(_ls4.getDay()!==1) _ls4.setDate(_ls4.getDate()-1);
+                  // Si ese lunes es la última semana (≥ día 22), es el inicio S4
+                  var _inicioS4Ejec = new Date(_anio4, _mes4, _ls4.getDate()-6 < 1 ? 1 : _ls4.getDate()-6);
+                  while(_inicioS4Ejec.getDay()!==1) _inicioS4Ejec.setDate(_inicioS4Ejec.getDate()+1);
+                  var _esSem4Ejec = _hoy4 >= _inicioS4Ejec;
+                  var _diaInicioS4 = _inicioS4Ejec.getDate();
+
+                  // Guardar/recuperar UF base del ejecutivo al inicio S4
+                  var _ufBaseKey = "UFB_EJEC_" + (vEjec ? vEjec.id : "x") + "_" + _anio4 + "_" + String(_mes4+1).padStart(2,"0");
+                  var _ufBaseGuardada = parseFloat(localStorage.getItem(_ufBaseKey)||"0");
+                  var _ufBase;
+                  if(_esSem4Ejec) {
+                    if(!_ufBaseGuardada || _ufBaseGuardada <= 0) {
+                      // Primera vez en S4: guardar UF actuales como base
+                      _ufBase = ufPersonal;
+                      try { localStorage.setItem(_ufBaseKey, String(ufPersonal)); } catch(e){}
+                    } else {
+                      _ufBase = _ufBaseGuardada;
+                    }
+                  } else {
+                    _ufBase = ufPersonal;
+                    // Limpiar base si se reinicia antes de S4
+                    try { localStorage.removeItem(_ufBaseKey); } catch(e){}
+                  }
+
+                  // Proyección: 
+                  // - Semanas 1-3: ritmo normal (UF actuales / días transcurridos × días del mes)
+                  // - Semana 4: foto del lunes S4 × 2 (efecto última semana histórico)
                   var ritmo = diaHoy > 0 ? ufPersonal / diaHoy : 0;
-                  var proyFin = parseFloat((ritmo * diasMes).toFixed(2));
+                  var proyFin;
+                  if(_esSem4Ejec) {
+                    proyFin = parseFloat((_ufBase * 2).toFixed(2));
+                  } else {
+                    proyFin = parseFloat((ritmo * diasMes).toFixed(2));
+                  }
                   var llegaMeta = proyFin >= metaPersonal;
                   return React.createElement('div', null
                     // Fila principal: UF + barra
@@ -7386,7 +7436,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                       )
                     )
                     // Fila ritmo + proyección
-                    , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:10} }
+                    , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:10},className:"mob-ritmo" }
                       // Ritmo del día
                       , React.createElement('div', { style: {background:"rgba(255,255,255,.12)",borderRadius:10,padding:"10px 14px"} }
                         , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:4} }, "⏱ Ritmo al día "+diaHoy)
@@ -8170,8 +8220,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
               , React.createElement('div', { style: {fontSize:13,color:"#6B7280",marginBottom:18}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3608}}, "Se actualiza con cada reporte. Ranking por UF brutas acumuladas del mes."           )
               , top5.length===0?(React.createElement('div', { style: {textAlign:"center",padding:"40px",color:"#9CA3AF"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3609}}, React.createElement('div', { style: {fontSize:15,fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3609}}, "Sin reportes este mes aun."    ))):(
                 React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3610}}
-                  , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14} }, [1,0,2].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: top5[i], badge: BADGES[i], equipo: equipo } );}))
-                  , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:14} }, [3,4].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: top5[i], badge: BADGES[i], equipo: equipo } );}))
+                  , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14,className:"mob-podio3"}, [1,0,2].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: top5[i], badge: BADGES[i], equipo: equipo } );}))
+                  , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,className:"mob-podio2"}, [3,4].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: top5[i], badge: BADGES[i], equipo: equipo } );}))
                 )
               )
               , recoNombre && (
@@ -8209,8 +8259,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                   , acceso&&React.createElement('button', { onClick: function(){setDraft({label:mesAnt.label,top:mesAnt.top.map(function(t){return Object.assign({},t);})});setEditMes(true);}, style: {background:BG,color:R,border:"1.5px solid "+R,borderRadius:10,padding:"7px 14px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3646}}, "Editar")
                 )
               )
-              , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14} }, [1,0,2].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: mesAnt.top[i], badge: BADGES[i], equipo: equipo } );}))
-              , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:14} }, [3,4].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: mesAnt.top[i], badge: BADGES[i], equipo: equipo } );}))
+              , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14,className:"mob-podio3"}, [1,0,2].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: mesAnt.top[i], badge: BADGES[i], equipo: equipo } );}))
+              , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,className:"mob-podio2"}, [3,4].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: mesAnt.top[i], badge: BADGES[i], equipo: equipo } );}))
               , React.createElement('div', { style: {marginTop:16,background:BG,borderRadius:10,padding:"10px 16px",fontSize:12,color:"#9CA3AF",textAlign:"center"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3651}}, "Solo nombres y posicion. Sin cifras de produccion individual."        )
             )
           )
@@ -8732,7 +8782,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                   })
                 , supVista==="uflineales"&&React.createElement(UFLinealesView, { equipo: equipo, info: info })
                 , supVista==="dashboard"&&(
-                  React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 320px",gap:22,alignItems:"start"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3774}}
+                  React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 320px",gap:22,alignItems:"start"},className:"mob-stack"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3774}}
                     , React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3775}}
                     , React.createElement('div', { style: {background:"#fff",borderRadius:18,padding:24,boxShadow:"0 3px 16px rgba(233,7,41,.07)",marginBottom:18}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3776}}
                       , React.createElement('div', { style: {display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3777}}
@@ -8943,7 +8993,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                       )
                       )
                     )
-                    , React.createElement(FunnelConversion, { equipo: equipo, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3814}} )
+                    
                     )
                     , selV?(
                       React.createElement('div', { style: {background:"#fff",borderRadius:18,padding:24,boxShadow:"0 3px 16px rgba(233,7,41,.07)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3817}}
@@ -10011,6 +10061,7 @@ function NuevoCierreForm({ BTN, INP, RD, cierresHoy, setCierresHoy, crmData, TOD
   const [dupWarning, setDupWarning] = React.useState(null);
   const [dupConfirmed, setDupConfirmed] = React.useState(false);
   const [guardado, setGuardado] = React.useState(false);
+  const [showConfirm, setShowConfirm] = React.useState(false);
 
   function buscarDuplicado(nombre) {
     if (!nombre || !crmData || crmData.length === 0) { setDupWarning(null); return; }
@@ -10026,18 +10077,23 @@ function NuevoCierreForm({ BTN, INP, RD, cierresHoy, setCierresHoy, crmData, TOD
   }
 
   function agregar() {
-    // Usar el string exacto del input para evitar error de punto flotante
     var ufStr = String(nc.uf||'').replace(',','.');
     var ufParts = ufStr.split('.');
     var ufExact = parseFloat(ufParts[0] + '.' + (ufParts[1]||'000').substring(0,3));
     const uf = ufExact;
-    if (!uf || uf <= 0) return;
+    if (!uf || uf <= 0) { window.alert("Ingresa un valor de UF válido mayor a 0."); return; }
     if (nc.origen === "isapre" && !nc.isapre) { window.alert("Por favor selecciona la Isapre de origen."); return; }
     if (dupWarning && !dupConfirmed) return;
-    // Guardar inmediatamente
-    if(onGuardar) onGuardar({uf:uf, sexo:nc.sexo, conecta:nc.conecta, origen:nc.origen, isapre:nc.isapre||"", clienteNombre:nc.clienteNombre, canal:nc.canal||"", canalDetalle:nc.canalDetalle||""});
+    // Mostrar popup de confirmación
+    setShowConfirm(true);
+  }
+  function confirmarGuardar() {
+    var ufStr = String(nc.uf||'').replace(',','.');
+    var ufParts = ufStr.split('.');
+    var ufExact = parseFloat(ufParts[0] + '.' + (ufParts[1]||'000').substring(0,3));
+    if(onGuardar) onGuardar({uf:ufExact, sexo:nc.sexo, conecta:nc.conecta, origen:nc.origen, isapre:nc.isapre||"", clienteNombre:nc.clienteNombre, canal:nc.canal||"", canalDetalle:nc.canalDetalle||""});
     setNc({uf:"", sexo:"hombre", conecta:false, origen:"fonasa", isapre:"", clienteNombre:"", canal:"", canalDetalle:""});
-    setDupWarning(null); setDupConfirmed(false);
+    setDupWarning(null); setDupConfirmed(false); setShowConfirm(false);
     setGuardado(true); setTimeout(function(){setGuardado(false);},2000);
   }
   return (
@@ -10071,12 +10127,21 @@ function NuevoCierreForm({ BTN, INP, RD, cierresHoy, setCierresHoy, crmData, TOD
       , dupConfirmed && React.createElement('div', { style: {background:"#F0FDF4",border:"1px solid #86EFAC",borderRadius:10,padding:"8px 12px",marginBottom:8,fontSize:12,color:"#15803D",fontWeight:600} },
         "✅ Confirmado como cliente diferente — puedes agregarlo."
       )
-      , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}
+      , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10},className:"mob-cierre-grid"}
         , React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 4476}}
           , React.createElement('label', { style: {fontSize:11,fontWeight:600,color:"#374151",display:"block",marginBottom:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4477}}, "UF del contrato *"   )
-          , React.createElement('input', { type: "number", step: "0.001", min: "0", value: nc.uf,
-            onChange: function(e){setNc(Object.assign({},nc,{uf:e.target.value}))},
-            style: Object.assign({},INP,{fontSize:20,fontWeight:900,color:RD}), placeholder: "0.00", __self: this, __source: {fileName: _jsxFileName, lineNumber: 4478}} )
+          , React.createElement('input', {
+            type: "text", inputMode: "decimal", value: nc.uf,
+            onChange: function(e){
+              var v=e.target.value.replace(",",".");
+              if(/^\d*\.?\d{0,3}$/.test(v)||v==="") setNc(Object.assign({},nc,{uf:v}));
+            },
+            onBlur: function(e){
+              var v=String(nc.uf||"").replace(",",".");
+              var n=parseFloat(v);
+              if(!isNaN(n)&&n>0) setNc(Object.assign({},nc,{uf:n.toFixed(3)}));
+            },
+            style: Object.assign({},INP,{fontSize:20,fontWeight:900,color:RD}), placeholder: "Ej: 2.996"})
         )
         , React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 4482}}
           , React.createElement('label', { style: {fontSize:11,fontWeight:600,color:"#374151",display:"block",marginBottom:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4483}}, "Sexo titular" )
@@ -10112,7 +10177,7 @@ function NuevoCierreForm({ BTN, INP, RD, cierresHoy, setCierresHoy, crmData, TOD
           , React.createElement('label', { htmlFor: "conecta-chk", style: {fontSize:13,fontWeight:600,color:"#059669",cursor:"pointer"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4500}}, "Plan Conecta" )
         )
       )
-      , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10} }
+      , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10},className:"mob-cierre-grid" }
         , React.createElement('div', null
           , React.createElement('label', { style: {fontSize:11,fontWeight:600,color:"#374151",display:"block",marginBottom:4} }, "Canal de origen" )
           , React.createElement('select', {
@@ -10145,6 +10210,36 @@ function NuevoCierreForm({ BTN, INP, RD, cierresHoy, setCierresHoy, crmData, TOD
       )
       , guardado && React.createElement('div',{style:{background:"#F0FDF4",borderRadius:8,padding:"8px 12px",marginBottom:8,fontSize:12,color:"#16A34A",fontWeight:700}},"✅ ¡Cierre guardado! Ya aparece en tu lista del mes.")
       , React.createElement('button', { onClick: agregar, style: Object.assign({},BTN,{width:"100%",padding:"10px"}) }, "🚀 Subir Cierre Ahora"
+      )
+      , showConfirm && React.createElement('div', {style:{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.6)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}}
+        ,React.createElement('div', {style:{background:"#fff",borderRadius:18,padding:"28px 24px",maxWidth:380,width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,0.35)"}}
+          ,React.createElement('div',{style:{fontSize:15,fontWeight:900,color:"#1F2937",marginBottom:16,textAlign:"center"}},"🔍 Revisa la info antes de confirmar")
+          ,React.createElement('div',{style:{background:"#F8FAFC",borderRadius:12,padding:"14px 16px",marginBottom:18,border:"1.5px solid #E5E7EB"}}
+            ,[
+              ["👤 Cliente",   nc.clienteNombre||"(sin nombre)"],
+              ["💰 UF",        String(nc.uf||"0").replace(",",".") + " UF"],
+              ["🧑 Sexo",      nc.sexo==="hombre"?"👨 Hombre":"👩 Mujer"],
+              ["🏛 Previsión", nc.origen==="fonasa"?"Fonasa":"Isapre "+(nc.isapre||"")],
+              ["💚 Conecta",   nc.conecta?"✅ Sí":"No"],
+              ["📡 Canal",     nc.canal||"—"],
+            ].map(function(r,i){
+              return React.createElement('div',{key:i,style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:i<5?"1px solid #F3F4F6":"none"}}
+                ,React.createElement('span',{style:{fontSize:12,color:"#6B7280",fontWeight:600}},r[0])
+                ,React.createElement('span',{style:{fontSize:13,color:"#1F2937",fontWeight:700}},r[1])
+              );
+            })
+          )
+          ,React.createElement('div',{style:{display:"flex",gap:10}}
+            ,React.createElement('button',{
+              onClick:function(){setShowConfirm(false);},
+              style:{flex:1,padding:"12px",background:"#F3F4F6",color:"#374151",border:"none",borderRadius:10,fontSize:13,cursor:"pointer",fontWeight:700,fontFamily:"inherit"}
+            },"✏️ Corregir")
+            ,React.createElement('button',{
+              onClick:confirmarGuardar,
+              style:{flex:1,padding:"12px",background:"#B4001E",color:"#fff",border:"none",borderRadius:10,fontSize:13,cursor:"pointer",fontWeight:700,fontFamily:"inherit"}
+            },"✅ Confirmar")
+          )
+        )
       )
     )
   );
