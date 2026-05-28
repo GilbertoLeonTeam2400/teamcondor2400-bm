@@ -16,7 +16,7 @@
     input[type=number].no-spin::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
     input[type=number].no-spin{-moz-appearance:textfield;}
     /* TOP10 responsive: columna en celular solo para puestos 4-10, podio se mantiene */
-    @media (max-width: 430px) {
+    @media (max-width: 600px) {
       .top10-fila3 { grid-template-columns: 1fr !important; }
       .top10-fila4 { grid-template-columns: 1fr !important; }
       .top10-fila6 { grid-template-columns: repeat(2,1fr) !important; }
@@ -27,47 +27,9 @@
       .premios-grid { grid-template-columns: 1fr !important; }
       .agv-resumen-grid { grid-template-columns: repeat(3,1fr) !important; }
       .agv-card-wide { grid-column: span 1 !important; }
-      /* Reconocimientos: 2 columnas en celular */
-      .reco-grid { grid-template-columns: repeat(2,1fr) !important; }
-      .reco-card-nombre { font-size: 10px !important; }
-      .reco-fotos { zoom: 0.85; }
       /* Center last 2 cards in a 3-col grid by making them span 1.5 each — use subgrid trick */
       .agv-resumen-grid .agv-card-trend { grid-column: 1 / span 2 !important; }
       .agv-resumen-grid .agv-card-actual { grid-column: 2 / span 2 !important; }
-
-      /* Grids de 3+ columnas → 2 col en móvil */
-      .mob-2col { grid-template-columns: repeat(2,1fr) !important; }
-      /* Grids de 3+ columnas → 1 col en móvil */
-      .mob-1col { grid-template-columns: 1fr !important; }
-      /* Grids de 4 col KPI → 2x2 */
-      .mob-kpi4 { grid-template-columns: repeat(2,1fr) !important; }
-      /* Grids de 6 col → 3x2 */
-      .mob-6col { grid-template-columns: repeat(3,1fr) !important; }
-      /* Tablas anchas: scroll horizontal */
-      .mob-scroll { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
-      /* Layout 1fr 320px → columna */
-      .mob-stack { grid-template-columns: 1fr !important; }
-      /* Formulario cierre: 1 col */
-      .mob-form { grid-template-columns: 1fr !important; }
-      /* Cards de proyección: 1 col */
-      .mob-proy { grid-template-columns: 1fr !important; }
-      /* Ritmo + proyección ejecutivo: 1 col */
-      .mob-ritmo { grid-template-columns: 1fr !important; }
-      /* Top5 podio: 1 col en móvil */
-      .mob-podio3 { grid-template-columns: 1fr !important; }
-      .mob-podio2 { grid-template-columns: 1fr !important; }
-      /* Historial ejecutivo: scroll */
-      .mob-hist-scroll { overflow-x: auto !important; }
-      /* Esconder columnas opcionales en móvil */
-      .mob-hide { display: none !important; }
-      /* Análisis supervisor layout */
-      .mob-analisis { grid-template-columns: 1fr !important; }
-      /* Padding reducido en móvil */
-      .mob-pad { padding: 14px 12px !important; }
-      /* Semanas seguimiento: 1 col */
-      .mob-sems { grid-template-columns: 1fr !important; }
-      /* Cierre form grid */
-      .mob-cierre-grid { grid-template-columns: 1fr !important; }
     }
   #__toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);padding:14px 24px;border-radius:14px;font-size:14px;font-weight:700;display:flex;align-items:center;gap:10px;box-shadow:0 8px 32px rgba(0,0,0,.18);z-index:99999;opacity:0;transition:all .3s ease;pointer-events:none;max-width:400px;}
   #__toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
@@ -2531,7 +2493,7 @@ function ClasificacionAGVView({ equipo, info, R, RD }) {
       , React.createElement('div', { style:{fontSize:19,fontWeight:900,color:RD,marginBottom:4} }, "📊 Clasificación AGV por Resultados")
       , React.createElement('div', { style:{fontSize:13,color:"#6B7280",marginBottom:16} }, "Basado en el promedio de UF de los últimos 3 meses. El mes actual se muestra como referencia.")
       // Resumen rápido
-      , React.createElement('div', { style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:20}}
+      , React.createElement('div', { style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:20} }
         , GRUPOS.map(function(g){
             return React.createElement('div', { key:g.key, style:{background:g.bg,border:"1px solid "+g.border,borderRadius:12,padding:"14px 18px",textAlign:"center"} }
               , React.createElement('div', { style:{fontSize:28,fontWeight:900,color:g.color} }, g.lista.length)
@@ -3071,7 +3033,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
       // pctF=Mujer, pctM=Hombre (correcto)
       pctF=totSexReps>0?Math.round((totMu/totSexReps)*100):0;
       pctM=totSexReps>0?Math.round((totH/totSexReps)*100):0;
-      // Conecta: SOLO desde Excel del supervisor (historial). Los rep[] no alimentan este campo.
+      // Conecta: SOLO desde Excel del supervisor
       conecta = parseInt(h.conecta)||0;
     } else {
       pctF=parseInt(h.pctF)||0;
@@ -3497,19 +3459,7 @@ function PlanEjecutivoView({ v, info, R, RD }) {
   var accionesCustom = plan.accionesCustom||[];
   var accionesChecked = plan.acciones||[];
   var semanasAcciones = plan.semanasAcciones||{};
-  var freqSemana = plan.freqSemana||{};
   var calendario = plan.calendario||[];
-
-  function setFreqAccion(accKey, freq) {
-    var nf=Object.assign({},freqSemana); nf[accKey]=freq;
-    savePlanField({freqSemana:nf});
-  }
-  function removeAccionCustom(accTxt) {
-    if(!window.confirm("¿Eliminar la acción '"+accTxt+"'? Se perderá su seguimiento semanal.")) return;
-    var nuevasCustom=(plan.accionesCustom||[]).filter(function(a){return (a.txt||a)!==accTxt;});
-    var nuevasSems=JSON.parse(JSON.stringify(semanasAcciones)); delete nuevasSems[accTxt];
-    savePlanField({accionesCustom:nuevasCustom,semanasAcciones:nuevasSems});
-  }
 
   // Progreso total
   var totAcc = accionesBase.length + accionesCustom.length;
@@ -3522,14 +3472,7 @@ function PlanEjecutivoView({ v, info, R, RD }) {
   var totalSemMarcadas=0, totalSemPosibles=0;
   accionesBase.forEach(function(acc){
     var sems=semanasAcciones[acc]||{};
-    var fq=freqSemana[acc]||5;
-    var ec2={"completado":"#16A34A","incompleto":"#D97706","sin_avance":"#DC2626"};
-    for(var s=1;s<=4;s++){
-      totalSemPosibles++;
-      var sd=sems[s]; var diasObj2=typeof sd==="object"&&sd!==null?sd:(sd?{L:"completado",M:"completado",X:"completado",J:"completado",V:"completado"}:{});
-      var comp2=0; ["L","M","X","J","V"].forEach(function(d){if(diasObj2[d]==="completado")comp2++;});
-      if(comp2>=fq) totalSemMarcadas++;
-    }
+    for(var s=1;s<=4;s++){totalSemPosibles++;if(sems[s])totalSemMarcadas++;}
   });
   var consistencia = totalSemPosibles>0?Math.round((totalSemMarcadas/totalSemPosibles)*100):0;
 
@@ -3583,28 +3526,6 @@ function PlanEjecutivoView({ v, info, R, RD }) {
   function removeActividad(idx) { var nc=calendario.filter(function(_,i){return i!==idx;}); savePlanField({calendario:nc}); }
   function setEstadoActividad(idx, estado) {
     var nc=calendario.map(function(c,i){return i===idx?Object.assign({},c,{estado:estado,done:estado==="completada"}):c;});
-    // ── Sincronía: marcar día en seguimiento semanal ──
-    var act=calendario[idx];
-    if(act&&act.fecha&&act.txt) {
-      var accKey=act.txt;
-      // Calcular semana del mes (1-4) y día de la semana
-      var partes=act.fecha.split("-");
-      var diaNum=parseInt(partes[2]);
-      var diaSem=new Date(act.fecha+"T12:00:00").getDay(); // 0=dom,1=lun...
-      var diasMap={1:"L",2:"M",3:"X",4:"J",5:"V"};
-      var letraDia=diasMap[diaSem];
-      var semNum=Math.min(4,Math.ceil(diaNum/7));
-      if(letraDia) {
-        var nuevasSems=JSON.parse(JSON.stringify(semanasAcciones));
-        if(!nuevasSems[accKey]) nuevasSems[accKey]={};
-        if(typeof nuevasSems[accKey][semNum]!=="object"||nuevasSems[accKey][semNum]===null)
-          nuevasSems[accKey][semNum]={};
-        if(estado) nuevasSems[accKey][semNum][letraDia]=estado==="completada"?"completado":estado==="incompleto"?"incompleto":"sin_avance";
-        else delete nuevasSems[accKey][semNum][letraDia];
-        savePlanField({calendario:nc,semanasAcciones:nuevasSems});
-        return;
-      }
-    }
     savePlanField({calendario:nc});
   }
   function setNotaActividad(idx, nota) {
@@ -3651,8 +3572,7 @@ function PlanEjecutivoView({ v, info, R, RD }) {
               var comp=0,inc=0,sv=0;
               diasSem.forEach(function(d){var e=diasObj[d];if(e==="completado")comp++;else if(e==="incompleto")inc++;else if(e==="sin_avance")sv++;});
               var marcados=comp+inc+sv;
-              var _freqH=freqSemana[accKey]||5;
-              var estadoSem=marcados===0?null:(comp>=_freqH?"completado":comp+inc>=_freqH?"incompleto":"sin_avance");
+              var estadoSem=marcados===0?null:(comp>=4?"completado":comp+inc>=3?"incompleto":"sin_avance");
               var semColor=estadoSem?estadoColor[estadoSem]:"#E5E7EB";
               var semLabel=estadoSem?estadoLabel[estadoSem]:"S"+s;
               return React.createElement("div",{key:s,
@@ -3665,23 +3585,10 @@ function PlanEjecutivoView({ v, info, R, RD }) {
               },semLabel);
             })
         )
-        // Editar / expandir / frecuencia / eliminar
-        ,!editando&&React.createElement("div",{style:{display:"flex",gap:4,flexShrink:0,alignItems:"center"}}
-          ,React.createElement("select",{
-            value:freqSemana[accKey]||5,
-            onChange:function(e){setFreqAccion(accKey,parseInt(e.target.value));},
-            title:"Días por semana necesarios para cumplir",
-            style:{fontSize:9,borderRadius:5,border:"1px solid #D1D5DB",padding:"1px 3px",fontFamily:"inherit",color:"#6B7280",background:"#F9FAFB",cursor:"pointer"}
-          }
-            ,React.createElement("option",{value:1},"1d/sem")
-            ,React.createElement("option",{value:2},"2d/sem")
-            ,React.createElement("option",{value:3},"3d/sem")
-            ,React.createElement("option",{value:4},"4d/sem")
-            ,React.createElement("option",{value:5},"5d/sem")
-          )
-          ,React.createElement("button",{onClick:function(){setEditandoAccion(accKey);setEditAccionTxt(accKey);},style:{background:"none",border:"none",cursor:"pointer",fontSize:12,color:"#9CA3AF",padding:"0 3px"},title:"Editar nombre"},"✏️")
+        // Editar / expandir
+        ,!editando&&React.createElement("div",{style:{display:"flex",gap:4,flexShrink:0}}
+          ,React.createElement("button",{onClick:function(){setEditandoAccion(accKey);setEditAccionTxt(accKey);},style:{background:"none",border:"none",cursor:"pointer",fontSize:12,color:"#9CA3AF",padding:"0 3px"}},"✏️")
           ,React.createElement("button",{onClick:function(){setAccionExpandida(abierto?null:accKey);},style:{background:"none",border:"none",cursor:"pointer",fontSize:12,color:"#9CA3AF",padding:"0 3px"}},abierto?"▲":"▼")
-          ,React.createElement("button",{onClick:function(){isCustom?removeAccionCustom(accKey):removeAccionBase(accKey);},style:{background:"none",border:"none",cursor:"pointer",fontSize:11,color:"#FCA5A5",padding:"0 3px"},title:"Eliminar acción"},"🗑️")
         )
       )
       // Panel semanal expandido
@@ -3699,8 +3606,7 @@ function PlanEjecutivoView({ v, info, R, RD }) {
               var _comp2=0,_inc2=0,_sv2=0;
               ["L","M","X","J","V"].forEach(function(d){var e=_diasObj2[d];if(e==="completado")_comp2++;else if(e==="incompleto")_inc2++;else if(e==="sin_avance")_sv2++;});
               var _marc2=_comp2+_inc2+_sv2;
-              var _freq2=freqSemana[accKey]||5;
-              var _estSem2=_marc2===0?null:(_comp2>=_freq2?"completado":_comp2+_inc2>=_freq2?"incompleto":"sin_avance");
+              var _estSem2=_marc2===0?null:(_comp2>=4?"completado":_comp2+_inc2>=3?"incompleto":"sin_avance");
               var _colSem2=_estSem2?_ec[_estSem2]:"#E5E7EB";
               return React.createElement("div",{key:sem,style:{background:_estSem2==="completado"?"#DCFCE7":_estSem2==="incompleto"?"#FFFBEB":_estSem2==="sin_avance"?"#FFF1F2":"#fff",borderRadius:10,padding:"10px 12px",border:"1.5px solid "+(_estSem2?_colSem2:"#E5E7EB")}}
                 // Semana header con estado automático
@@ -4151,7 +4057,7 @@ function PlanAGVView({ equipo, info, R, RD }) {
   return React.createElement("div",{style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(233,7,41,.09)"}}
     ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:RD,marginBottom:4}},"📋 Plan de Trabajo AGV")
     ,React.createElement("div",{style:{fontSize:12,color:"#6B7280",marginBottom:20}},"Diagnóstico automático + plan editable por ejecutivo. Se guarda en Firebase automáticamente.")
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16}}
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}}
       ,Object.keys(GC).map(function(g){ var gc=GC[g]; var comps=ejecutivos.filter(function(v){return v.diag.nivel===g&&getPlan(v.id).estado==="comprometido";}).length; return React.createElement("div",{key:g,onClick:function(){setGrupFiltro(grupFiltro===g?"todos":g);},style:{background:grupFiltro===g?gc.bg:"#F8FAFC",borderRadius:12,padding:"14px",textAlign:"center",cursor:"pointer",border:"2px solid "+(grupFiltro===g?gc.border:"#E5E7EB")}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:gc.color}},totGrupo[g]) ,React.createElement("div",{style:{fontSize:11,fontWeight:700,color:gc.color}},gc.label) ,React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",marginTop:2}},comps+" comprometidos")); })
     )
     ,React.createElement("div",{style:{fontSize:11,color:"#6B7280",marginBottom:12}},"Mostrando: "+(grupFiltro==="todos"?"todos ("+filtrados.length+" ejecutivos)":(GC[grupFiltro].label+" ("+filtrados.length+" ejecutivos)")))
@@ -4915,21 +4821,16 @@ function PredictorView({ equipo, info, R, RD, metaUFSafe }) {
   var ritmoHabil = diasHabilesTranscurridos>0 ? parseFloat((totUF/diasHabilesTranscurridos).toFixed(2)) : 0;
   var ritmoNecesarioHabil = diasHabilesRestantes>0 ? parseFloat((faltaMeta/diasHabilesRestantes).toFixed(2)) : 0;
 
-  // Detectar semana 4 — usar lunes real de la última semana del mes
-  var _lunesS4 = new Date(hoy.getFullYear(), hoy.getMonth(), diasMes);
-  while(_lunesS4.getDay() !== 1) { _lunesS4.setDate(_lunesS4.getDate() - 1); }
-  // El lunes de la semana 4 es el lunes de la última semana completa del mes
-  var _inicioS4 = new Date(_lunesS4.getFullYear(), _lunesS4.getMonth(), _lunesS4.getDate() - 6);
-  while(_inicioS4.getDay() !== 1) { _inicioS4.setDate(_inicioS4.getDate() + 1); }
-  var _hoyMid = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 0, 1, 0);
-  var esSemana4P = _hoyMid >= _inicioS4;
+  // Detectar semana 4 — en semana 4 congelar proyecciones
+  var semEnCursoP = diaHoy <= 7 ? 1 : diaHoy <= 14 ? 2 : diaHoy <= 21 ? 3 : 4;
+  var esSemana4P = semEnCursoP >= 4;
   var diasRestantesProyeccion = esSemana4P ? 0 : diasRestantes;
   var diasHabilesRestantesProyeccion = esSemana4P ? 0 : diasHabilesRestantes;
 
   // Base congelada al inicio de semana 4 — usada por las 3 cards
   var ufBaseEquipoKey = "UFB_EQUIPO_" + (hoy.getFullYear()) + "_" + String(hoy.getMonth()+1).padStart(2,"0");
   var ufBaseEquipoGuardada = parseFloat(localStorage.getItem(ufBaseEquipoKey)||"0");
-  var ufBaseS4; // UF del equipo el lunes de S4 — base congelada
+  var ufBaseS4;
   if(esSemana4P) {
     if(!ufBaseEquipoGuardada || ufBaseEquipoGuardada <= 0) {
       ufBaseS4 = totUF;
@@ -4942,9 +4843,7 @@ function PredictorView({ equipo, info, R, RD, metaUFSafe }) {
     try { localStorage.removeItem(ufBaseEquipoKey); } catch(e) {}
   }
 
-  // Proyecciones:
-  // Semanas 1-3: cálculo normal con ritmo y días restantes
-  // Semana 4: base congelada del lunes × factor (ya no sigue subiendo)
+  // Proyecciones: S1-S3 normal, S4 base congelada × factor
   var proyConservador, proyOptimista, proyExtremo;
   if(esSemana4P) {
     proyConservador = parseFloat((ufBaseS4 * 1.30).toFixed(2));
@@ -5995,7 +5894,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
   const [supGrupo, setSupGrupo] = useState("dashboard");
   // Map group -> sub-tabs
   const SUP_GRUPOS = {
-    dashboard: [["dashboard","📊 Dashboard"],["calEjec","📅 Calendario Ejecutivos"]],
+    dashboard: [["dashboard","📊 Dashboard"]],
     equipo:    [["gestion","👥 Gestionar Equipo"]],
     metas:     [["meta","🎯 Meta del Equipo"]],
     contenido: [["gestPremios","🏆 Gestionar Premios"],["gestDocs","📂 Gestionar Docs"]],
@@ -6637,7 +6536,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
         @keyframes pulse  { 0%,100% { opacity:1; } 50% { opacity:.4; } }
 
         /* ── MOBILE (≤640px) ── */
-        @media (max-width:430px) {
+        @media (max-width:640px) {
           .grid-kpi        { grid-template-columns: 1fr 1fr !important; }
           .grid-sup        { grid-template-columns: 1fr !important; }
           .hide-mobile     { display:none !important; }
@@ -6696,22 +6595,6 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
           .header-inner { padding:12px 12px 0 !important; }
           .header-title { font-size:16px !important; }
           .header-logo { width:52px !important; height:44px !important; }
-
-          /* Grids responsive móvil */
-          .mob-2col { grid-template-columns: repeat(2,1fr) !important; }
-          .mob-1col { grid-template-columns: 1fr !important; }
-          .mob-kpi4 { grid-template-columns: repeat(2,1fr) !important; }
-          .mob-6col { grid-template-columns: repeat(3,1fr) !important; }
-          .mob-scroll { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
-          .mob-stack { grid-template-columns: 1fr !important; }
-          .mob-form { grid-template-columns: 1fr !important; }
-          .mob-proy { grid-template-columns: 1fr !important; }
-          .mob-ritmo { grid-template-columns: 1fr !important; }
-          .mob-podio3 { grid-template-columns: 1fr !important; }
-          .mob-podio2 { grid-template-columns: 1fr !important; }
-          .mob-sems { grid-template-columns: 1fr !important; }
-          .mob-cierre-grid { grid-template-columns: 1fr !important; }
-          .mob-analisis { grid-template-columns: 1fr !important; }
         }
 
         /* ── DESKTOP (≥641px) ── */
@@ -6995,7 +6878,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
               /* ── Logros del día + Distribución integrados en el tablero ── */
               , React.createElement('div', { style: {borderTop:"1px solid rgba(255,255,255,.12)",margin:"0 22px",padding:"18px 0 0"} }
                 /* Título sección */
-                , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}
+                , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14} }
                   /* UF HOY */
                   , React.createElement('div', { style: {background:"rgba(255,255,255,.07)",borderRadius:14,padding:"14px 16px",border:"1px solid rgba(201,168,76,.2)"} }
                     , React.createElement('div', { style: {fontSize:9,color:"rgba(201,168,76,.6)",textTransform:"uppercase",letterSpacing:"0.18em",marginBottom:4,fontWeight:700} }, "UF Cerradas Hoy")
@@ -7046,7 +6929,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                     var totNBenef = equipoValido.reduce(function(s,v){var h=(v.historial||{})[info.mesKey];return s+(h?parseInt(h.nBenef)||0:0);},0);
                     var totCDig   = equipoValido.reduce(function(s,v){var h=(v.historial||{})[info.mesKey];return s+(h?parseInt(h.cttosDig)||0:0);},0);
                     if(totNBenef===0&&totCDig===0) return null;
-                    return React.createElement('div', { style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}
+                    return React.createElement('div', { style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10} }
                       , React.createElement('div', { style:{background:"rgba(8,145,178,.18)",borderRadius:12,padding:"12px 10px",textAlign:"center",border:"1px solid rgba(8,145,178,.35)"} }
                         , React.createElement('div', { style:{fontSize:9,color:"rgba(103,232,249,.8)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:4,fontWeight:700} }, "👥 N° Beneficiarios")
                         , React.createElement('div', { style:{fontSize:"clamp(22px,5vw,32px)",fontWeight:900,lineHeight:1,color:"#67E8F9"} }, totNBenef)
@@ -7064,7 +6947,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                     );
                   })()
                 /* Distribución H/M/Conecta */
-                , React.createElement('div', { className:"form-grid", style: {display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",gap:10,marginBottom:18} }
+                , React.createElement('div', { className:"form-grid", style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:18} }
                   , React.createElement('div', { style: {background:"rgba(29,78,216,.25)",borderRadius:12,padding:"12px 10px",textAlign:"center",border:"1px solid rgba(59,130,246,.3)"} }
                     , React.createElement('div', { style: {fontSize:9,color:"rgba(147,197,253,.8)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:4,fontWeight:700} }, "Titulares Hombre")
                     , React.createElement('div', { style: {fontSize:"clamp(22px,5vw,32px)",fontWeight:900,lineHeight:1,color:"#93C5FD"} }, pctH+"%")
@@ -7155,7 +7038,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                   // ── Fila 4-6 (3 centrados) + Fila 7-10 (4 como base) + Fila 11+ (6 por fila) ──
                   , resto.length > 0 && React.createElement('div', { style: {borderTop:"1px solid rgba(201,168,76,.15)",paddingTop:18} }
                     // Fila 4-6: 3 centrados en PC / columna en celular
-                    , React.createElement('div', { className:"top10-fila3", style: {display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:"8px 12px",marginBottom:10,maxWidth:860,margin:"0 auto 10px"} }
+                    , React.createElement('div', { className:"top10-fila3", style: {display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"8px 12px",marginBottom:10,maxWidth:860,margin:"0 auto 10px"} }
                       , resto.slice(0,3).map(function(v, i) {
                           var initials = getInitials(v.nombre);
                           var primerNombre = v.nombre.split(' ')[0];
@@ -7175,7 +7058,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                         })
                     )
                     // Fila 7-10: 4 como base
-                    , React.createElement('div', { className:"top10-fila4", style: {display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:"8px 12px",maxWidth:860,margin:"0 auto 10px"} }
+                    , React.createElement('div', { className:"top10-fila4", style: {display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"8px 12px",maxWidth:860,margin:"0 auto 10px"} }
                       , resto.slice(3,7).map(function(v, i) {
                           var initials = getInitials(v.nombre);
                           var primerNombre = v.nombre.split(' ')[0];
@@ -7196,7 +7079,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                     )
                     // Fila 11+: 6 por fila, mismo estilo que fila 7-10 pero más compacto para que quepan
                     , resto.length > 7 && React.createElement('div', { style: {borderTop:"1px solid rgba(201,168,76,.08)",paddingTop:10,marginTop:4} }
-                      , React.createElement('div', { className:"top10-fila6", style: {display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(100px,1fr))",gap:"8px 10px"} }
+                      , React.createElement('div', { className:"top10-fila6", style: {display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:"8px 10px"} }
                         , resto.slice(7).map(function(v, i) {
                             var initials = getInitials(v.nombre);
                             var primerNombre = v.nombre.split(' ')[0];
@@ -7313,7 +7196,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                   React.createElement('div', { style: {fontSize:13,color:"rgba(255,255,255,.75)",marginTop:6} }, "Banmédica")
                 ),
 
-                React.createElement('div', { className:"desktop-craks-grid", style: {display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:6,marginBottom:20} },
+                React.createElement('div', { className:"desktop-craks-grid", style: {display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,marginBottom:20} },
                   TEAM_MEMBERS.map(function(m, idx) {
                     var fotoUrl = m.fotoUrl || null;
                     var initials = getInitials(m.nombre);
@@ -7372,48 +7255,9 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                   var deberiaLlevar = parseFloat((metaPersonal * proporcion).toFixed(2));
                   var diferencia = parseFloat((ufPersonal - deberiaLlevar).toFixed(2));
                   var adelante = diferencia >= 0;
-                  // Proyección al cierre — congelada al ritmo del lunes S4
-                  // Calcular lunes inicio semana 4 del mes
-                  var _hoy4 = new Date();
-                  var _anio4 = _hoy4.getFullYear(), _mes4 = _hoy4.getMonth();
-                  var _diasMes4 = new Date(_anio4, _mes4+1, 0).getDate();
-                  // Buscar el lunes de la última semana del mes
-                  var _ls4 = new Date(_anio4, _mes4, _diasMes4);
-                  while(_ls4.getDay()!==1) _ls4.setDate(_ls4.getDate()-1);
-                  // Si ese lunes es la última semana (≥ día 22), es el inicio S4
-                  var _inicioS4Ejec = new Date(_anio4, _mes4, _ls4.getDate()-6 < 1 ? 1 : _ls4.getDate()-6);
-                  while(_inicioS4Ejec.getDay()!==1) _inicioS4Ejec.setDate(_inicioS4Ejec.getDate()+1);
-                  var _esSem4Ejec = _hoy4 >= _inicioS4Ejec;
-                  var _diaInicioS4 = _inicioS4Ejec.getDate();
-
-                  // Guardar/recuperar UF base del ejecutivo al inicio S4
-                  var _ufBaseKey = "UFB_EJEC_" + (vEjec ? vEjec.id : "x") + "_" + _anio4 + "_" + String(_mes4+1).padStart(2,"0");
-                  var _ufBaseGuardada = parseFloat(localStorage.getItem(_ufBaseKey)||"0");
-                  var _ufBase;
-                  if(_esSem4Ejec) {
-                    if(!_ufBaseGuardada || _ufBaseGuardada <= 0) {
-                      // Primera vez en S4: guardar UF actuales como base
-                      _ufBase = ufPersonal;
-                      try { localStorage.setItem(_ufBaseKey, String(ufPersonal)); } catch(e){}
-                    } else {
-                      _ufBase = _ufBaseGuardada;
-                    }
-                  } else {
-                    _ufBase = ufPersonal;
-                    // Limpiar base si se reinicia antes de S4
-                    try { localStorage.removeItem(_ufBaseKey); } catch(e){}
-                  }
-
-                  // Proyección: 
-                  // - Semanas 1-3: ritmo normal (UF actuales / días transcurridos × días del mes)
-                  // - Semana 4: foto del lunes S4 × 2 (efecto última semana histórico)
+                  // Proyección al cierre
                   var ritmo = diaHoy > 0 ? ufPersonal / diaHoy : 0;
-                  var proyFin;
-                  if(_esSem4Ejec) {
-                    proyFin = parseFloat((_ufBase * 2).toFixed(2));
-                  } else {
-                    proyFin = parseFloat((ritmo * diasMes).toFixed(2));
-                  }
+                  var proyFin = parseFloat((ritmo * diasMes).toFixed(2));
                   var llegaMeta = proyFin >= metaPersonal;
                   return React.createElement('div', null
                     // Fila principal: UF + barra
@@ -8220,8 +8064,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
               , React.createElement('div', { style: {fontSize:13,color:"#6B7280",marginBottom:18}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3608}}, "Se actualiza con cada reporte. Ranking por UF brutas acumuladas del mes."           )
               , top5.length===0?(React.createElement('div', { style: {textAlign:"center",padding:"40px",color:"#9CA3AF"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3609}}, React.createElement('div', { style: {fontSize:15,fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3609}}, "Sin reportes este mes aun."    ))):(
                 React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3610}}
-                  , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14}}, [1,0,2].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: top5[i], badge: BADGES[i], equipo: equipo } );}))
-                  , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}, [3,4].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: top5[i], badge: BADGES[i], equipo: equipo } );}))
+                  , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14} }, [1,0,2].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: top5[i], badge: BADGES[i], equipo: equipo } );}))
+                  , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:14} }, [3,4].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: top5[i], badge: BADGES[i], equipo: equipo } );}))
                 )
               )
               , recoNombre && (
@@ -8259,8 +8103,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                   , acceso&&React.createElement('button', { onClick: function(){setDraft({label:mesAnt.label,top:mesAnt.top.map(function(t){return Object.assign({},t);})});setEditMes(true);}, style: {background:BG,color:R,border:"1.5px solid "+R,borderRadius:10,padding:"7px 14px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3646}}, "Editar")
                 )
               )
-              , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14}}, [1,0,2].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: mesAnt.top[i], badge: BADGES[i], equipo: equipo } );}))
-              , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}, [3,4].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: mesAnt.top[i], badge: BADGES[i], equipo: equipo } );}))
+              , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14} }, [1,0,2].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: mesAnt.top[i], badge: BADGES[i], equipo: equipo } );}))
+              , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:14} }, [3,4].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: mesAnt.top[i], badge: BADGES[i], equipo: equipo } );}))
               , React.createElement('div', { style: {marginTop:16,background:BG,borderRadius:10,padding:"10px 16px",fontSize:12,color:"#9CA3AF",textAlign:"center"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3651}}, "Solo nombres y posicion. Sin cifras de produccion individual."        )
             )
           )
@@ -8696,76 +8540,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                 , supVista==="correlacion" && React.createElement(CorrelacionView, { equipo:equipo, info:info, R:R, RD:RD })
                 , supVista==="alertas" && React.createElement(AlertasView, { equipo:equipo, info:info, R:R, RD:RD })
                 , supVista==="planagv" && React.createElement(PlanAGVView, { equipo:equipo, info:info, R:R, RD:RD })
-                , supVista==="calEjec"&&(
-                  React.createElement('div', { style: {background:"#fff",borderRadius:18,padding:26,boxShadow:"0 3px 16px rgba(233,7,41,.07)"} }
-                    , React.createElement('div', { style: {fontSize:19,fontWeight:900,color:RD,marginBottom:4} }, "📅 Calendario Ejecutivos")
-                    , React.createElement('div', { style: {fontSize:13,color:"#6B7280",marginBottom:20} }, "Eventos manuales registrados por cada ejecutivo este mes.")
-                    , (function(){
-                        var hoy3 = new Date();
-                        var anioC = hoy3.getFullYear();
-                        var mesC  = hoy3.getMonth();
-                        var mesKeyC = anioC+"-"+String(mesC+1).padStart(2,"0");
-                        var TIPOS_SUP = {
-                          llamada:    {l:"📞 Llamada",     col:"#2563EB"},
-                          cotizacion: {l:"📋 Cotización",  col:"#D97706"},
-                          cierre:     {l:"🟢 Cierre",      col:"#16A34A"},
-                          seguimiento:{l:"🔴 Seguimiento", col:"#DC2626"},
-                          visita:     {l:"🚶 Terreno",     col:"#7C3AED"},
-                          reunion:    {l:"📅 Reunión",     col:"#0891B2"},
-                        };
-                        // Leer calendarios de todos los ejecutivos desde localStorage
-                        var todosPorDia = {}; // dia -> [{ejecutivo, tipo, desc}]
-                        equipo.forEach(function(v){
-                          var calK = "cal_"+v.id+"_"+mesKeyC;
-                          var evs = [];
-                          try { evs = JSON.parse(localStorage.getItem(calK)||"[]"); } catch(e){}
-                          evs.forEach(function(ev){
-                            var dia = String(ev.dia);
-                            if (!todosPorDia[dia]) todosPorDia[dia] = [];
-                            todosPorDia[dia].push({ejecutivo:v.nombre, tipo:ev.tipo, desc:ev.desc, id:ev.id, vid:v.id});
-                          });
-                        });
-                        var diasConEventos = Object.keys(todosPorDia).sort(function(a,b){return parseInt(a)-parseInt(b);});
-                        if (diasConEventos.length === 0) {
-                          return React.createElement('div', { style: {textAlign:"center",padding:"40px 0",color:"#9CA3AF"} }
-                            , React.createElement('div', { style: {fontSize:32,marginBottom:12} }, "📅")
-                            , React.createElement('div', { style: {fontSize:15,fontWeight:700} }, "Sin eventos registrados este mes")
-                            , React.createElement('div', { style: {fontSize:13,marginTop:6} }, "Los ejecutivos aún no han agregado eventos en su Calendario.")
-                          );
-                        }
-                        var mesLabel = new Date(anioC,mesC,1).toLocaleString("es-CL",{month:"long",year:"numeric"}).replace(/^./,function(c){return c.toUpperCase();});
-                        return React.createElement('div', null
-                          , React.createElement('div', { style: {fontSize:14,fontWeight:700,color:RD,marginBottom:14} }, mesLabel)
-                          , diasConEventos.map(function(dia){
-                              return React.createElement('div', { key: dia, style: {marginBottom:16} }
-                                , React.createElement('div', { style: {fontSize:12,fontWeight:700,color:"#9CA3AF",marginBottom:6,display:"flex",alignItems:"center",gap:8} }
-                                  , React.createElement('div', { style: {background:"#F3F4F6",borderRadius:8,padding:"3px 10px",fontWeight:900,color:"#374151"} }, "Día "+dia)
-                                  , React.createElement('div', { style: {flex:1,height:1,background:"#F3F4F6"} })
-                                )
-                                , todosPorDia[dia].map(function(ev,ei){
-                                    var t = TIPOS_SUP[ev.tipo]||{l:"Evento",col:"#6B7280"};
-                                    var initials = ev.ejecutivo ? ev.ejecutivo.split(' ').slice(0,2).map(function(p){return p[0];}).join('') : '?';
-                                    var vData = equipo.find(function(e){return e.id===ev.vid;});
-                                    return React.createElement('div', { key: ei, style: {display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:10,border:"1px solid #F3F4F6",marginBottom:6,borderLeft:"4px solid "+t.col} }
-                                      , React.createElement('div', { style: {width:32,height:32,borderRadius:"50%",overflow:"hidden",flexShrink:0,border:"1.5px solid "+t.col,background:vData&&vData.fotoUrl?"#000":"rgba(0,0,0,.05)",display:"flex",alignItems:"center",justifyContent:"center"} }
-                                        , vData && vData.fotoUrl
-                                          ? React.createElement('img', { src: vData.fotoUrl, style: {width:"100%",height:"100%",objectFit:"cover"} })
-                                          : React.createElement('span', { style: {fontSize:11,fontWeight:900,color:t.col} }, initials)
-                                      )
-                                      , React.createElement('div', { style: {flex:1,minWidth:0} }
-                                        , React.createElement('div', { style: {fontSize:12,fontWeight:800,color:"#374151",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"} }, ev.desc)
-                                        , React.createElement('div', { style: {fontSize:11,color:t.col,fontWeight:600,marginTop:1} }
-                                          , t.l+" · "+ev.ejecutivo.split(' ')[0]+" "+(ev.ejecutivo.split(' ')[1]||"")
-                                        )
-                                      )
-                                    );
-                                  })
-                              );
-                            })
-                        );
-                      })()
-                  )
-                )
+                
                 , supVista==="gestPremios" && React.createElement(GestPremiosView, {
                     premiosImgs: premiosImgs, setPremiosImgs: setPremiosImgs,
                     info: info, R: R, RD: RD,
@@ -9318,34 +9093,27 @@ function ReconocidosEspeciales({ equipo, info, RD, R }) {
   function Card(cat){
     var ganadores = cat.ganadores || [{nombre:cat.nombre, fotoUrl:(equipo.find(function(e){return e.nombre===cat.nombre;})||{}).fotoUrl||null}];
     var esEmpate = ganadores.length > 1;
-    // Fotos superpuestas
     var fotoSize = ganadores.length===1 ? 56 : ganadores.length===2 ? 46 : 38;
     var overlap = ganadores.length===1 ? 0 : -12;
-    var fotosEl = React.createElement("div",{className:"reco-fotos",style:{display:"flex",justifyContent:"center",alignItems:"center",marginBottom:8,minHeight:fotoSize,flexWrap:"nowrap",overflow:"visible"}}
+    var fotosEl = React.createElement("div",{style:{display:"flex",justifyContent:"center",alignItems:"center",marginBottom:8,minHeight:fotoSize,flexWrap:"nowrap",overflow:"visible"}}
       ,ganadores.map(function(g,gi){
         var ini=(g.nombre||"").split(" ").filter(Boolean).slice(-2).map(function(w){return (w||"")[0]||"";}).join("");
         return React.createElement("div",{key:gi,style:{
           width:fotoSize,height:fotoSize,borderRadius:"50%",overflow:"hidden",
-          border:"2.5px solid "+cat.brd,
-          marginLeft:gi===0?0:overlap,
+          border:"2.5px solid "+cat.brd,marginLeft:gi===0?0:overlap,
           background:g.fotoUrl?"#000":"rgba(255,255,255,.6)",
           display:"flex",alignItems:"center",justifyContent:"center",
-          flexShrink:0,zIndex:ganadores.length-gi,position:"relative"
-        }}
+          flexShrink:0,zIndex:ganadores.length-gi,position:"relative"}}
           ,g.fotoUrl
             ?React.createElement("img",{src:g.fotoUrl,style:{width:"100%",height:"100%",objectFit:"cover"}})
             :React.createElement("span",{style:{fontSize:fotoSize>46?14:11,fontWeight:900,color:cat.color}},ini)
         );
       })
     );
-    // Nombres
-    var nombresEl = React.createElement("div",{className:"reco-card-nombre",style:{fontSize:esEmpate?11:13,fontWeight:900,color:"#1F2937",lineHeight:1.3,wordBreak:"break-word"}}
-      ,ganadores.map(function(g){return g.nombre.split(" ")[0];}).join(" y ")
-    );
     return React.createElement("div",{key:cat.label,style:{background:cat.bg,borderRadius:14,padding:"14px 10px",textAlign:"center",border:"2px solid "+cat.brd}}
       ,fotosEl
       ,React.createElement("div",{style:{fontSize:8,fontWeight:900,color:cat.color,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:5,lineHeight:1.3}},cat.label)
-      ,nombresEl
+      ,React.createElement("div",{style:{fontSize:esEmpate?11:13,fontWeight:900,color:"#1F2937",lineHeight:1.3,wordBreak:"break-word"}},ganadores.map(function(g){return g.nombre.split(" ")[0];}).join(" y "))
       ,esEmpate&&React.createElement("div",{style:{fontSize:9,color:cat.color,fontWeight:700,marginTop:3,opacity:0.8}},"🤝 Empate")
     );
   }
@@ -9364,7 +9132,7 @@ function ReconocidosEspeciales({ equipo, info, RD, R }) {
         ,React.createElement("div",{style:{flex:1,height:1,background:"#F3F4F6"}})
         ,React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",fontWeight:700}},mL.toUpperCase())
       )
-      ,React.createElement("div",{className:"reco-grid",style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}},cM.map(Card))
+      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:10}},cM.map(Card))
     )
   );
 }
@@ -9963,7 +9731,7 @@ function EditarDatosView({ equipo, setEquipo, info, _initSubVista }) {
           /* Vista previa */
           , React.createElement('div', { style: {background:"#F8FAFC",borderRadius:12,padding:"14px 16px",border:"1px solid #E5E7EB",marginBottom:16}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4373}}
             , React.createElement('div', { style: {fontSize:12,fontWeight:700,color:RD,marginBottom:8}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4374}}, "Vista previa" )
-            , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4375}}
+            , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4375}}
               , [
                 {l:"UF",     v:fmtUF(parseFloat(localUF)), c:"#D97706"},
                 {l:"% Meta", v:pctMeta+"%",                     c:pctMeta>=100?"#16A34A":"#DC2626"},
@@ -10065,7 +9833,6 @@ function NuevoCierreForm({ BTN, INP, RD, cierresHoy, setCierresHoy, crmData, TOD
   const [dupWarning, setDupWarning] = React.useState(null);
   const [dupConfirmed, setDupConfirmed] = React.useState(false);
   const [guardado, setGuardado] = React.useState(false);
-  const [showConfirm, setShowConfirm] = React.useState(false);
 
   function buscarDuplicado(nombre) {
     if (!nombre || !crmData || crmData.length === 0) { setDupWarning(null); return; }
@@ -10081,23 +9848,18 @@ function NuevoCierreForm({ BTN, INP, RD, cierresHoy, setCierresHoy, crmData, TOD
   }
 
   function agregar() {
+    // Usar el string exacto del input para evitar error de punto flotante
     var ufStr = String(nc.uf||'').replace(',','.');
     var ufParts = ufStr.split('.');
     var ufExact = parseFloat(ufParts[0] + '.' + (ufParts[1]||'000').substring(0,3));
     const uf = ufExact;
-    if (!uf || uf <= 0) { window.alert("Ingresa un valor de UF válido mayor a 0."); return; }
+    if (!uf || uf <= 0) return;
     if (nc.origen === "isapre" && !nc.isapre) { window.alert("Por favor selecciona la Isapre de origen."); return; }
     if (dupWarning && !dupConfirmed) return;
-    // Mostrar popup de confirmación
-    setShowConfirm(true);
-  }
-  function confirmarGuardar() {
-    var ufStr = String(nc.uf||'').replace(',','.');
-    var ufParts = ufStr.split('.');
-    var ufExact = parseFloat(ufParts[0] + '.' + (ufParts[1]||'000').substring(0,3));
-    if(onGuardar) onGuardar({uf:ufExact, sexo:nc.sexo, conecta:nc.conecta, origen:nc.origen, isapre:nc.isapre||"", clienteNombre:nc.clienteNombre, canal:nc.canal||"", canalDetalle:nc.canalDetalle||""});
+    // Guardar inmediatamente
+    if(onGuardar) onGuardar({uf:uf, sexo:nc.sexo, conecta:nc.conecta, origen:nc.origen, isapre:nc.isapre||"", clienteNombre:nc.clienteNombre, canal:nc.canal||"", canalDetalle:nc.canalDetalle||""});
     setNc({uf:"", sexo:"hombre", conecta:false, origen:"fonasa", isapre:"", clienteNombre:"", canal:"", canalDetalle:""});
-    setDupWarning(null); setDupConfirmed(false); setShowConfirm(false);
+    setDupWarning(null); setDupConfirmed(false);
     setGuardado(true); setTimeout(function(){setGuardado(false);},2000);
   }
   return (
@@ -10134,18 +9896,9 @@ function NuevoCierreForm({ BTN, INP, RD, cierresHoy, setCierresHoy, crmData, TOD
       , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}
         , React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 4476}}
           , React.createElement('label', { style: {fontSize:11,fontWeight:600,color:"#374151",display:"block",marginBottom:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4477}}, "UF del contrato *"   )
-          , React.createElement('input', {
-            type: "text", inputMode: "decimal", value: nc.uf,
-            onChange: function(e){
-              var v=e.target.value.replace(",",".");
-              if(/^\d*\.?\d{0,3}$/.test(v)||v==="") setNc(Object.assign({},nc,{uf:v}));
-            },
-            onBlur: function(e){
-              var v=String(nc.uf||"").replace(",",".");
-              var n=parseFloat(v);
-              if(!isNaN(n)&&n>0) setNc(Object.assign({},nc,{uf:n.toFixed(3)}));
-            },
-            style: Object.assign({},INP,{fontSize:20,fontWeight:900,color:RD}), placeholder: "Ej: 2.996"})
+          , React.createElement('input', { type: "number", step: "0.001", min: "0", value: nc.uf,
+            onChange: function(e){setNc(Object.assign({},nc,{uf:e.target.value}))},
+            style: Object.assign({},INP,{fontSize:20,fontWeight:900,color:RD}), placeholder: "0.00", __self: this, __source: {fileName: _jsxFileName, lineNumber: 4478}} )
         )
         , React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 4482}}
           , React.createElement('label', { style: {fontSize:11,fontWeight:600,color:"#374151",display:"block",marginBottom:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4483}}, "Sexo titular" )
@@ -10181,7 +9934,7 @@ function NuevoCierreForm({ BTN, INP, RD, cierresHoy, setCierresHoy, crmData, TOD
           , React.createElement('label', { htmlFor: "conecta-chk", style: {fontSize:13,fontWeight:600,color:"#059669",cursor:"pointer"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 4500}}, "Plan Conecta" )
         )
       )
-      , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}
+      , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10} }
         , React.createElement('div', null
           , React.createElement('label', { style: {fontSize:11,fontWeight:600,color:"#374151",display:"block",marginBottom:4} }, "Canal de origen" )
           , React.createElement('select', {
@@ -10214,36 +9967,6 @@ function NuevoCierreForm({ BTN, INP, RD, cierresHoy, setCierresHoy, crmData, TOD
       )
       , guardado && React.createElement('div',{style:{background:"#F0FDF4",borderRadius:8,padding:"8px 12px",marginBottom:8,fontSize:12,color:"#16A34A",fontWeight:700}},"✅ ¡Cierre guardado! Ya aparece en tu lista del mes.")
       , React.createElement('button', { onClick: agregar, style: Object.assign({},BTN,{width:"100%",padding:"10px"}) }, "🚀 Subir Cierre Ahora"
-      )
-      , showConfirm && React.createElement('div', {style:{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.6)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}}
-        ,React.createElement('div', {style:{background:"#fff",borderRadius:18,padding:"28px 24px",maxWidth:380,width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,0.35)"}}
-          ,React.createElement('div',{style:{fontSize:15,fontWeight:900,color:"#1F2937",marginBottom:16,textAlign:"center"}},"🔍 Revisa la info antes de confirmar")
-          ,React.createElement('div',{style:{background:"#F8FAFC",borderRadius:12,padding:"14px 16px",marginBottom:18,border:"1.5px solid #E5E7EB"}}
-            ,[
-              ["👤 Cliente",   nc.clienteNombre||"(sin nombre)"],
-              ["💰 UF",        String(nc.uf||"0").replace(",",".") + " UF"],
-              ["🧑 Sexo",      nc.sexo==="hombre"?"👨 Hombre":"👩 Mujer"],
-              ["🏛 Previsión", nc.origen==="fonasa"?"Fonasa":"Isapre "+(nc.isapre||"")],
-              ["💚 Conecta",   nc.conecta?"✅ Sí":"No"],
-              ["📡 Canal",     nc.canal||"—"],
-            ].map(function(r,i){
-              return React.createElement('div',{key:i,style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:i<5?"1px solid #F3F4F6":"none"}}
-                ,React.createElement('span',{style:{fontSize:12,color:"#6B7280",fontWeight:600}},r[0])
-                ,React.createElement('span',{style:{fontSize:13,color:"#1F2937",fontWeight:700}},r[1])
-              );
-            })
-          )
-          ,React.createElement('div',{style:{display:"flex",gap:10}}
-            ,React.createElement('button',{
-              onClick:function(){setShowConfirm(false);},
-              style:{flex:1,padding:"12px",background:"#F3F4F6",color:"#374151",border:"none",borderRadius:10,fontSize:13,cursor:"pointer",fontWeight:700,fontFamily:"inherit"}
-            },"✏️ Corregir")
-            ,React.createElement('button',{
-              onClick:confirmarGuardar,
-              style:{flex:1,padding:"12px",background:"#B4001E",color:"#fff",border:"none",borderRadius:10,fontSize:13,cursor:"pointer",fontWeight:700,fontFamily:"inherit"}
-            },"✅ Confirmar")
-          )
-        )
       )
     )
   );
