@@ -3508,7 +3508,19 @@ function PlanEjecutivoView({ v, info, R, RD }) {
   var accionesCustom = plan.accionesCustom||[];
   var accionesChecked = plan.acciones||[];
   var semanasAcciones = plan.semanasAcciones||{};
+  var freqSemana = plan.freqSemana||{};
   var calendario = plan.calendario||[];
+
+  function setFreqAccion(accKey, freq) {
+    var nf=Object.assign({},freqSemana); nf[accKey]=freq;
+    savePlanField({freqSemana:nf});
+  }
+  function removeAccionCustom(accTxt) {
+    if(!window.confirm("¿Eliminar la acción '"+accTxt+"'? Se perderá su seguimiento semanal.")) return;
+    var nuevasCustom=(plan.accionesCustom||[]).filter(function(a){return (a.txt||a)!==accTxt;});
+    var nuevasSems=JSON.parse(JSON.stringify(semanasAcciones)); delete nuevasSems[accTxt];
+    savePlanField({accionesCustom:nuevasCustom,semanasAcciones:nuevasSems});
+  }
 
   // Progreso total
   var totAcc = accionesBase.length + accionesCustom.length;
@@ -3521,7 +3533,14 @@ function PlanEjecutivoView({ v, info, R, RD }) {
   var totalSemMarcadas=0, totalSemPosibles=0;
   accionesBase.forEach(function(acc){
     var sems=semanasAcciones[acc]||{};
-    for(var s=1;s<=4;s++){totalSemPosibles++;if(sems[s])totalSemMarcadas++;}
+    var fq=freqSemana[acc]||5;
+    var ec2={"completado":"#16A34A","incompleto":"#D97706","sin_avance":"#DC2626"};
+    for(var s=1;s<=4;s++){
+      totalSemPosibles++;
+      var sd=sems[s]; var diasObj2=typeof sd==="object"&&sd!==null?sd:(sd?{L:"completado",M:"completado",X:"completado",J:"completado",V:"completado"}:{});
+      var comp2=0; ["L","M","X","J","V"].forEach(function(d){if(diasObj2[d]==="completado")comp2++;});
+      if(comp2>=fq) totalSemMarcadas++;
+    }
   });
   var consistencia = totalSemPosibles>0?Math.round((totalSemMarcadas/totalSemPosibles)*100):0;
 
@@ -3575,6 +3594,28 @@ function PlanEjecutivoView({ v, info, R, RD }) {
   function removeActividad(idx) { var nc=calendario.filter(function(_,i){return i!==idx;}); savePlanField({calendario:nc}); }
   function setEstadoActividad(idx, estado) {
     var nc=calendario.map(function(c,i){return i===idx?Object.assign({},c,{estado:estado,done:estado==="completada"}):c;});
+    // ── Sincronía: marcar día en seguimiento semanal ──
+    var act=calendario[idx];
+    if(act&&act.fecha&&act.txt) {
+      var accKey=act.txt;
+      // Calcular semana del mes (1-4) y día de la semana
+      var partes=act.fecha.split("-");
+      var diaNum=parseInt(partes[2]);
+      var diaSem=new Date(act.fecha+"T12:00:00").getDay(); // 0=dom,1=lun...
+      var diasMap={1:"L",2:"M",3:"X",4:"J",5:"V"};
+      var letraDia=diasMap[diaSem];
+      var semNum=Math.min(4,Math.ceil(diaNum/7));
+      if(letraDia) {
+        var nuevasSems=JSON.parse(JSON.stringify(semanasAcciones));
+        if(!nuevasSems[accKey]) nuevasSems[accKey]={};
+        if(typeof nuevasSems[accKey][semNum]!=="object"||nuevasSems[accKey][semNum]===null)
+          nuevasSems[accKey][semNum]={};
+        if(estado) nuevasSems[accKey][semNum][letraDia]=estado==="completada"?"completado":estado==="incompleto"?"incompleto":"sin_avance";
+        else delete nuevasSems[accKey][semNum][letraDia];
+        savePlanField({calendario:nc,semanasAcciones:nuevasSems});
+        return;
+      }
+    }
     savePlanField({calendario:nc});
   }
   function setNotaActividad(idx, nota) {
@@ -3621,7 +3662,8 @@ function PlanEjecutivoView({ v, info, R, RD }) {
               var comp=0,inc=0,sv=0;
               diasSem.forEach(function(d){var e=diasObj[d];if(e==="completado")comp++;else if(e==="incompleto")inc++;else if(e==="sin_avance")sv++;});
               var marcados=comp+inc+sv;
-              var estadoSem=marcados===0?null:(comp>=4?"completado":comp+inc>=3?"incompleto":"sin_avance");
+              var _freqH=freqSemana[accKey]||5;
+              var estadoSem=marcados===0?null:(comp>=_freqH?"completado":comp+inc>=_freqH?"incompleto":"sin_avance");
               var semColor=estadoSem?estadoColor[estadoSem]:"#E5E7EB";
               var semLabel=estadoSem?estadoLabel[estadoSem]:"S"+s;
               return React.createElement("div",{key:s,
@@ -3634,10 +3676,23 @@ function PlanEjecutivoView({ v, info, R, RD }) {
               },semLabel);
             })
         )
-        // Editar / expandir
-        ,!editando&&React.createElement("div",{style:{display:"flex",gap:4,flexShrink:0}}
-          ,React.createElement("button",{onClick:function(){setEditandoAccion(accKey);setEditAccionTxt(accKey);},style:{background:"none",border:"none",cursor:"pointer",fontSize:12,color:"#9CA3AF",padding:"0 3px"}},"✏️")
+        // Editar / expandir / frecuencia / eliminar
+        ,!editando&&React.createElement("div",{style:{display:"flex",gap:4,flexShrink:0,alignItems:"center"}}
+          ,React.createElement("select",{
+            value:freqSemana[accKey]||5,
+            onChange:function(e){setFreqAccion(accKey,parseInt(e.target.value));},
+            title:"Días por semana necesarios para cumplir",
+            style:{fontSize:9,borderRadius:5,border:"1px solid #D1D5DB",padding:"1px 3px",fontFamily:"inherit",color:"#6B7280",background:"#F9FAFB",cursor:"pointer"}
+          }
+            ,React.createElement("option",{value:1},"1d/sem")
+            ,React.createElement("option",{value:2},"2d/sem")
+            ,React.createElement("option",{value:3},"3d/sem")
+            ,React.createElement("option",{value:4},"4d/sem")
+            ,React.createElement("option",{value:5},"5d/sem")
+          )
+          ,React.createElement("button",{onClick:function(){setEditandoAccion(accKey);setEditAccionTxt(accKey);},style:{background:"none",border:"none",cursor:"pointer",fontSize:12,color:"#9CA3AF",padding:"0 3px"},title:"Editar nombre"},"✏️")
           ,React.createElement("button",{onClick:function(){setAccionExpandida(abierto?null:accKey);},style:{background:"none",border:"none",cursor:"pointer",fontSize:12,color:"#9CA3AF",padding:"0 3px"}},abierto?"▲":"▼")
+          ,React.createElement("button",{onClick:function(){isCustom?removeAccionCustom(accKey):removeAccionBase(accKey);},style:{background:"none",border:"none",cursor:"pointer",fontSize:11,color:"#FCA5A5",padding:"0 3px"},title:"Eliminar acción"},"🗑️")
         )
       )
       // Panel semanal expandido
@@ -3655,7 +3710,8 @@ function PlanEjecutivoView({ v, info, R, RD }) {
               var _comp2=0,_inc2=0,_sv2=0;
               ["L","M","X","J","V"].forEach(function(d){var e=_diasObj2[d];if(e==="completado")_comp2++;else if(e==="incompleto")_inc2++;else if(e==="sin_avance")_sv2++;});
               var _marc2=_comp2+_inc2+_sv2;
-              var _estSem2=_marc2===0?null:(_comp2>=4?"completado":_comp2+_inc2>=3?"incompleto":"sin_avance");
+              var _freq2=freqSemana[accKey]||5;
+              var _estSem2=_marc2===0?null:(_comp2>=_freq2?"completado":_comp2+_inc2>=_freq2?"incompleto":"sin_avance");
               var _colSem2=_estSem2?_ec[_estSem2]:"#E5E7EB";
               return React.createElement("div",{key:sem,style:{background:_estSem2==="completado"?"#DCFCE7":_estSem2==="incompleto"?"#FFFBEB":_estSem2==="sin_avance"?"#FFF1F2":"#fff",borderRadius:10,padding:"10px 12px",border:"1.5px solid "+(_estSem2?_colSem2:"#E5E7EB")}}
                 // Semana header con estado automático
