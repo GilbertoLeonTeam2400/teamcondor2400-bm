@@ -2531,7 +2531,7 @@ function ClasificacionAGVView({ equipo, info, R, RD }) {
       , React.createElement('div', { style:{fontSize:19,fontWeight:900,color:RD,marginBottom:4} }, "📊 Clasificación AGV por Resultados")
       , React.createElement('div', { style:{fontSize:13,color:"#6B7280",marginBottom:16} }, "Basado en el promedio de UF de los últimos 3 meses. El mes actual se muestra como referencia.")
       // Resumen rápido
-      , React.createElement('div', { style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:12,marginBottom:20}}
+      , React.createElement('div', { style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:20},className:"mob-2col"}
         , GRUPOS.map(function(g){
             return React.createElement('div', { key:g.key, style:{background:g.bg,border:"1px solid "+g.border,borderRadius:12,padding:"14px 18px",textAlign:"center"} }
               , React.createElement('div', { style:{fontSize:28,fontWeight:900,color:g.color} }, g.lista.length)
@@ -2933,13 +2933,13 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
         var _ct=preview.reduce(function(s,p){return s+(p.cttosDig||0);},0);
         return React.createElement("div",{style:{background:"linear-gradient(135deg,#EFF6FF,#DBEAFE)",borderRadius:12,padding:"14px 18px",marginBottom:14,border:"1px solid #93C5FD"}}
           ,React.createElement("div",{style:{fontSize:12,fontWeight:900,color:"#1D4ED8",marginBottom:10}},"📊 Resumen del equipo CC=2400 — "+preview.length+" ejecutivos")
-          ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:8,marginBottom:8}}
+          ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:8},className:"mob-kpi4"}
             ,React.createElement("div",{style:{textAlign:"center",background:"#fff",borderRadius:8,padding:"8px"}},React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#374151"}},_tv),React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase"}},"Total DPS"))
             ,React.createElement("div",{style:{textAlign:"center",background:"#fff",borderRadius:8,padding:"8px"}},React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#16A34A"}},_cv),React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase"}},"Con Venta"))
             ,React.createElement("div",{style:{textAlign:"center",background:"#fff",borderRadius:8,padding:"8px"}},React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#2563EB"}},_sv),React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase"}},"Sin Venta"))
             ,React.createElement("div",{style:{textAlign:"center",background:"#fff",borderRadius:8,padding:"8px"}},React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#D97706"}},_pv),React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase"}},"Pendientes"))
           )
-          ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:8}}
+          ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}
             ,React.createElement("div",{style:{textAlign:"center",background:"#fff",borderRadius:8,padding:"8px"}},React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#DC2626"}},_rv),React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase"}},"Rechazadas"))
             ,React.createElement("div",{style:{textAlign:"center",background:"#fff",borderRadius:8,padding:"8px"}},React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#C9A84C"}},_uf+" UF"),React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase"}},"UF Total"))
             ,React.createElement("div",{style:{textAlign:"center",background:"#fff",borderRadius:8,padding:"8px"}},React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#0891B2"}},_nb),React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase"}},"Beneficiarios"))
@@ -3222,11 +3222,11 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
     )
 
     // KPIs resumen
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(100px,1fr))",gap:12,marginBottom:16}}
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:12,marginBottom:16},className:"mob-6col"}
       ,[{l:"Total DPS",v:totTotal,c:"#374151",bg:"#F9FAFB"},{l:"DPS Con Venta",v:totConVenta,c:"#16A34A",bg:"#F0FDF4"},{l:"DPS Sin Venta",v:totSinVenta,c:"#2563EB",bg:"#EFF6FF"},{l:"DPS Pendientes",v:totPendiente,c:"#D97706",bg:"#FFFBEB"},{l:"DPS Rechazadas",v:totRechazado,c:"#DC2626",bg:"#FFF1F2"},{l:"Tasa Cierre DPS",v:tasaCierre+"%",c:tasaCierre>=50?"#16A34A":tasaCierre>=30?"#D97706":"#DC2626",bg:tasaCierre>=50?"#F0FDF4":tasaCierre>=30?"#FFFBEB":"#FFF1F2"}]
         .map(function(k){return React.createElement("div",{key:k.l,style:{background:k.bg,borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #E5E7EB"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:k.c}},k.v) ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},k.l));})
     )
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:12,marginBottom:20}}
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20},className:"mob-kpi4"}
       ,React.createElement("div",{style:{background:"#FFF8E7",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #FCD34D"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:"#C9A84C"}},totUF.toFixed(2)+" UF") ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"Total UF"))
       ,React.createElement("div",{style:{background:"#F0FDFA",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #A7F3D0"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:"#0891B2"}},totBenef) ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"N° Beneficiarios"))
       ,React.createElement("div",{style:{background:"#F0FDF4",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #86EFAC"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:"#059669"}},totCttos) ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"Contratos Digitados"))
@@ -3346,7 +3346,7 @@ function RachasView({ v, info }) {
 
   return React.createElement("div",{style:{background:"#fff",borderRadius:16,padding:"20px",marginBottom:16,boxShadow:"0 2px 12px rgba(0,0,0,.06)"}}
     ,React.createElement("div",{style:{fontSize:14,fontWeight:900,color:"#1F2937",marginBottom:14}},"🔥 Mi Consistencia")
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:10,marginBottom:14}}
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14},className:"mob-2col"}
       ,React.createElement("div",{style:{background:"linear-gradient(135deg,#FEF9C3,#FEF08A)",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #FCD34D"}}
         ,React.createElement("div",{style:{fontSize:28,fontWeight:900,color:"#92400E"}},rachaActual)
         ,React.createElement("div",{style:{fontSize:10,color:"#78350F",textTransform:"uppercase",marginTop:3}},"🔥 Racha actual (días)")
@@ -3687,7 +3687,7 @@ function PlanEjecutivoView({ v, info, R, RD }) {
       // Panel semanal expandido
       ,abierto&&React.createElement("div",{style:{padding:"12px 14px",background:"#F8FAFC",borderTop:"1px solid #E5E7EB"}}
         ,React.createElement("div",{style:{fontSize:11,fontWeight:700,color:"#374151",marginBottom:8}},"📅 Seguimiento semanal — "+semsMarcadas+"/4 semanas cumplidas")
-        ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8}}
+        ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8},className:"mob-sems"}
           ,[1,2,3,4].map(function(sem){
               var marcada=sems[sem]||false;
               var com=sems["com"+sem]||"";
@@ -4151,7 +4151,7 @@ function PlanAGVView({ equipo, info, R, RD }) {
   return React.createElement("div",{style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(233,7,41,.09)"}}
     ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:RD,marginBottom:4}},"📋 Plan de Trabajo AGV")
     ,React.createElement("div",{style:{fontSize:12,color:"#6B7280",marginBottom:20}},"Diagnóstico automático + plan editable por ejecutivo. Se guarda en Firebase automáticamente.")
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:12,marginBottom:16}}
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16}}
       ,Object.keys(GC).map(function(g){ var gc=GC[g]; var comps=ejecutivos.filter(function(v){return v.diag.nivel===g&&getPlan(v.id).estado==="comprometido";}).length; return React.createElement("div",{key:g,onClick:function(){setGrupFiltro(grupFiltro===g?"todos":g);},style:{background:grupFiltro===g?gc.bg:"#F8FAFC",borderRadius:12,padding:"14px",textAlign:"center",cursor:"pointer",border:"2px solid "+(grupFiltro===g?gc.border:"#E5E7EB")}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:gc.color}},totGrupo[g]) ,React.createElement("div",{style:{fontSize:11,fontWeight:700,color:gc.color}},gc.label) ,React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",marginTop:2}},comps+" comprometidos")); })
     )
     ,React.createElement("div",{style:{fontSize:11,color:"#6B7280",marginBottom:12}},"Mostrando: "+(grupFiltro==="todos"?"todos ("+filtrados.length+" ejecutivos)":(GC[grupFiltro].label+" ("+filtrados.length+" ejecutivos)")))
@@ -4553,7 +4553,7 @@ function BenchmarkView({ benchmark, setBenchmark, equipo, info, R, RD }) {
     ,benchmark && React.createElement("div",{style:{background:"linear-gradient(135deg,#1E3A5F,#1D4ED8)",borderRadius:14,padding:"16px 20px",marginBottom:20,color:"#fff"}}
       ,React.createElement("div",{style:{fontSize:11,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:"0.15em",marginBottom:4}},"📌 Benchmark actual")
       ,React.createElement("div",{style:{fontSize:16,fontWeight:900,marginBottom:12}},benchmark.mesLabel)
-      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:8}}
+      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}
         ,METRICAS.map(function(m){
           return React.createElement("div",{key:m.l,style:{background:"rgba(255,255,255,.1)",borderRadius:10,padding:"10px",textAlign:"center"}}
             ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:"#fff"}},m.v)
@@ -4579,7 +4579,7 @@ function BenchmarkView({ benchmark, setBenchmark, equipo, info, R, RD }) {
     // Preview
     ,preview&&React.createElement("div",null
       ,React.createElement("div",{style:{fontWeight:700,color:"#374151",marginBottom:10}},"Vista previa — "+preview.mesLabel+":")
-      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:8,marginBottom:12}}
+      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:12},className:"mob-kpi4"}
         ,[
           {l:"UF Total",v:preview.uf,c:"#C9A84C"},{l:"DPS c/venta",v:preview.dpsCV,c:"#16A34A"},
           {l:"Sin venta",v:preview.dpsSV,c:"#2563EB"},{l:"Pendientes",v:preview.dpsP,c:"#D97706"},
@@ -4832,7 +4832,7 @@ function PredictorPersonalView({ equipo, form, RD, info }) {
     ,React.createElement("div",{style:{fontSize:11,color:"#6B7280",marginBottom:16}},
       "Tu ritmo — "+diaHoy2+" días transcurridos ("+dhTransc+" hábiles) · "+diasRest2+" restantes ("+dhRest+" hábiles)"
     )
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8,marginBottom:8}}
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:8},className:"mob-2col"}
       ,React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:6}}
         ,React.createElement("div",{style:{background:"#FFF8E7",borderRadius:12,padding:"8px",textAlign:"center",border:"1px solid #FCD34D"}}
           ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:"#C9A84C"}},ufV.toFixed(3))
@@ -4988,7 +4988,7 @@ function PredictorView({ equipo, info, R, RD, metaUFSafe }) {
       "Ritmo actual basado en "+diaHoy+" días transcurridos ("+diasHabilesTranscurridos+" hábiles) · "+diasRestantes+" días restantes ("+diasHabilesRestantes+" hábiles)"
     )
     // Fila 1: UF Actual + Ritmo cal + Ritmo háb
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:10,marginBottom:10}}
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:10}}
       ,React.createElement("div",{style:{background:"#FFF8E7",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid #FCD34D"}}
         ,React.createElement("div",{style:{fontSize:20,fontWeight:900,color:"#C9A84C"}},totUF.toFixed(2))
         ,React.createElement("div",{style:{fontSize:10,color:"#92400E",fontWeight:700,marginTop:3}},"UF Actual")
@@ -5020,7 +5020,7 @@ function PredictorView({ equipo, info, R, RD, metaUFSafe }) {
     )
     // Escenarios
     ,React.createElement("div",{style:{fontSize:13,fontWeight:700,color:"#374151",marginBottom:10}},"Escenarios de cierre:")
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",gap:10,marginBottom:16}}
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:16},className:"mob-proy"}
       ,React.createElement(ScenCard,{label:"📉 Conservador (+30%)",val:proyConservador})
       ,React.createElement(ScenCard,{label:"🚀 Optimista (+50%)",val:proyOptimista})
       ,React.createElement(ScenCard,{label:"🔥 Extremo — +100% ritmo actual (Efecto Última Semana)",val:proyExtremo})
@@ -6843,7 +6843,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                   )
                 )
                 /* KPIs fila */
-                , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",gap:10}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3074}}
+                , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3074}}
                   , React.createElement('div', { style: {background:"rgba(255,255,255,.06)",borderRadius:12,padding:"12px 10px",textAlign:"center",border:"1px solid rgba(201,168,76,.2)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3075}}
                     , React.createElement('div', { style: {fontSize:"clamp(18px,4vw,26px)",fontWeight:900,color:"#C9A84C",lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3076}}, fmtUF2(falta))
                     , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:"0.12em",marginTop:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3077}}, "UF que faltan"  )
@@ -7436,7 +7436,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                       )
                     )
                     // Fila ritmo + proyección
-                    , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:10} }
+                    , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:10},className:"mob-ritmo" }
                       // Ritmo del día
                       , React.createElement('div', { style: {background:"rgba(255,255,255,.12)",borderRadius:10,padding:"10px 14px"} }
                         , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:4} }, "⏱ Ritmo al día "+diaHoy)
@@ -7587,7 +7587,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
           React.createElement('div', { style: {maxWidth:700,margin:"0 auto"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3444}}
             , !histAcc?(
               React.createElement('div', { style: {background:"#fff",borderRadius:20,padding:36,boxShadow:"0 4px 24px rgba(233,7,41,.1)",border:"1px solid rgba(233,7,41,.12)",maxWidth:400,margin:"0 auto",textAlign:"center"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3446}}
-                , React.createElement('div', { style: {fontSize:22,fontWeight:900,color:RD,marginBottom:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3447}}, "Mi Plan de Éxito" )
+                , React.createElement('div', { style: {fontSize:22,fontWeight:900,color:RD,marginBottom:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3447}}, "Mi Productividad" )
                 , React.createElement('div', { style: {color:"#6B7280",fontSize:13,marginBottom:24,lineHeight:1.6}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3448}}, "Selecciona tu nombre e ingresa tu PIN para ver tu actividad del mes. Tus datos son privados."                )
                 , React.createElement('label', { style: Object.assign({},LBL,{textAlign:"left"}), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3449}}, "Tu nombre" )
                 , React.createElement('select', { value: histVid, onChange: function(e){setHistVid(e.target.value);setHistAcc(false);}, style: Object.assign({},INP,{marginBottom:14}), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3450}}
@@ -7610,7 +7610,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                           ,vH&&vH.fotoUrl?React.createElement('img',{src:vH.fotoUrl,style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement('span',{style:{fontSize:13,fontWeight:900,color:RD}},ini)
                         );
                       })()
-                    , React.createElement('div', { style: {fontSize:20,fontWeight:900,color:RD} }, "Mi Plan de Éxito" )
+                    , React.createElement('div', { style: {fontSize:20,fontWeight:900,color:RD} }, "Mi Productividad" )
                   )
                   , React.createElement('button', { onClick: histLogout, style: {background:"#FEE2E2",color:R,border:"none",borderRadius:10,padding:"8px 16px",fontSize:13,cursor:"pointer",fontWeight:700} }, "Cerrar sesion" )
                 )
@@ -8220,8 +8220,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
               , React.createElement('div', { style: {fontSize:13,color:"#6B7280",marginBottom:18}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3608}}, "Se actualiza con cada reporte. Ranking por UF brutas acumuladas del mes."           )
               , top5.length===0?(React.createElement('div', { style: {textAlign:"center",padding:"40px",color:"#9CA3AF"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3609}}, React.createElement('div', { style: {fontSize:15,fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3609}}, "Sin reportes este mes aun."    ))):(
                 React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3610}}
-                  , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",gap:14,marginBottom:14}}, [1,0,2].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: top5[i], badge: BADGES[i], equipo: equipo } );}))
-                  , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}, [3,4].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: top5[i], badge: BADGES[i], equipo: equipo } );}))
+                  , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14}, className:"mob-podio3"}, [1,0,2].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: top5[i], badge: BADGES[i], equipo: equipo } );}))
+                  , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}, className:"mob-podio2"}, [3,4].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: top5[i], badge: BADGES[i], equipo: equipo } );}))
                 )
               )
               , recoNombre && (
@@ -8259,8 +8259,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                   , acceso&&React.createElement('button', { onClick: function(){setDraft({label:mesAnt.label,top:mesAnt.top.map(function(t){return Object.assign({},t);})});setEditMes(true);}, style: {background:BG,color:R,border:"1.5px solid "+R,borderRadius:10,padding:"7px 14px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3646}}, "Editar")
                 )
               )
-              , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",gap:14,marginBottom:14}}, [1,0,2].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: mesAnt.top[i], badge: BADGES[i], equipo: equipo } );}))
-              , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}, [3,4].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: mesAnt.top[i], badge: BADGES[i], equipo: equipo } );}))
+              , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14}, className:"mob-podio3"}, [1,0,2].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: mesAnt.top[i], badge: BADGES[i], equipo: equipo } );}))
+              , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}, className:"mob-podio2"}, [3,4].map(function(i){return React.createElement(TarjetaBadge, { key: i, entry: mesAnt.top[i], badge: BADGES[i], equipo: equipo } );}))
               , React.createElement('div', { style: {marginTop:16,background:BG,borderRadius:10,padding:"10px 16px",fontSize:12,color:"#9CA3AF",textAlign:"center"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3651}}, "Solo nombres y posicion. Sin cifras de produccion individual."        )
             )
           )
@@ -8782,7 +8782,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                   })
                 , supVista==="uflineales"&&React.createElement(UFLinealesView, { equipo: equipo, info: info })
                 , supVista==="dashboard"&&(
-                  React.createElement('div', { style: {display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:22,alignItems:"start"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3774}}
+                  React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 320px",gap:22,alignItems:"start"}, className:"mob-stack", __self: this, __source: {fileName: _jsxFileName, lineNumber: 3774}}
                     , React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3775}}
                     , React.createElement('div', { style: {background:"#fff",borderRadius:18,padding:24,boxShadow:"0 3px 16px rgba(233,7,41,.07)",marginBottom:18}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3776}}
                       , React.createElement('div', { style: {display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3777}}
@@ -8867,7 +8867,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                               )
                             ),
                             hayCRM
-                              ? React.createElement('div', { style: {display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",gap:10} },
+                              ? React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10} },
                                   React.createElement('div', { style: {background:"rgba(239,68,68,.15)",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid rgba(239,68,68,.3)"} },
                                     React.createElement('div', { style: {fontSize:28,fontWeight:900,color:"#FCA5A5"} }, totalCalientes),
                                     React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.4)",textTransform:"uppercase",marginTop:4} }, "🔥 Calientes")
@@ -8886,7 +8886,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                                 )
                           );
                         })()
-                      , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:10,marginBottom:20}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3782}}
+                      , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:20}, className:"mob-kpi4", __self: this, __source: {fileName: _jsxFileName, lineNumber: 3782}}
                         , [{l:"UF equipo",v:fmtUF(totUF),c:R},{l:"vs Proyección",v:fmtUF2(proyEq)+" UF",c:colSem(pctEq)},{l:"DPS totales",v:totDPS,c:"#15803D"},{l:"Con reportes",v:equipo.filter(function(v){return (v.rep||[]).length>0;}).length,c:"#7C3AED"}].map(function(k){return React.createElement('div', { key: k.l, style: {background:"#F8FAFC",borderRadius:12,padding:"12px 14px",borderLeft:"3px solid "+k.c}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3783}}, React.createElement('div', { style: {fontSize:20,fontWeight:900,color:RD}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3783}}, k.v), React.createElement('div', { style: {fontSize:11,color:"#9CA3AF",marginTop:2}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3783}}, k.l));})
                       )
                       , React.createElement('div', { style: {overflowX:"auto"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3785}}
@@ -9364,7 +9364,7 @@ function ReconocidosEspeciales({ equipo, info, RD, R }) {
         ,React.createElement("div",{style:{flex:1,height:1,background:"#F3F4F6"}})
         ,React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",fontWeight:700}},mL.toUpperCase())
       )
-      ,React.createElement("div",{className:"reco-grid",style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",gap:10}},cM.map(Card))
+      ,React.createElement("div",{className:"reco-grid",style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}},cM.map(Card))
     )
   );
 }
