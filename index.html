@@ -27,6 +27,10 @@
       .premios-grid { grid-template-columns: 1fr !important; }
       .agv-resumen-grid { grid-template-columns: repeat(3,1fr) !important; }
       .agv-card-wide { grid-column: span 1 !important; }
+      /* Reconocimientos: 2 columnas en celular */
+      .reco-grid { grid-template-columns: repeat(2,1fr) !important; }
+      .reco-card-nombre { font-size: 10px !important; }
+      .reco-fotos { zoom: 0.85; }
       /* Center last 2 cards in a 3-col grid by making them span 1.5 each — use subgrid trick */
       .agv-resumen-grid .agv-card-trend { grid-column: 1 / span 2 !important; }
       .agv-resumen-grid .agv-card-actual { grid-column: 2 / span 2 !important; }
@@ -4926,9 +4930,14 @@ function PredictorView({ equipo, info, R, RD, metaUFSafe }) {
   var ritmoHabil = diasHabilesTranscurridos>0 ? parseFloat((totUF/diasHabilesTranscurridos).toFixed(2)) : 0;
   var ritmoNecesarioHabil = diasHabilesRestantes>0 ? parseFloat((faltaMeta/diasHabilesRestantes).toFixed(2)) : 0;
 
-  // Detectar semana 4 — en semana 4 congelar proyecciones
-  var semEnCursoP = diaHoy <= 7 ? 1 : diaHoy <= 14 ? 2 : diaHoy <= 21 ? 3 : 4;
-  var esSemana4P = semEnCursoP >= 4;
+  // Detectar semana 4 — usar lunes real de la última semana del mes
+  var _lunesS4 = new Date(hoy.getFullYear(), hoy.getMonth(), diasMes);
+  while(_lunesS4.getDay() !== 1) { _lunesS4.setDate(_lunesS4.getDate() - 1); }
+  // El lunes de la semana 4 es el lunes de la última semana completa del mes
+  var _inicioS4 = new Date(_lunesS4.getFullYear(), _lunesS4.getMonth(), _lunesS4.getDate() - 6);
+  while(_inicioS4.getDay() !== 1) { _inicioS4.setDate(_inicioS4.getDate() + 1); }
+  var _hoyMid = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 0, 1, 0);
+  var esSemana4P = _hoyMid >= _inicioS4;
   var diasRestantesProyeccion = esSemana4P ? 0 : diasRestantes;
   var diasHabilesRestantesProyeccion = esSemana4P ? 0 : diasHabilesRestantes;
 
@@ -7528,7 +7537,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
           React.createElement('div', { style: {maxWidth:700,margin:"0 auto"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3444}}
             , !histAcc?(
               React.createElement('div', { style: {background:"#fff",borderRadius:20,padding:36,boxShadow:"0 4px 24px rgba(233,7,41,.1)",border:"1px solid rgba(233,7,41,.12)",maxWidth:400,margin:"0 auto",textAlign:"center"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3446}}
-                , React.createElement('div', { style: {fontSize:22,fontWeight:900,color:RD,marginBottom:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3447}}, "Mi Productividad" )
+                , React.createElement('div', { style: {fontSize:22,fontWeight:900,color:RD,marginBottom:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3447}}, "Mi Plan de Éxito" )
                 , React.createElement('div', { style: {color:"#6B7280",fontSize:13,marginBottom:24,lineHeight:1.6}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3448}}, "Selecciona tu nombre e ingresa tu PIN para ver tu actividad del mes. Tus datos son privados."                )
                 , React.createElement('label', { style: Object.assign({},LBL,{textAlign:"left"}), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3449}}, "Tu nombre" )
                 , React.createElement('select', { value: histVid, onChange: function(e){setHistVid(e.target.value);setHistAcc(false);}, style: Object.assign({},INP,{marginBottom:14}), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3450}}
@@ -7551,7 +7560,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                           ,vH&&vH.fotoUrl?React.createElement('img',{src:vH.fotoUrl,style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement('span',{style:{fontSize:13,fontWeight:900,color:RD}},ini)
                         );
                       })()
-                    , React.createElement('div', { style: {fontSize:20,fontWeight:900,color:RD} }, "Mi Productividad" )
+                    , React.createElement('div', { style: {fontSize:20,fontWeight:900,color:RD} }, "Mi Plan de Éxito" )
                   )
                   , React.createElement('button', { onClick: histLogout, style: {background:"#FEE2E2",color:R,border:"none",borderRadius:10,padding:"8px 16px",fontSize:13,cursor:"pointer",fontWeight:700} }, "Cerrar sesion" )
                 )
@@ -9204,13 +9213,27 @@ function ReconocidosEspeciales({ equipo, info, RD, R }) {
   // ── Función: mejor de la semana — solo si valor > 0 ──
   function bS(field){
     var sorted = statsSem.slice().sort(function(a,b){return (b[field]||0)-(a[field]||0);});
-    return (sorted[0] && (sorted[0][field]||0) > 0) ? sorted[0] : null;
+    if(!sorted[0] || !(sorted[0][field]||0)) return null;
+    var topVal = sorted[0][field]||0;
+    var empates = sorted.filter(function(s){return (s[field]||0)===topVal;}).slice(0,3);
+    var ganadores = empates.map(function(e){
+      var vF=equipo.find(function(x){return x.nombre===e.nombre;})||{};
+      return {nombre:e.nombre, fotoUrl:vF.fotoUrl||null};
+    });
+    return {ganadores:ganadores, nombre:ganadores.map(function(g){return g.nombre.split(" ")[0];}).join(" y "), [field]:topVal};
   }
 
-  // ── Función: mejor del mes — solo si valor > 0 ──
+  // ── Función: mejor del mes — solo si valor > 0, maneja empates con fotos ──
   function bM(field){
     var sorted = statsMes.slice().sort(function(a,b){return (b[field]||0)-(a[field]||0);});
-    return (sorted[0] && (sorted[0][field]||0) > 0) ? sorted[0] : null;
+    if(!sorted[0] || !(sorted[0][field]||0)) return null;
+    var topVal = sorted[0][field]||0;
+    var empates = sorted.filter(function(s){return (s[field]||0)===topVal;}).slice(0,3);
+    var ganadores = empates.map(function(e){
+      var vF=equipo.find(function(x){return x.nombre===e.nombre;})||{};
+      return {nombre:e.nombre, fotoUrl:vF.fotoUrl||null};
+    });
+    return {ganadores:ganadores, nombre:ganadores.map(function(g){return g.nombre.split(" ")[0];}).join(" y "), [field]:topVal};
   }
 
   var tCoM=bM("conectaMes"), tUM=bM("ufMes"), tDM=bM("dpsMes"), tCM=bM("cttosMes");
@@ -9239,15 +9262,37 @@ function ReconocidosEspeciales({ equipo, info, RD, R }) {
   var semLabel = "Semana "+lunesStr+" al "+domingoStr.slice(8)+"/"+domingoStr.slice(5,7);
 
   function Card(cat){
-    var vF=equipo.find(function(e){return e.nombre===cat.nombre;});
-    var ini=(cat.nombre||"").split(" ").slice(-2).map(function(w){return (w||"")[0]||"";}).join("");
-    return React.createElement("div",{key:cat.label,style:{background:cat.bg,borderRadius:14,padding:"16px 12px",textAlign:"center",border:"2px solid "+cat.brd}}
-      ,React.createElement("div",{style:{width:52,height:52,borderRadius:"50%",overflow:"hidden",border:"3px solid "+cat.brd,margin:"0 auto 10px",background:vF&&vF.fotoUrl?"#000":"rgba(255,255,255,.5)",display:"flex",alignItems:"center",justifyContent:"center"}}
-        ,vF&&vF.fotoUrl
-          ?React.createElement("img",{src:vF.fotoUrl,style:{width:"100%",height:"100%",objectFit:"cover"}})
-          :React.createElement("span",{style:{fontSize:16,fontWeight:900,color:cat.color}},ini))
-      ,React.createElement("div",{style:{fontSize:9,fontWeight:900,color:cat.color,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:6,lineHeight:1.3}},cat.label)
-      ,React.createElement("div",{style:{fontSize:14,fontWeight:900,color:"#1F2937",lineHeight:1.3}},(cat.nombre||"").split(" ").slice(-2).join(" "))
+    var ganadores = cat.ganadores || [{nombre:cat.nombre, fotoUrl:(equipo.find(function(e){return e.nombre===cat.nombre;})||{}).fotoUrl||null}];
+    var esEmpate = ganadores.length > 1;
+    // Fotos superpuestas
+    var fotoSize = ganadores.length===1 ? 56 : ganadores.length===2 ? 46 : 38;
+    var overlap = ganadores.length===1 ? 0 : -12;
+    var fotosEl = React.createElement("div",{className:"reco-fotos",style:{display:"flex",justifyContent:"center",alignItems:"center",marginBottom:8,minHeight:fotoSize,flexWrap:"nowrap",overflow:"visible"}}
+      ,ganadores.map(function(g,gi){
+        var ini=(g.nombre||"").split(" ").filter(Boolean).slice(-2).map(function(w){return (w||"")[0]||"";}).join("");
+        return React.createElement("div",{key:gi,style:{
+          width:fotoSize,height:fotoSize,borderRadius:"50%",overflow:"hidden",
+          border:"2.5px solid "+cat.brd,
+          marginLeft:gi===0?0:overlap,
+          background:g.fotoUrl?"#000":"rgba(255,255,255,.6)",
+          display:"flex",alignItems:"center",justifyContent:"center",
+          flexShrink:0,zIndex:ganadores.length-gi,position:"relative"
+        }}
+          ,g.fotoUrl
+            ?React.createElement("img",{src:g.fotoUrl,style:{width:"100%",height:"100%",objectFit:"cover"}})
+            :React.createElement("span",{style:{fontSize:fotoSize>46?14:11,fontWeight:900,color:cat.color}},ini)
+        );
+      })
+    );
+    // Nombres
+    var nombresEl = React.createElement("div",{className:"reco-card-nombre",style:{fontSize:esEmpate?11:13,fontWeight:900,color:"#1F2937",lineHeight:1.3,wordBreak:"break-word"}}
+      ,ganadores.map(function(g){return g.nombre.split(" ")[0];}).join(" y ")
+    );
+    return React.createElement("div",{key:cat.label,style:{background:cat.bg,borderRadius:14,padding:"14px 10px",textAlign:"center",border:"2px solid "+cat.brd}}
+      ,fotosEl
+      ,React.createElement("div",{style:{fontSize:8,fontWeight:900,color:cat.color,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:5,lineHeight:1.3}},cat.label)
+      ,nombresEl
+      ,esEmpate&&React.createElement("div",{style:{fontSize:9,color:cat.color,fontWeight:700,marginTop:3,opacity:0.8}},"🤝 Empate")
     );
   }
 
@@ -9265,7 +9310,7 @@ function ReconocidosEspeciales({ equipo, info, RD, R }) {
         ,React.createElement("div",{style:{flex:1,height:1,background:"#F3F4F6"}})
         ,React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",fontWeight:700}},mL.toUpperCase())
       )
-      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:10}},cM.map(Card))
+      ,React.createElement("div",{className:"reco-grid",style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",gap:10}},cM.map(Card))
     )
   );
 }
