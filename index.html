@@ -6646,6 +6646,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                   setCalcKey(function(k){return k+1;});
                 }
                 setTab(t.k);
+                setHistAcc(false); setHistVid("");
               }, style: {padding:"10px 16px",border:"none",borderRadius:"10px 10px 0 0",cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:12,whiteSpace:"nowrap",background:tab===t.k?BG:"rgba(255,255,255,.1)",color:tab===t.k?R:"rgba(255,255,255,.8)",transition:"all .2s"} }, t.l);
             })
           )
@@ -7452,7 +7453,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
           React.createElement('div', { style: {maxWidth:700,margin:"0 auto"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3444}}
             , !histAcc?(
               React.createElement('div', { style: {background:"#fff",borderRadius:20,padding:36,boxShadow:"0 4px 24px rgba(233,7,41,.1)",border:"1px solid rgba(233,7,41,.12)",maxWidth:400,margin:"0 auto",textAlign:"center"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3446}}
-                , React.createElement('div', { style: {fontSize:22,fontWeight:900,color:RD,marginBottom:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3447}}, "Mi Plan de Éxito" )
+                , React.createElement('div', { style: {fontSize:22,fontWeight:900,color:RD,marginBottom:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3447}}, tab==="desempeno"?"Mi Productividad":"Mi Plan de Éxito" )
                 , React.createElement('div', { style: {color:"#6B7280",fontSize:13,marginBottom:24,lineHeight:1.6}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3448}}, "Selecciona tu nombre e ingresa tu PIN para ver tu actividad del mes. Tus datos son privados."                )
                 , React.createElement('label', { style: Object.assign({},LBL,{textAlign:"left"}), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3449}}, "Tu nombre" )
                 , React.createElement('select', { value: histVid, onChange: function(e){setHistVid(e.target.value);setHistAcc(false);}, style: Object.assign({},INP,{marginBottom:14}), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3450}}
@@ -7475,7 +7476,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                           ,vH&&vH.fotoUrl?React.createElement('img',{src:vH.fotoUrl,style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement('span',{style:{fontSize:13,fontWeight:900,color:RD}},ini)
                         );
                       })()
-                    , React.createElement('div', { style: {fontSize:20,fontWeight:900,color:RD} }, "Mi Plan de Éxito" )
+                    , React.createElement('div', { style: {fontSize:20,fontWeight:900,color:RD} }, tab==="desempeno"?"Mi Productividad":"Mi Plan de Éxito" )
                   )
                   , React.createElement('button', { onClick: histLogout, style: {background:"#FEE2E2",color:R,border:"none",borderRadius:10,padding:"8px 16px",fontSize:13,cursor:"pointer",fontWeight:700} }, "Cerrar sesion" )
                 )
@@ -9112,7 +9113,11 @@ function ReconocidosEspeciales({ equipo, info, RD, R }) {
   var semLabel = "Semana "+lunesStr+" al "+domingoStr.slice(8)+"/"+domingoStr.slice(5,7);
 
   function Card(cat){
-    var ganadores = cat.ganadores || [{nombre:cat.nombre, fotoUrl:(equipo.find(function(e){return e.nombre===cat.nombre;})||{}).fotoUrl||null}];
+    var ganadores = (cat.ganadores || [{nombre:cat.nombre, fotoUrl:null}]).map(function(g){
+      // Buscar foto actualizada en equipo (puede haber cargado desde Firebase)
+      var vF = equipo.find(function(e){return e.nombre===g.nombre;});
+      return {nombre:g.nombre, fotoUrl:(vF&&vF.fotoUrl)||g.fotoUrl||null};
+    });
     var esEmpate = ganadores.length > 1;
     var fotoSize = ganadores.length===1 ? 56 : ganadores.length===2 ? 46 : 38;
     var overlap = ganadores.length===1 ? 0 : -12;
