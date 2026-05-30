@@ -6802,9 +6802,6 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                   )
                   , React.createElement('div', { style: {position:"relative",height:14,background:"rgba(255,255,255,.1)",borderRadius:99,border:"1px solid rgba(255,255,255,.12)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3065}}
                     , React.createElement('div', { style: {position:"absolute",left:0,top:0,height:"100%",width:Math.min(metaUFSafe>0?(totUF/metaUFSafe)*100:0,100)+"%",background:"linear-gradient(90deg,#8B1020,#C9A84C)",borderRadius:99,transition:"width 1s ease"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3066}} )
-                    , proyEq>0&&React.createElement('div', { style: {position:"absolute",top:-5,bottom:-5,left:Math.min((proyEq/metaUFSafe)*100,100)+"%",width:2,background:"rgba(255,255,255,.7)",borderRadius:99}}
-                       , React.createElement('div', { style: {position:"absolute",top:-22,left:"50%",transform:"translateX(-50%)",whiteSpace:"nowrap",background:"transparent",color:"rgba(255,255,255,.55)",fontSize:9,fontWeight:700,pointerEvents:"none",letterSpacing:"0.05em"}}, fmtUF2(proyEq)+" UF")
-                     )
                     , React.createElement('div', { style: {position:"absolute",right:Math.max(0,100-Math.min(metaUFSafe>0?(totUF/metaUFSafe)*100:0,96))+"%",top:"50%",transform:"translate(50%,-50%)",background:metaUFSafe>0&&(totUF/metaUFSafe)*100>=100?"#4ADE80":metaUFSafe>0&&(totUF/metaUFSafe)*100>=60?"#C9A84C":"#FCA5A5",color:"#1a0a0a",fontWeight:900,fontSize:10,borderRadius:99,padding:"2px 6px",whiteSpace:"nowrap",boxShadow:"0 2px 6px rgba(0,0,0,.4)",pointerEvents:"none"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3068}}
                       , metaUFSafe>0?Math.round((totUF/metaUFSafe)*100)+"%":"0%"
                     )
@@ -10562,51 +10559,63 @@ function UFLinealesView({ equipo, info }) {
 
     // Mes actual — recuadro VERDE (ya llegaron ≥12 UF)
     React.createElement('div', {
-      style: { background: "linear-gradient(135deg,#15803D,#166534)", borderRadius: 20, padding: "28px 32px", marginBottom: 16, color: "#fff", boxShadow: "0 8px 32px rgba(21,128,61,.35)" }
+      style: { background: "linear-gradient(135deg,#14532D,#15803D)", borderRadius: 20, padding: "22px 32px", marginBottom: 12, color: "#fff", boxShadow: "0 6px 24px rgba(21,128,61,.35)", border: "2px solid rgba(134,239,172,.3)" }
     },
-      React.createElement('div', { style: { fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", opacity: .7, marginBottom: 6 } },
-        "Mes en curso — " + buildMesLabel(0)
+      React.createElement('div', { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 } },
+        React.createElement('div', { style: { fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#86EFAC" } },
+          "✅ META LINEAL — YA LLEGARON · " + buildMesLabel(0)
+        ),
+        React.createElement('div', { style: { background: "rgba(134,239,172,.2)", borderRadius: 99, padding: "3px 12px", fontSize: 12, fontWeight: 900, color: "#86EFAC", border: "1px solid rgba(134,239,172,.5)" } },
+          calificadosMesActual.length + " AGV sobre 12 UF"
+        )
       ),
-      React.createElement('div', { style: { fontSize: 13, opacity: .85, marginBottom: 14 } }, "✅ Total UF's Lineales — Ejecutivos que ya suman a tu meta"),
-      React.createElement('div', { style: { fontSize: 52, fontWeight: 900, lineHeight: 1, marginBottom: 16 } }, fmtUF2(totalMesActual) + " UF"),
-      React.createElement('div', { style: { fontSize: 12, opacity: .75, marginBottom: 10 } },
-        calificadosMesActual.length + " ejecutivo(s) con ≥ 12 UF"
+      React.createElement('div', { style: { fontSize: 15, fontWeight: 900, marginBottom: 6, color: "#DCFCE7" } },
+        "✅ Total UF's Lineales — Ejecutivos que ya suman a tu meta lineal"
       ),
+      React.createElement('div', { style: { fontSize: 11, opacity: .8, marginBottom: 14, color: "#DCFCE7", background: "rgba(0,0,0,.2)", borderRadius: 8, padding: "6px 12px", lineHeight: 1.5 } },
+        calificadosMesActual.length > 0
+          ? "Estos " + calificadosMesActual.length + " ejecutivos YA aportan a tu suma lineal este mes. ¡Sigan así, VAMOS CÓNDORES!"
+          : "Aún ningún ejecutivo ha alcanzado las 12 UF este mes. ¡El equipo puede lograrlo!"
+      ),
+      React.createElement('div', { style: { fontSize: 48, fontWeight: 900, lineHeight: 1, marginBottom: 14, color: "#fff" } }, fmtUF2(totalMesActual) + " UF"),
       calificadosMesActual.length > 0 && React.createElement('div', { style: { display: "flex", flexWrap: "wrap", gap: 8 } },
         calificadosMesActual.map(function(v) {
-          return React.createElement('div', { key: v.id, style: { background: "rgba(255,255,255,.15)", borderRadius: 99, padding: "4px 14px", fontSize: 12, fontWeight: 700 } },
-            primerNombreApellido(v.nombre) + " — " + fmtUF2(v.uf) + " UF"
+          return React.createElement('div', { key: v.id, style: { background: "rgba(134,239,172,.2)", borderRadius: 99, padding: "6px 16px", fontSize: 12, fontWeight: 700, border: "1px solid rgba(134,239,172,.4)", display: "flex", gap: 8, alignItems: "center" } },
+            React.createElement('span', {style:{color:"#DCFCE7"}}, primerNombreApellido(v.nombre)),
+            React.createElement('span', {style:{color:"#86EFAC",fontWeight:900}}, fmtUF2(v.uf) + " UF")
           );
         })
-      ),
-      calificadosMesActual.length === 0 && React.createElement('div', { style: { fontSize: 13, opacity: .7, fontStyle: "italic" } }, "Aún ningún ejecutivo ha alcanzado las 12 UF este mes.")
+      )
     ),
 
-    // Cuadro AMARILLO — Foco AGV cercanos a 12 (6–11.99 UF)
+    // Cuadros de FOCO (amarillo y rojo)
     (focoMesActual.length > 0 || brechaMesActual.length > 0) && React.createElement('div', { style: { marginBottom: 24 } },
 
       // Cuadro AMARILLO — cercanos (6–11.99 UF)
       focoMesActual.length > 0 && React.createElement('div', {
-        style: { background: "linear-gradient(135deg,#92400E,#78350F)", borderRadius: 20, padding: "22px 32px", marginBottom: 12, color: "#fff", boxShadow: "0 6px 24px rgba(146,64,14,.3)", border: "2px solid rgba(253,211,77,.35)" }
+        style: { background: "linear-gradient(135deg,#78350F,#92400E)", borderRadius: 20, padding: "22px 32px", marginBottom: 12, color: "#fff", boxShadow: "0 6px 24px rgba(146,64,14,.3)", border: "2px solid rgba(253,211,77,.35)" }
       },
         React.createElement('div', { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 } },
           React.createElement('div', { style: { fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#FCD34D" } },
-            "🎯 FOCO SUPERVISOR — ZONA AMARILLA"
+            "🎯 FOCO SUPERVISOR — ZONA AMARILLA (6–11,99 UF)"
           ),
-          React.createElement('div', { style: { background: "rgba(253,211,77,.25)", borderRadius: 99, padding: "3px 12px", fontSize: 12, fontWeight: 900, color: "#FCD34D", border: "1px solid rgba(253,211,77,.5)" } },
+          React.createElement('div', { style: { background: "rgba(253,211,77,.2)", borderRadius: 99, padding: "3px 12px", fontSize: 12, fontWeight: 900, color: "#FCD34D", border: "1px solid rgba(253,211,77,.5)" } },
             focoMesActual.length + " AGV cercanos"
           )
         ),
         React.createElement('div', { style: { fontSize: 15, fontWeight: 900, marginBottom: 6, color: "#FDE68A" } },
-          "🎯 Foco sobre estos AGV para llevarlos a 12 (6–11,99 UF)"
+          "🎯 Foco sobre estos AGV para llevarlos a 12 — aún NO suman a tu meta lineal"
         ),
-        React.createElement('div', { style: { fontSize: 11, opacity: .75, marginBottom: 14, fontStyle: "italic", color: "#FDE68A", background: "rgba(0,0,0,.2)", borderRadius: 8, padding: "6px 12px", lineHeight: 1.5 } },
-          "⚠️ Estos ejecutivos aún NO suman a tu meta lineal. Con foco y cierre, pueden cruzar las 12 UF y sumar directo."
+        React.createElement('div', { style: { fontSize: 11, opacity: .8, marginBottom: 14, color: "#FDE68A", background: "rgba(0,0,0,.2)", borderRadius: 8, padding: "6px 12px", lineHeight: 1.5 } },
+          "⚠️ Con foco y cierre pueden cruzar las 12 UF y sumar directo a tu meta lineal este mes."
+        ),
+        React.createElement('div', { style: { fontSize: 48, fontWeight: 900, lineHeight: 1, marginBottom: 14, color: "#fff" } },
+          fmtUF2(focoMesActual.reduce(function(s,v){return s+v.uf;},0)) + " UF"
         ),
         React.createElement('div', { style: { display: "flex", flexWrap: "wrap", gap: 8 } },
           focoMesActual.map(function(v) {
             var faltan = (12 - v.uf).toFixed(2).replace(".",",");
-            return React.createElement('div', { key: v.id, style: { background: "rgba(253,211,77,.2)", borderRadius: 99, padding: "6px 16px", fontSize: 12, fontWeight: 700, border: "1px solid rgba(253,211,77,.5)", display: "flex", gap: 8, alignItems: "center" } },
+            return React.createElement('div', { key: v.id, style: { background: "rgba(253,211,77,.15)", borderRadius: 99, padding: "6px 16px", fontSize: 12, fontWeight: 700, border: "1px solid rgba(253,211,77,.45)", display: "flex", gap: 8, alignItems: "center" } },
               React.createElement('span', {style:{color:"#FDE68A"}}, primerNombreApellido(v.nombre)),
               React.createElement('span', {style:{color:"#FCD34D",fontWeight:900}}, fmtUF2(v.uf) + " UF"),
               React.createElement('span', {style:{color:"rgba(253,211,77,.6)",fontSize:10}}, "le faltan " + faltan + " UF")
@@ -10621,17 +10630,20 @@ function UFLinealesView({ equipo, info }) {
       },
         React.createElement('div', { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 } },
           React.createElement('div', { style: { fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#FCA5A5" } },
-            "🚨 ZONA ROJA — MAYOR BRECHA"
+            "🚨 ZONA ROJA — MAYOR BRECHA (0,01–5,99 UF)"
           ),
           React.createElement('div', { style: { background: "rgba(252,165,165,.2)", borderRadius: 99, padding: "3px 12px", fontSize: 12, fontWeight: 900, color: "#FCA5A5", border: "1px solid rgba(252,165,165,.4)" } },
             brechaMesActual.length + " AGV con mayor brecha"
           )
         ),
         React.createElement('div', { style: { fontSize: 15, fontWeight: 900, marginBottom: 6, color: "#FECACA" } },
-          "🚨 Estos AGV necesitan intervención urgente (0,01–5,99 UF)"
+          "🚨 Estos AGV necesitan intervención urgente — aún NO suman a tu meta lineal"
         ),
-        React.createElement('div', { style: { fontSize: 11, opacity: .75, marginBottom: 14, fontStyle: "italic", color: "#FECACA", background: "rgba(0,0,0,.25)", borderRadius: 8, padding: "6px 12px", lineHeight: 1.5 } },
-          "⚠️ Aún NO suman a tu meta lineal y tienen mayor brecha para llegar a 12 UF. Requieren plan de acción esta semana."
+        React.createElement('div', { style: { fontSize: 11, opacity: .8, marginBottom: 14, color: "#FECACA", background: "rgba(0,0,0,.25)", borderRadius: 8, padding: "6px 12px", lineHeight: 1.5 } },
+          "⚠️ Tienen mayor brecha para llegar a 12 UF. Requieren plan de acción urgente esta semana."
+        ),
+        React.createElement('div', { style: { fontSize: 48, fontWeight: 900, lineHeight: 1, marginBottom: 14, color: "#fff" } },
+          fmtUF2(brechaMesActual.reduce(function(s,v){return s+v.uf;},0)) + " UF"
         ),
         React.createElement('div', { style: { display: "flex", flexWrap: "wrap", gap: 8 } },
           brechaMesActual.map(function(v) {
