@@ -3135,6 +3135,54 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
       },label+(sortCol===col?(sortAsc?" ↑":" ↓"):" ↕"));
   }
 
+  function renderDetalleKpi(cfgMap, colores) {
+    var cfg = cfgMap[kpiDetalle];
+    if(!cfg) return null;
+    var filas = datos.slice().filter(function(v){
+      var val=cfg.fn(v);
+      if(typeof val==="string") return val!=="0%" && parseFloat(val)>0;
+      return val>0;
+    }).sort(function(a,b){
+      var va=cfg.fn(a), vb=cfg.fn(b);
+      if(typeof va==="string") return parseFloat(String(vb).replace(" UF",""))-parseFloat(String(va).replace(" UF",""));
+      return vb-va;
+    });
+    return React.createElement("div",{style:{background:"#F8FAFC",borderRadius:12,padding:"14px 16px",marginBottom:8,border:"1px solid #E5E7EB"}},
+      React.createElement("div",{style:{fontSize:12,fontWeight:900,color:cfg.c,marginBottom:10,textTransform:"uppercase",letterSpacing:"0.05em"}},"📊 Detalle individual — "+cfg.l),
+      filas.length===0
+        ? React.createElement("div",{style:{color:"#9CA3AF",fontSize:12,fontStyle:"italic"}},"Todos los ejecutivos están en cero para esta métrica.")
+        : React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:6}},
+            filas.map(function(v){
+              var val=cfg.fn(v);
+              return React.createElement("div",{key:v.id,style:{display:"flex",justifyContent:"space-between",alignItems:"center",background:"#fff",borderRadius:8,padding:"8px 12px",border:"1px solid #E5E7EB"}},
+                React.createElement("span",{style:{fontSize:12,fontWeight:700,color:"#374151"}},(v.nombre.split(" ")[0]||"")+" "+(v.nombre.split(" ")[1]||"")),
+                React.createElement("span",{style:{fontSize:14,fontWeight:900,color:cfg.c}},val)
+              );
+            })
+          )
+    );
+  }
+
+  function renderDetalleF1() {
+    return renderDetalleKpi({
+      totTotal:   {l:"Total DPS",       c:"#374151", fn:function(v){return v.dpsTotal||0;}},
+      conVenta:   {l:"DPS Con Venta",   c:"#16A34A", fn:function(v){return v.dpsConVenta||0;}},
+      sinVenta:   {l:"DPS Sin Venta",   c:"#2563EB", fn:function(v){return v.dpsSinVenta||0;}},
+      pendiente:  {l:"DPS Pendientes",  c:"#D97706", fn:function(v){return v.dpsPendiente||0;}},
+      rechazado:  {l:"DPS Rechazadas",  c:"#DC2626", fn:function(v){return v.dpsRechazado||0;}},
+      tasaCierre: {l:"Tasa Cierre DPS", c:"#374151", fn:function(v){return v.dpsTotal>0?Math.round((v.dpsConVenta/v.dpsTotal)*100)+"%":"0%";}}
+    });
+  }
+
+  function renderDetalleF2() {
+    return renderDetalleKpi({
+      totUF:      {l:"Total UF",           c:"#C9A84C", fn:function(v){return parseFloat(v.uf||0).toFixed(2)+" UF";}},
+      totBenef:   {l:"N° Beneficiarios",   c:"#0891B2", fn:function(v){return v.nBenef||0;}},
+      totCttos:   {l:"Contratos Digitados",c:"#059669", fn:function(v){return v.cttosDig||0;}},
+      totConecta: {l:"Planes Conecta",     c:"#059669", fn:function(v){return v.conecta||0;}}
+    });
+  }
+
   return React.createElement("div",{style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(233,7,41,.09)"}}
     ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:RD,marginBottom:4}},"🔵 Análisis de Métricas por Mes")
     ,React.createElement("div",{style:{fontSize:12,color:"#6B7280",marginBottom:4}},"Selecciona un mes · Click en cualquier celda para editar · Enter o click fuera para guardar")
@@ -3208,33 +3256,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
       })
     )
     // Panel desplegable FILA 1
-    ,kpiDetalle&&["totTotal","conVenta","sinVenta","pendiente","rechazado","tasaCierre"].indexOf(kpiDetalle)>=0&&(function(){
-      var cfg = {
-        totTotal:   {l:"Total DPS",      c:"#374151", fn:function(v){return v.dpsTotal||0;}},
-        conVenta:   {l:"DPS Con Venta",  c:"#16A34A", fn:function(v){return v.dpsConVenta||0;}},
-        sinVenta:   {l:"DPS Sin Venta",  c:"#2563EB", fn:function(v){return v.dpsSinVenta||0;}},
-        pendiente:  {l:"DPS Pendientes", c:"#D97706", fn:function(v){return v.dpsPendiente||0;}},
-        rechazado:  {l:"DPS Rechazadas", c:"#DC2626", fn:function(v){return v.dpsRechazado||0;}},
-        tasaCierre: {l:"Tasa Cierre DPS",c:"#374151", fn:function(v){return v.dpsTotal>0?Math.round((v.dpsConVenta/v.dpsTotal)*100)+"%":"0%";}}
-      }[kpiDetalle];
-      var filas = datos.slice().sort(function(a,b){
-        var va=cfg.fn(a), vb=cfg.fn(b);
-        if(typeof va==="string") return -1; // tasa: no ordenar numéricamente
-        return vb-va;
-      });
-      return React.createElement("div",{style:{background:"#F8FAFC",borderRadius:12,padding:"14px 16px",marginBottom:8,border:"1px solid #E5E7EB",animation:"fadeIn .2s"}},
-        React.createElement("div",{style:{fontSize:12,fontWeight:900,color:cfg.c,marginBottom:10,textTransform:"uppercase",letterSpacing:"0.05em"}},"📊 Detalle individual — "+cfg.l),
-        React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:6}},
-          filas.map(function(v,i){
-            var val = cfg.fn(v);
-            return React.createElement("div",{key:v.id,style:{display:"flex",justifyContent:"space-between",alignItems:"center",background:"#fff",borderRadius:8,padding:"7px 12px",border:"1px solid #E5E7EB"}},
-              React.createElement("span",{style:{fontSize:12,fontWeight:700,color:"#374151"}},v.nombre.split(" ")[0]+" "+v.nombre.split(" ")[1]),
-              React.createElement("span",{style:{fontSize:14,fontWeight:900,color:cfg.c}},val)
-            );
-          })
-        )
-      );
-    })()
+    ,kpiDetalle&&["totTotal","conVenta","sinVenta","pendiente","rechazado","tasaCierre"].indexOf(kpiDetalle)>=0&&renderDetalleF1()
     // KPIs FILA 2 (clickeables)
     ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:4}}
       ,[
@@ -3255,30 +3277,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
       })
     )
     // Panel desplegable FILA 2
-    ,kpiDetalle&&["totUF","totBenef","totCttos","totConecta"].indexOf(kpiDetalle)>=0&&(function(){
-      var cfg = {
-        totUF:      {l:"Total UF",           c:"#C9A84C", fn:function(v){return parseFloat(v.uf||0).toFixed(2)+" UF";}},
-        totBenef:   {l:"N° Beneficiarios",    c:"#0891B2", fn:function(v){return v.nBenef||0;}},
-        totCttos:   {l:"Contratos Digitados", c:"#059669", fn:function(v){return v.cttosDig||0;}},
-        totConecta: {l:"Planes Conecta",      c:"#059669", fn:function(v){return v.conecta||0;}},
-      }[kpiDetalle];
-      var filas = datos.slice().sort(function(a,b){
-        var va=cfg.fn(a), vb=cfg.fn(b);
-        if(typeof va==="string"){return parseFloat(vb)-parseFloat(va);}
-        return vb-va;
-      });
-      return React.createElement("div",{style:{background:"#F8FAFC",borderRadius:12,padding:"14px 16px",marginBottom:8,border:"1px solid #E5E7EB"}},
-        React.createElement("div",{style:{fontSize:12,fontWeight:900,color:cfg.c,marginBottom:10,textTransform:"uppercase",letterSpacing:"0.05em"}},"📊 Detalle individual — "+cfg.l),
-        React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:6}},
-          filas.map(function(v){
-            return React.createElement("div",{key:v.id,style:{display:"flex",justifyContent:"space-between",alignItems:"center",background:"#fff",borderRadius:8,padding:"7px 12px",border:"1px solid #E5E7EB"}},
-              React.createElement("span",{style:{fontSize:12,fontWeight:700,color:"#374151"}},v.nombre.split(" ")[0]+" "+v.nombre.split(" ")[1]),
-              React.createElement("span",{style:{fontSize:14,fontWeight:900,color:cfg.c}},cfg.fn(v))
-            );
-          })
-        )
-      );
-    })()
+    ,kpiDetalle&&["totUF","totBenef","totCttos","totConecta"].indexOf(kpiDetalle)>=0&&renderDetalleF2()
 
     // Tabla editable
     ,React.createElement("div",{style:{overflowX:"auto"}}
@@ -4217,35 +4216,29 @@ function PlanAGVView({ equipo, info, R, RD }) {
                 ,React.createElement(PlanNotaEditor,{vid:v.id,nota:plan.nota||""})
               )
               // Calendario del ejecutivo — vista supervisor con bitácora
-              ,(plan.calendario&&plan.calendario.length>0)&&(function(){
-                var calOrdenado=[].concat(plan.calendario).sort(function(a,b){return (b.fecha||"").localeCompare(a.fecha||"");});
-                var colEst=function(est){return est==="completada"?"#16A34A":est==="incompleto"?"#D97706":est==="sin_avance"?"#DC2626":"#6B7280";};
-                var lblEst=function(est){return est==="completada"?"✅ Completado":est==="incompleto"?"⚠️ Incompleto":est==="sin_avance"?"❌ Sin avance":"⏳ Sin estado";};
-                return React.createElement("div",{style:{marginTop:12,background:"#F8FAFC",borderRadius:12,padding:"14px 16px",border:"1.5px solid #E5E7EB"}}
-                  ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:"#374151",marginBottom:10}},"📅 Bitácora de actividades del ejecutivo")
-                  ,calOrdenado.map(function(act,i){
-                    var col=colEst(act.estado);
-                    var nombreAct=act.txt||act.texto||"";
-                    return React.createElement("div",{key:i,style:{marginBottom:8,borderRadius:9,border:"1.5px solid "+col,overflow:"hidden",background:"#fff"}}
-                      // Fila fecha + nombre + estado
-                      ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:act.estado==="completada"?"#F0FDF4":act.estado==="incompleto"?"#FFFBEB":act.estado==="sin_avance"?"#FFF1F2":"#fff"}}
-                        ,act.fecha&&React.createElement("span",{style:{fontSize:10,color:"#6B7280",flexShrink:0,fontWeight:600}},
-                          new Date(act.fecha+"T12:00:00").toLocaleDateString("es-CL",{weekday:"short",day:"numeric",month:"short"})
-                        )
-                        ,React.createElement("span",{style:{flex:1,fontSize:12,fontWeight:700,color:"#1F2937"}},nombreAct)
-                        ,React.createElement("span",{style:{fontSize:10,fontWeight:700,color:col,flexShrink:0}},lblEst(act.estado))
-                      )
-                      // Fila nota/bitácora
-                      ,React.createElement("div",{style:{padding:"7px 12px",borderTop:"1px solid #F3F4F6",background:"#FAFAFA"}}
-                        ,React.createElement("div",{style:{fontSize:10,fontWeight:700,color:"#9CA3AF",marginBottom:3,textTransform:"uppercase",letterSpacing:"0.04em"}},"📝 Bitácora")
-                        ,act.nota
-                          ? React.createElement("div",{style:{fontSize:12,color:"#374151",lineHeight:1.5}},act.nota)
-                          : React.createElement("div",{style:{fontSize:11,color:"#9CA3AF",fontStyle:"italic"}},"Sin registro del ejecutivo para esta actividad.")
-                      )
-                    );
-                  })
-                );
-              })()
+              ,(plan.calendario&&plan.calendario.length>0)&&React.createElement("div",{style:{marginTop:12,background:"#F8FAFC",borderRadius:12,padding:"14px 16px",border:"1.5px solid #E5E7EB"}},
+                React.createElement("div",{style:{fontSize:12,fontWeight:800,color:"#374151",marginBottom:10}},"📅 Bitácora de actividades del ejecutivo"),
+                [].concat(plan.calendario).sort(function(a,b){return (b.fecha||"").localeCompare(a.fecha||"");}).map(function(act,i){
+                  var colEst=act.estado==="completada"?"#16A34A":act.estado==="incompleto"?"#D97706":act.estado==="sin_avance"?"#DC2626":"#6B7280";
+                  var lblEst=act.estado==="completada"?"✅ Completado":act.estado==="incompleto"?"⚠️ Incompleto":act.estado==="sin_avance"?"❌ Sin avance":"⏳ Sin estado";
+                  var nombreAct=act.txt||act.texto||"";
+                  return React.createElement("div",{key:i,style:{marginBottom:8,borderRadius:9,border:"1.5px solid "+colEst,overflow:"hidden",background:"#fff"}},
+                    React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:act.estado==="completada"?"#F0FDF4":act.estado==="incompleto"?"#FFFBEB":act.estado==="sin_avance"?"#FFF1F2":"#fff"}},
+                      act.fecha&&React.createElement("span",{style:{fontSize:10,color:"#6B7280",flexShrink:0,fontWeight:600}},
+                        new Date(act.fecha+"T12:00:00").toLocaleDateString("es-CL",{weekday:"short",day:"numeric",month:"short"})
+                      ),
+                      React.createElement("span",{style:{flex:1,fontSize:12,fontWeight:700,color:"#1F2937"}},nombreAct),
+                      React.createElement("span",{style:{fontSize:10,fontWeight:700,color:colEst,flexShrink:0}},lblEst)
+                    ),
+                    React.createElement("div",{style:{padding:"7px 12px",borderTop:"1px solid #F3F4F6",background:"#FAFAFA"}},
+                      React.createElement("div",{style:{fontSize:10,fontWeight:700,color:"#9CA3AF",marginBottom:3,textTransform:"uppercase",letterSpacing:"0.04em"}},"📝 Bitácora"),
+                      act.nota
+                        ? React.createElement("div",{style:{fontSize:12,color:"#374151",lineHeight:1.5}},act.nota)
+                        : React.createElement("div",{style:{fontSize:11,color:"#9CA3AF",fontStyle:"italic"}},"Sin registro del ejecutivo para esta actividad.")
+                    )
+                  );
+                })
+              )
             )
           );
         })
@@ -6754,7 +6747,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
               , React.createElement('div', { style: {padding:"20px 22px 22px",position:"relative",zIndex:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3016}}
                 /* Línea superior */
                 , React.createElement('div', { style: {fontSize:9,fontWeight:700,color:"#C9A84C",letterSpacing:"0.35em",textTransform:"uppercase",marginBottom:10}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3018}}
-                  , "MARCADOR · "+(info.mes.toUpperCase())+" · DÍA "+info.elapsed+"/"+info.wdTotal
+                  , "MARCADOR · "+(info.mes.toUpperCase())+" · "+info.calLeft+" DÍAS RESTANTES"
                 )
                 /* Título dinámico */
                 , React.createElement('div', { style: {fontSize:"clamp(20px,5.5vw,30px)",fontWeight:900,color:"#fff",lineHeight:1.15,marginBottom:6}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3022}}
@@ -6824,8 +6817,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                     , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:"0.12em",marginTop:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3077}}, "UF que faltan"  )
                   )
                   , React.createElement('div', { style: {background:"rgba(255,255,255,.06)",borderRadius:12,padding:"12px 10px",textAlign:"center",border:"1px solid rgba(201,168,76,.2)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3079}}
-                    , React.createElement('div', { style: {fontSize:"clamp(18px,4vw,26px)",fontWeight:900,color:"#C9A84C",lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3080}}, info.left>0?fmtUF2(falta/info.left):"0")
-                    , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:"0.12em",marginTop:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3081}}, "UF's a cerrar por día para alcanzar la meta · "+info.left+" días restantes")
+                    , React.createElement('div', { style: {fontSize:"clamp(18px,4vw,26px)",fontWeight:900,color:"#C9A84C",lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3080}}, info.calLeft>0?fmtUF2(falta/info.calLeft):"0")
+                    , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:"0.12em",marginTop:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3081}}, "UF's a cerrar por día para alcanzar la meta · "+info.calLeft+" días restantes")
                   )
                   , React.createElement('div', { style: {background:"rgba(255,255,255,.06)",borderRadius:12,padding:"12px 10px",textAlign:"center",border:"1px solid rgba(201,168,76,.2)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3083}}
                     , React.createElement('div', { style: {fontSize:"clamp(18px,4vw,26px)",fontWeight:900,color:"#C9A84C",lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3084}}, xCrack)
@@ -9224,7 +9217,7 @@ function ReconocidosEspeciales({ equipo, info, RD, R }) {
       return {nombre:g.nombre, fotoUrl:(vF&&vF.fotoUrl)||g.fotoUrl||null};
     });
     var esEmpate = ganadores.length > 1;
-    var fotoSize = ganadores.length===1 ? 56 : ganadores.length===2 ? 46 : 38;
+    var fotoSize = ganadores.length===1 ? 64 : ganadores.length===2 ? 52 : 42;
     var overlap = ganadores.length===1 ? 0 : -12;
     var fotosEl = React.createElement("div",{style:{display:"flex",justifyContent:"center",alignItems:"center",marginBottom:8,minHeight:fotoSize,flexWrap:"nowrap",overflow:"visible"}}
       ,ganadores.map(function(g,gi){
@@ -10109,9 +10102,11 @@ function AgendaRecordatoriosView({ R, RD }) {
   var [tareas, setTareas] = React.useState(function(){
     try{ return JSON.parse(localStorage.getItem("agenda_tareas")||"[]"); }catch(e){return [];}
   });
-  var [form, setForm] = React.useState({titulo:"",tipo:"diaria",urgencia:"media",fecha:"",nota:""});
+  var [form, setForm] = React.useState({titulo:"",tipo:"diaria",urgencia:"media",fecha:"",hora:"",nota:""});
   var [editId, setEditId] = React.useState(null);
   var [alertaTarea, setAlertaTarea] = React.useState(null);
+  var [diaSeleccionado, setDiaSeleccionado] = React.useState(null);
+  var [vistaCalendario, setVistaCalendario] = React.useState(true);
 
   function guardar(ts){
     localStorage.setItem("agenda_tareas", JSON.stringify(ts));
@@ -10128,117 +10123,306 @@ function AgendaRecordatoriosView({ R, RD }) {
     }
   },[]);
 
-  // Alertas automáticas: mostrar pop-in si hay tarea con fecha = hoy o ya vencida urgencia alta
+  // Alarma horaria: revisar cada minuto si hay tarea con fecha+hora = ahora
   React.useEffect(function(){
-    var hoy = new Date().toISOString().slice(0,10);
-    var urgentes = tareas.filter(function(t){return !t.hecha && t.fecha && t.fecha<=hoy && t.urgencia==="alta";});
-    if(urgentes.length>0 && !alertaTarea) setAlertaTarea(urgentes[0]);
+    function checkAlarmas(){
+      var ahora = new Date();
+      var hoyStr = ahora.toISOString().slice(0,10);
+      var horaStr = String(ahora.getHours()).padStart(2,"0")+":"+String(ahora.getMinutes()).padStart(2,"0");
+      var urgentes = tareas.filter(function(t){
+        return !t.hecha && t.fecha && t.urgencia==="alta" && (
+          (t.fecha===hoyStr && (!t.hora || t.hora<=horaStr)) ||
+          (t.fecha<hoyStr)
+        );
+      });
+      if(urgentes.length>0 && !alertaTarea) setAlertaTarea(urgentes[0]);
+    }
+    checkAlarmas();
+    var iv = setInterval(checkAlarmas, 60000);
+    return function(){ clearInterval(iv); };
   },[tareas]);
 
   function addTarea(){
     if(!form.titulo.trim()) return;
     var nueva = Object.assign({},form,{id:Date.now(),hecha:false});
-    var ts = editId ? tareas.map(function(t){return t.id===editId?nueva:t;}) : tareas.concat([nueva]);
-    setTareas(ts); guardar(ts); setForm({titulo:"",tipo:"diaria",urgencia:"media",fecha:"",nota:""}); setEditId(null);
+    var ts = editId ? tareas.map(function(t){return t.id===editId?Object.assign({},nueva,{id:editId}):t;}) : tareas.concat([nueva]);
+    setTareas(ts); guardar(ts);
+    setForm({titulo:"",tipo:"diaria",urgencia:"media",fecha:"",hora:"",nota:""});
+    setEditId(null);
   }
   function toggleHecha(id){
     var ts=tareas.map(function(t){return t.id===id?Object.assign({},t,{hecha:!t.hecha}):t;});
     setTareas(ts); guardar(ts);
   }
   function eliminar(id){var ts=tareas.filter(function(t){return t.id!==id;});setTareas(ts);guardar(ts);}
-  function editar(t){setForm({titulo:t.titulo,tipo:t.tipo,urgencia:t.urgencia,fecha:t.fecha||"",nota:t.nota||""});setEditId(t.id);}
+  function editar(t){
+    setForm({titulo:t.titulo,tipo:t.tipo,urgencia:t.urgencia,fecha:t.fecha||"",hora:t.hora||"",nota:t.nota||""});
+    setEditId(t.id);
+    setVistaCalendario(false);
+  }
 
   var urgColor={alta:"#DC2626",media:"#D97706",baja:"#16A34A"};
   var urgBg   ={alta:"#FFF1F2",media:"#FFFBEB",baja:"#F0FDF4"};
   var urgLabel={alta:"🔴 Alta",media:"🟡 Media",baja:"🟢 Baja"};
+  var urgBorde={alta:"#FCA5A5",media:"#FCD34D",baja:"#86EFAC"};
   var tipoLabel={diaria:"📅 Diaria",semanal:"📆 Semanal",mensual:"🗓 Mensual"};
   var hoy=new Date().toISOString().slice(0,10);
 
-  var pendientes=tareas.filter(function(t){return !t.hecha;}).sort(function(a,b){var p={alta:0,media:1,baja:2};return p[a.urgencia]-p[b.urgencia];});
+  // Calendario
+  var ahora = new Date();
+  var anioC = ahora.getFullYear();
+  var mesC  = ahora.getMonth();
+  var diasEnMes = new Date(anioC, mesC+1, 0).getDate();
+  var primerDiaC = new Date(anioC, mesC, 1).getDay(); // 0=Dom
+  var primerDiaLunes = primerDiaC===0 ? 6 : primerDiaC-1; // ajustar a lunes=0
+  var nombresMes=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  var diasSem=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+
+  function tareasDelDia(diaNum){
+    var fechaStr = anioC+"-"+String(mesC+1).padStart(2,"0")+"-"+String(diaNum).padStart(2,"0");
+    return tareas.filter(function(t){return t.fecha===fechaStr && !t.hecha;});
+  }
+
+  var pendientes=tareas.filter(function(t){return !t.hecha;}).sort(function(a,b){
+    if(a.fecha&&b.fecha&&a.fecha!==b.fecha) return a.fecha<b.fecha?-1:1;
+    var p={alta:0,media:1,baja:2}; return p[a.urgencia]-p[b.urgencia];
+  });
   var hechas=tareas.filter(function(t){return t.hecha;});
 
+  // Tareas del día seleccionado o de hoy
+  var diaVer = diaSeleccionado || parseInt(hoy.slice(8));
+  var fechaVer = anioC+"-"+String(mesC+1).padStart(2,"0")+"-"+String(diaVer).padStart(2,"0");
+  var tareasVer = tareas.filter(function(t){return t.fecha===fechaVer && !t.hecha;});
+
   return React.createElement("div",{style:{padding:"4px 0"}},
-    // Pop-in de alerta
-    alertaTarea&&React.createElement("div",{style:{position:"fixed",top:20,right:20,zIndex:9999,background:"#DC2626",color:"#fff",borderRadius:14,padding:"16px 22px",boxShadow:"0 8px 32px rgba(220,38,38,.4)",maxWidth:340,animation:"fadeIn .3s"}},
-      React.createElement("div",{style:{fontSize:13,fontWeight:900,marginBottom:6}},"🚨 Tarea urgente pendiente"),
-      React.createElement("div",{style:{fontSize:14,fontWeight:700,marginBottom:10}},alertaTarea.titulo),
-      React.createElement("div",{style:{fontSize:11,opacity:.8,marginBottom:12}},alertaTarea.nota),
-      React.createElement("button",{onClick:function(){setAlertaTarea(null);},style:{background:"rgba(255,255,255,.25)",border:"none",borderRadius:8,padding:"6px 14px",color:"#fff",fontWeight:700,cursor:"pointer",fontFamily:"inherit"}},"✓ Entendido")
+
+    // Pop-in alarma urgente
+    alertaTarea&&React.createElement("div",{style:{position:"fixed",top:20,right:20,zIndex:9999,background:"#DC2626",color:"#fff",borderRadius:16,padding:"20px 26px",boxShadow:"0 8px 40px rgba(220,38,38,.5)",maxWidth:360,border:"2px solid #FCA5A5"}},
+      React.createElement("div",{style:{fontSize:15,fontWeight:900,marginBottom:8}},"🚨 "+( alertaTarea.hora?"ALARMA — "+alertaTarea.hora:"Tarea urgente pendiente")),
+      React.createElement("div",{style:{fontSize:16,fontWeight:700,marginBottom:6}},alertaTarea.titulo),
+      alertaTarea.nota&&React.createElement("div",{style:{fontSize:13,opacity:.9,marginBottom:12}},alertaTarea.nota),
+      alertaTarea.fecha&&React.createElement("div",{style:{fontSize:12,opacity:.8,marginBottom:12}},"📅 "+alertaTarea.fecha+(alertaTarea.hora?" · ⏰ "+alertaTarea.hora:"")),
+      React.createElement("button",{onClick:function(){setAlertaTarea(null);},style:{background:"rgba(255,255,255,.25)",border:"2px solid rgba(255,255,255,.5)",borderRadius:8,padding:"8px 18px",color:"#fff",fontWeight:900,cursor:"pointer",fontFamily:"inherit",fontSize:14}},"✓ Entendido")
     ),
-    React.createElement("div",{style:{fontSize:18,fontWeight:900,color:RD,marginBottom:4}},"📌 Recordatorios & Gestiones"),
-    React.createElement("div",{style:{fontSize:13,color:"#6B7280",marginBottom:18}},"Organiza tus pendientes por tipo y urgencia. Las tareas urgentes vencidas generan alerta automática."),
-    // Formulario
-    React.createElement("div",{style:{background:"#F8FAFC",borderRadius:16,padding:"18px 20px",marginBottom:20,border:"1px solid #E5E7EB"}},
-      React.createElement("div",{style:{fontSize:13,fontWeight:900,color:RD,marginBottom:12}},editId?"✏️ Editar tarea":"➕ Nueva tarea"),
-      React.createElement("input",{placeholder:"Título de la tarea *",value:form.titulo,onChange:function(e){setForm(Object.assign({},form,{titulo:e.target.value}));},
-        style:{width:"100%",padding:"10px 14px",borderRadius:10,border:"1px solid #E5E7EB",fontSize:13,marginBottom:10,fontFamily:"inherit"}}),
-      React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:10}},
-        React.createElement("select",{value:form.tipo,onChange:function(e){setForm(Object.assign({},form,{tipo:e.target.value}));},
-          style:{padding:"9px 10px",borderRadius:10,border:"1px solid #E5E7EB",fontSize:12,fontFamily:"inherit"}},
-          React.createElement("option",{value:"diaria"},"📅 Diaria"),
-          React.createElement("option",{value:"semanal"},"📆 Semanal"),
-          React.createElement("option",{value:"mensual"},"🗓 Mensual")
+
+    // Header
+    React.createElement("div",{style:{fontSize:20,fontWeight:900,color:RD,marginBottom:4}},"📌 Recordatorios & Gestiones"),
+    React.createElement("div",{style:{fontSize:15,color:"#374151",marginBottom:16}},"Organiza tus pendientes. Asigna fecha y hora para recibir alertas automáticas."),
+
+    // Tabs vista
+    React.createElement("div",{style:{display:"flex",gap:8,marginBottom:20}},
+      React.createElement("button",{onClick:function(){setVistaCalendario(true);},
+        style:{padding:"9px 20px",border:"none",borderRadius:10,cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:14,background:vistaCalendario?"#C41230":"#E5E7EB",color:vistaCalendario?"#fff":"#374151"}},
+        "📅 Calendario"),
+      React.createElement("button",{onClick:function(){setVistaCalendario(false);},
+        style:{padding:"9px 20px",border:"none",borderRadius:10,cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:14,background:!vistaCalendario?"#C41230":"#E5E7EB",color:!vistaCalendario?"#fff":"#374151"}},
+        "📋 Lista")
+    ),
+
+    // ── VISTA CALENDARIO ──
+    vistaCalendario&&React.createElement("div",null,
+      // Formulario rápido
+      React.createElement("div",{style:{background:"#F8FAFC",borderRadius:16,padding:"18px 20px",marginBottom:20,border:"1px solid #E5E7EB"}},
+        React.createElement("div",{style:{fontSize:15,fontWeight:900,color:"#1F2937",marginBottom:14}},editId?"✏️ Editar tarea":"➕ Nueva tarea"),
+        React.createElement("input",{placeholder:"Título de la tarea *",value:form.titulo,onChange:function(e){setForm(Object.assign({},form,{titulo:e.target.value}));},
+          style:{width:"100%",padding:"12px 14px",borderRadius:10,border:"1px solid #E5E7EB",fontSize:15,marginBottom:10,fontFamily:"inherit",color:"#1F2937"}}),
+        React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:10,marginBottom:10}},
+          React.createElement("select",{value:form.tipo,onChange:function(e){setForm(Object.assign({},form,{tipo:e.target.value}));},
+            style:{padding:"10px",borderRadius:10,border:"1px solid #E5E7EB",fontSize:14,fontFamily:"inherit",color:"#1F2937"}},
+            React.createElement("option",{value:"diaria"},"📅 Diaria"),
+            React.createElement("option",{value:"semanal"},"📆 Semanal"),
+            React.createElement("option",{value:"mensual"},"🗓 Mensual")
+          ),
+          React.createElement("select",{value:form.urgencia,onChange:function(e){setForm(Object.assign({},form,{urgencia:e.target.value}));},
+            style:{padding:"10px",borderRadius:10,border:"1px solid #E5E7EB",fontSize:14,fontFamily:"inherit",color:"#1F2937"}},
+            React.createElement("option",{value:"alta"},"🔴 Alta"),
+            React.createElement("option",{value:"media"},"🟡 Media"),
+            React.createElement("option",{value:"baja"},"🟢 Baja")
+          ),
+          React.createElement("input",{type:"date",value:form.fecha,onChange:function(e){setForm(Object.assign({},form,{fecha:e.target.value}));},
+            style:{padding:"10px",borderRadius:10,border:"1px solid #E5E7EB",fontSize:14,fontFamily:"inherit",color:"#1F2937"}}),
+          React.createElement("input",{type:"time",value:form.hora,onChange:function(e){setForm(Object.assign({},form,{hora:e.target.value}));},
+            placeholder:"⏰ Hora alarma",
+            style:{padding:"10px",borderRadius:10,border:"1px solid #E5E7EB",fontSize:14,fontFamily:"inherit",color:"#1F2937"}})
         ),
-        React.createElement("select",{value:form.urgencia,onChange:function(e){setForm(Object.assign({},form,{urgencia:e.target.value}));},
-          style:{padding:"9px 10px",borderRadius:10,border:"1px solid #E5E7EB",fontSize:12,fontFamily:"inherit"}},
-          React.createElement("option",{value:"alta"},"🔴 Alta urgencia"),
-          React.createElement("option",{value:"media"},"🟡 Media urgencia"),
-          React.createElement("option",{value:"baja"},"🟢 Baja urgencia")
-        ),
-        React.createElement("input",{type:"date",value:form.fecha,onChange:function(e){setForm(Object.assign({},form,{fecha:e.target.value}));},
-          style:{padding:"9px 10px",borderRadius:10,border:"1px solid #E5E7EB",fontSize:12,fontFamily:"inherit"}})
+        React.createElement("textarea",{placeholder:"Nota o detalle (opcional)",value:form.nota,onChange:function(e){setForm(Object.assign({},form,{nota:e.target.value}));},
+          style:{width:"100%",padding:"12px 14px",borderRadius:10,border:"1px solid #E5E7EB",fontSize:14,fontFamily:"inherit",resize:"vertical",minHeight:60,marginBottom:12,color:"#1F2937"}}),
+        React.createElement("div",{style:{display:"flex",gap:8}},
+          React.createElement("button",{onClick:addTarea,
+            style:{background:"#C41230",color:"#fff",border:"none",borderRadius:10,padding:"10px 24px",fontWeight:900,cursor:"pointer",fontFamily:"inherit",fontSize:15}},
+            editId?"💾 Guardar cambios":"➕ Agregar tarea"),
+          editId&&React.createElement("button",{onClick:function(){setEditId(null);setForm({titulo:"",tipo:"diaria",urgencia:"media",fecha:"",hora:"",nota:""});},
+            style:{background:"#E5E7EB",color:"#374151",border:"none",borderRadius:10,padding:"10px 16px",fontWeight:700,cursor:"pointer",fontFamily:"inherit",fontSize:14}},"Cancelar")
+        )
       ),
-      React.createElement("textarea",{placeholder:"Nota o detalle (opcional)",value:form.nota,onChange:function(e){setForm(Object.assign({},form,{nota:e.target.value}));},
-        style:{width:"100%",padding:"10px 14px",borderRadius:10,border:"1px solid #E5E7EB",fontSize:12,fontFamily:"inherit",resize:"vertical",minHeight:60,marginBottom:10}}),
-      React.createElement("div",{style:{display:"flex",gap:8}},
-        React.createElement("button",{onClick:addTarea,
-          style:{background:RD,color:"#fff",border:"none",borderRadius:10,padding:"9px 22px",fontWeight:900,cursor:"pointer",fontFamily:"inherit",fontSize:13}},
-          editId?"💾 Guardar cambios":"➕ Agregar tarea"),
-        editId&&React.createElement("button",{onClick:function(){setEditId(null);setForm({titulo:"",tipo:"diaria",urgencia:"media",fecha:"",nota:""}); },
-          style:{background:"#E5E7EB",color:"#374151",border:"none",borderRadius:10,padding:"9px 16px",fontWeight:700,cursor:"pointer",fontFamily:"inherit",fontSize:13}},"Cancelar")
+
+      // Calendario grande
+      React.createElement("div",{style:{background:"#fff",borderRadius:20,padding:"24px",boxShadow:"0 4px 20px rgba(0,0,0,.08)",border:"1px solid #E5E7EB",marginBottom:20}},
+        React.createElement("div",{style:{fontSize:18,fontWeight:900,color:"#1F2937",marginBottom:18,textAlign:"center"}},
+          nombresMes[mesC]+" "+anioC
+        ),
+        // Cabecera días semana
+        React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:8}},
+          diasSem.map(function(d){
+            return React.createElement("div",{key:d,style:{textAlign:"center",fontSize:13,fontWeight:700,color:"#6B7280",padding:"4px 0"}},d);
+          })
+        ),
+        // Grilla de días
+        React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}},
+          // Celdas vacías hasta el primer día
+          Array.from({length:primerDiaLunes},function(_,i){
+            return React.createElement("div",{key:"v"+i});
+          }),
+          // Días del mes
+          Array.from({length:diasEnMes},function(_,i){
+            var diaNum=i+1;
+            var fechaDia=anioC+"-"+String(mesC+1).padStart(2,"0")+"-"+String(diaNum).padStart(2,"0");
+            var tareasD=tareasDelDia(diaNum);
+            var esHoy=fechaDia===hoy;
+            var esSel=diaSeleccionado===diaNum;
+            var tieneAlta=tareasD.some(function(t){return t.urgencia==="alta";});
+            var tieneMedia=tareasD.some(function(t){return t.urgencia==="media";});
+            return React.createElement("div",{key:diaNum,
+              onClick:function(){setDiaSeleccionado(esSel?null:diaNum);},
+              style:{
+                borderRadius:12,padding:"8px 4px",textAlign:"center",cursor:"pointer",
+                background:esSel?"#C41230":esHoy?"#FFF1F2":"#F9FAFB",
+                border:"2px solid "+(esSel?"#C41230":esHoy?"#FCA5A5":"#E5E7EB"),
+                minHeight:56,position:"relative",transition:"all .15s"
+              }},
+              React.createElement("div",{style:{fontSize:15,fontWeight:esHoy||esSel?900:600,color:esSel?"#fff":esHoy?"#C41230":"#1F2937"}},diaNum),
+              tareasD.length>0&&React.createElement("div",{style:{marginTop:4,display:"flex",justifyContent:"center",gap:2,flexWrap:"wrap"}},
+                tareasD.slice(0,3).map(function(t,ti){
+                  return React.createElement("div",{key:ti,style:{width:8,height:8,borderRadius:"50%",background:esSel?"rgba(255,255,255,.8)":urgColor[t.urgencia]}});
+                }),
+                tareasD.length>3&&React.createElement("div",{style:{fontSize:9,color:esSel?"#fff":"#6B7280",fontWeight:700}},"+"+( tareasD.length-3))
+              )
+            );
+          })
+        )
+      ),
+
+      // Panel del día seleccionado
+      React.createElement("div",{style:{background:"#fff",borderRadius:16,padding:"20px 22px",border:"1px solid #E5E7EB",minHeight:80}},
+        React.createElement("div",{style:{fontSize:16,fontWeight:900,color:"#1F2937",marginBottom:12}},
+          "📋 "+nombresMes[mesC]+" "+diaVer+(diaSeleccionado===null?" (hoy)":"")
+        ),
+        tareasVer.length===0
+          ? React.createElement("div",{style:{color:"#9CA3AF",fontSize:14,fontStyle:"italic"}},"Sin tareas para este día. Haz clic en ➕ para agregar una.")
+          : tareasVer.map(function(t){
+              var vencida=t.fecha&&t.fecha<hoy;
+              return React.createElement("div",{key:t.id,
+                style:{background:urgBg[t.urgencia],borderRadius:12,padding:"14px 16px",marginBottom:10,
+                  border:"2px solid "+(vencida?"#DC2626":urgBorde[t.urgencia]),
+                  display:"flex",alignItems:"flex-start",gap:12}},
+                React.createElement("input",{type:"checkbox",checked:false,onChange:function(){toggleHecha(t.id);},style:{marginTop:4,cursor:"pointer",width:18,height:18,flexShrink:0}}),
+                React.createElement("div",{style:{flex:1}},
+                  React.createElement("div",{style:{fontWeight:900,fontSize:16,color:"#1F2937",marginBottom:4}},
+                    t.titulo,
+                    vencida&&React.createElement("span",{style:{marginLeft:8,fontSize:11,color:"#DC2626",fontWeight:700}},"⚠️ VENCIDA")
+                  ),
+                  React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap",fontSize:13,marginBottom:t.nota?6:0}},
+                    React.createElement("span",{style:{background:"rgba(0,0,0,.07)",borderRadius:99,padding:"3px 10px",fontWeight:700,color:"#374151"}},tipoLabel[t.tipo]),
+                    React.createElement("span",{style:{background:"rgba(0,0,0,.07)",borderRadius:99,padding:"3px 10px",fontWeight:700,color:urgColor[t.urgencia]}},urgLabel[t.urgencia]),
+                    t.hora&&React.createElement("span",{style:{background:"rgba(0,0,0,.07)",borderRadius:99,padding:"3px 10px",fontWeight:700,color:"#374151"}},"⏰ "+t.hora)
+                  ),
+                  t.nota&&React.createElement("div",{style:{fontSize:14,color:"#374151",marginTop:4}},t.nota)
+                ),
+                React.createElement("div",{style:{display:"flex",gap:6,flexShrink:0}},
+                  React.createElement("button",{onClick:function(){editar(t);},style:{background:"#E5E7EB",border:"none",borderRadius:8,padding:"6px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit",fontWeight:700,color:"#374151"}},"✏️"),
+                  React.createElement("button",{onClick:function(){eliminar(t.id);},style:{background:"#FEE2E2",border:"none",borderRadius:8,padding:"6px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit",fontWeight:700,color:"#DC2626"}},"🗑")
+                )
+              );
+            })
       )
     ),
-    // Lista de pendientes
-    pendientes.length>0&&React.createElement("div",{style:{marginBottom:20}},
-      React.createElement("div",{style:{fontSize:13,fontWeight:900,color:"#374151",marginBottom:10}},"⏳ Pendientes ("+pendientes.length+")"),
-      pendientes.map(function(t){
-        var vencida=t.fecha&&t.fecha<hoy;
-        return React.createElement("div",{key:t.id,style:{background:urgBg[t.urgencia],borderRadius:12,padding:"12px 16px",marginBottom:8,border:"2px solid "+(vencida?"#DC2626":"#E5E7EB"),display:"flex",alignItems:"flex-start",gap:12}},
-          React.createElement("input",{type:"checkbox",checked:false,onChange:function(){toggleHecha(t.id);},style:{marginTop:3,cursor:"pointer",width:16,height:16,flexShrink:0}}),
-          React.createElement("div",{style:{flex:1,minWidth:0}},
-            React.createElement("div",{style:{fontWeight:900,fontSize:13,color:"#1F2937",marginBottom:3}},t.titulo,vencida&&React.createElement("span",{style:{marginLeft:8,fontSize:10,color:"#DC2626",fontWeight:700}},"⚠️ VENCIDA")),
-            React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap",fontSize:10,marginBottom:t.nota?4:0}},
-              React.createElement("span",{style:{background:"rgba(0,0,0,.07)",borderRadius:99,padding:"2px 8px",fontWeight:700}},tipoLabel[t.tipo]),
-              React.createElement("span",{style:{background:"rgba(0,0,0,.07)",borderRadius:99,padding:"2px 8px",fontWeight:700,color:urgColor[t.urgencia]}},urgLabel[t.urgencia]),
-              t.fecha&&React.createElement("span",{style:{background:"rgba(0,0,0,.07)",borderRadius:99,padding:"2px 8px"}},t.fecha)
-            ),
-            t.nota&&React.createElement("div",{style:{fontSize:11,color:"#6B7280",marginTop:2}},t.nota)
+
+    // ── VISTA LISTA ──
+    !vistaCalendario&&React.createElement("div",null,
+      // Formulario lista
+      React.createElement("div",{style:{background:"#F8FAFC",borderRadius:16,padding:"18px 20px",marginBottom:20,border:"1px solid #E5E7EB"}},
+        React.createElement("div",{style:{fontSize:15,fontWeight:900,color:"#1F2937",marginBottom:14}},editId?"✏️ Editar tarea":"➕ Nueva tarea"),
+        React.createElement("input",{placeholder:"Título de la tarea *",value:form.titulo,onChange:function(e){setForm(Object.assign({},form,{titulo:e.target.value}));},
+          style:{width:"100%",padding:"12px 14px",borderRadius:10,border:"1px solid #E5E7EB",fontSize:15,marginBottom:10,fontFamily:"inherit",color:"#1F2937"}}),
+        React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:10,marginBottom:10}},
+          React.createElement("select",{value:form.tipo,onChange:function(e){setForm(Object.assign({},form,{tipo:e.target.value}));},
+            style:{padding:"10px",borderRadius:10,border:"1px solid #E5E7EB",fontSize:14,fontFamily:"inherit",color:"#1F2937"}},
+            React.createElement("option",{value:"diaria"},"📅 Diaria"),
+            React.createElement("option",{value:"semanal"},"📆 Semanal"),
+            React.createElement("option",{value:"mensual"},"🗓 Mensual")
           ),
-          React.createElement("div",{style:{display:"flex",gap:6,flexShrink:0}},
-            React.createElement("button",{onClick:function(){editar(t);},style:{background:"#E5E7EB",border:"none",borderRadius:8,padding:"5px 10px",fontSize:11,cursor:"pointer",fontFamily:"inherit",fontWeight:700}},"✏️"),
-            React.createElement("button",{onClick:function(){eliminar(t.id);},style:{background:"#FEE2E2",border:"none",borderRadius:8,padding:"5px 10px",fontSize:11,cursor:"pointer",fontFamily:"inherit",fontWeight:700,color:"#DC2626"}},"🗑")
-          )
-        );
-      })
-    ),
-    // Completadas
-    hechas.length>0&&React.createElement("div",null,
-      React.createElement("div",{style:{fontSize:12,fontWeight:700,color:"#9CA3AF",marginBottom:8}},"✅ Completadas ("+hechas.length+")"),
-      hechas.map(function(t){
-        return React.createElement("div",{key:t.id,style:{background:"#F9FAFB",borderRadius:10,padding:"10px 14px",marginBottom:6,border:"1px solid #E5E7EB",display:"flex",alignItems:"center",gap:10,opacity:.7}},
-          React.createElement("input",{type:"checkbox",checked:true,onChange:function(){toggleHecha(t.id);},style:{cursor:"pointer",width:16,height:16,flexShrink:0}}),
-          React.createElement("div",{style:{flex:1,textDecoration:"line-through",fontSize:12,color:"#9CA3AF"}},t.titulo),
-          React.createElement("button",{onClick:function(){eliminar(t.id);},style:{background:"#FEE2E2",border:"none",borderRadius:8,padding:"4px 8px",fontSize:10,cursor:"pointer",fontFamily:"inherit",color:"#DC2626"}},"🗑")
-        );
-      })
-    ),
-    tareas.length===0&&React.createElement("div",{style:{textAlign:"center",color:"#9CA3AF",fontSize:13,padding:"30px 0"}},"Sin tareas aún. Agrega tu primera gestión pendiente. 📋")
+          React.createElement("select",{value:form.urgencia,onChange:function(e){setForm(Object.assign({},form,{urgencia:e.target.value}));},
+            style:{padding:"10px",borderRadius:10,border:"1px solid #E5E7EB",fontSize:14,fontFamily:"inherit",color:"#1F2937"}},
+            React.createElement("option",{value:"alta"},"🔴 Alta"),
+            React.createElement("option",{value:"media"},"🟡 Media"),
+            React.createElement("option",{value:"baja"},"🟢 Baja")
+          ),
+          React.createElement("input",{type:"date",value:form.fecha,onChange:function(e){setForm(Object.assign({},form,{fecha:e.target.value}));},
+            style:{padding:"10px",borderRadius:10,border:"1px solid #E5E7EB",fontSize:14,fontFamily:"inherit",color:"#1F2937"}}),
+          React.createElement("input",{type:"time",value:form.hora,onChange:function(e){setForm(Object.assign({},form,{hora:e.target.value}));},
+            style:{padding:"10px",borderRadius:10,border:"1px solid #E5E7EB",fontSize:14,fontFamily:"inherit",color:"#1F2937"}})
+        ),
+        React.createElement("textarea",{placeholder:"Nota o detalle (opcional)",value:form.nota,onChange:function(e){setForm(Object.assign({},form,{nota:e.target.value}));},
+          style:{width:"100%",padding:"12px 14px",borderRadius:10,border:"1px solid #E5E7EB",fontSize:14,fontFamily:"inherit",resize:"vertical",minHeight:60,marginBottom:12,color:"#1F2937"}}),
+        React.createElement("div",{style:{display:"flex",gap:8}},
+          React.createElement("button",{onClick:addTarea,
+            style:{background:"#C41230",color:"#fff",border:"none",borderRadius:10,padding:"10px 24px",fontWeight:900,cursor:"pointer",fontFamily:"inherit",fontSize:15}},
+            editId?"💾 Guardar cambios":"➕ Agregar tarea"),
+          editId&&React.createElement("button",{onClick:function(){setEditId(null);setForm({titulo:"",tipo:"diaria",urgencia:"media",fecha:"",hora:"",nota:""});},
+            style:{background:"#E5E7EB",color:"#374151",border:"none",borderRadius:10,padding:"10px 16px",fontWeight:700,cursor:"pointer",fontFamily:"inherit",fontSize:14}},"Cancelar")
+        )
+      ),
+      // Lista pendientes
+      pendientes.length>0&&React.createElement("div",{style:{marginBottom:20}},
+        React.createElement("div",{style:{fontSize:15,fontWeight:900,color:"#1F2937",marginBottom:12}},"⏳ Pendientes ("+pendientes.length+")"),
+        pendientes.map(function(t){
+          var vencida=t.fecha&&t.fecha<hoy;
+          return React.createElement("div",{key:t.id,
+            style:{background:urgBg[t.urgencia],borderRadius:12,padding:"14px 16px",marginBottom:10,
+              border:"2px solid "+(vencida?"#DC2626":urgBorde[t.urgencia]),
+              display:"flex",alignItems:"flex-start",gap:12}},
+            React.createElement("input",{type:"checkbox",checked:false,onChange:function(){toggleHecha(t.id);},style:{marginTop:4,cursor:"pointer",width:18,height:18,flexShrink:0}}),
+            React.createElement("div",{style:{flex:1}},
+              React.createElement("div",{style:{fontWeight:900,fontSize:16,color:"#1F2937",marginBottom:4}},
+                t.titulo,
+                vencida&&React.createElement("span",{style:{marginLeft:8,fontSize:11,color:"#DC2626",fontWeight:700}},"⚠️ VENCIDA")
+              ),
+              React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap",fontSize:13,marginBottom:t.nota?6:0}},
+                React.createElement("span",{style:{background:"rgba(0,0,0,.07)",borderRadius:99,padding:"3px 10px",fontWeight:700,color:"#374151"}},tipoLabel[t.tipo]),
+                React.createElement("span",{style:{background:"rgba(0,0,0,.07)",borderRadius:99,padding:"3px 10px",fontWeight:700,color:urgColor[t.urgencia]}},urgLabel[t.urgencia]),
+                t.fecha&&React.createElement("span",{style:{background:"rgba(0,0,0,.07)",borderRadius:99,padding:"3px 10px",color:"#374151"}},"📅 "+t.fecha),
+                t.hora&&React.createElement("span",{style:{background:"rgba(0,0,0,.07)",borderRadius:99,padding:"3px 10px",fontWeight:700,color:"#374151"}},"⏰ "+t.hora)
+              ),
+              t.nota&&React.createElement("div",{style:{fontSize:14,color:"#374151",marginTop:4}},t.nota)
+            ),
+            React.createElement("div",{style:{display:"flex",gap:6,flexShrink:0}},
+              React.createElement("button",{onClick:function(){editar(t);},style:{background:"#E5E7EB",border:"none",borderRadius:8,padding:"6px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit",fontWeight:700,color:"#374151"}},"✏️"),
+              React.createElement("button",{onClick:function(){eliminar(t.id);},style:{background:"#FEE2E2",border:"none",borderRadius:8,padding:"6px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit",fontWeight:700,color:"#DC2626"}},"🗑")
+            )
+          );
+        })
+      ),
+      // Completadas
+      hechas.length>0&&React.createElement("div",null,
+        React.createElement("div",{style:{fontSize:14,fontWeight:700,color:"#9CA3AF",marginBottom:10}},"✅ Completadas ("+hechas.length+")"),
+        hechas.map(function(t){
+          return React.createElement("div",{key:t.id,
+            style:{background:"#F9FAFB",borderRadius:10,padding:"12px 16px",marginBottom:8,border:"1px solid #E5E7EB",display:"flex",alignItems:"center",gap:12,opacity:.7}},
+            React.createElement("input",{type:"checkbox",checked:true,onChange:function(){toggleHecha(t.id);},style:{cursor:"pointer",width:18,height:18,flexShrink:0}}),
+            React.createElement("div",{style:{flex:1,textDecoration:"line-through",fontSize:14,color:"#9CA3AF"}},t.titulo),
+            React.createElement("button",{onClick:function(){eliminar(t.id);},style:{background:"#FEE2E2",border:"none",borderRadius:8,padding:"5px 10px",fontSize:13,cursor:"pointer",fontFamily:"inherit",color:"#DC2626"}},"🗑")
+          );
+        })
+      ),
+      tareas.length===0&&React.createElement("div",{style:{textAlign:"center",color:"#9CA3AF",fontSize:15,padding:"30px 0"}},"Sin tareas aún. Agrega tu primera gestión pendiente. 📋")
+    )
   );
 }
 
 // ── Agenda: Bloc de Notas ─────────────────────────────────────────
 function AgendaNotasView({ R, RD }) {
   var [notas, setNotas] = React.useState(function(){
+
     try{ return JSON.parse(localStorage.getItem("agenda_notas")||"[]"); }catch(e){return [];}
   });
   var [form, setForm] = React.useState({titulo:"",contenido:""});
@@ -10272,25 +10456,18 @@ function AgendaNotasView({ R, RD }) {
   return React.createElement("div",{style:{padding:"4px 0"}},
     React.createElement("div",{style:{fontSize:18,fontWeight:900,color:RD,marginBottom:4}},"📝 Bloc de Notas"),
     React.createElement("div",{style:{fontSize:13,color:"#6B7280",marginBottom:18}},"Tus notas personales, ideas y apuntes. Se guardan automáticamente en Firebase."),
-    // Formulario
     React.createElement("div",{style:{background:"#FFFBEB",borderRadius:16,padding:"18px 20px",marginBottom:20,border:"1px solid #FCD34D"}},
       React.createElement("div",{style:{fontSize:13,fontWeight:900,color:"#92400E",marginBottom:12}},editId?"✏️ Editando nota":"📝 Nueva nota"),
-      React.createElement("input",{placeholder:"Título (opcional)",value:form.titulo,onChange:function(e){setForm(Object.assign({},form,{titulo:e.target.value}));},
-        style:{width:"100%",padding:"10px 14px",borderRadius:10,border:"1px solid #FCD34D",fontSize:13,marginBottom:10,fontFamily:"inherit",background:"#fff"}}),
-      React.createElement("textarea",{placeholder:"Escribe tu nota aquí...",value:form.contenido,onChange:function(e){setForm(Object.assign({},form,{contenido:e.target.value}));},
-        style:{width:"100%",padding:"12px 14px",borderRadius:10,border:"1px solid #FCD34D",fontSize:13,fontFamily:"inherit",resize:"vertical",minHeight:100,marginBottom:10,background:"#fff",lineHeight:1.6}}),
+      React.createElement("input",{placeholder:"Título (opcional)",value:form.titulo,onChange:function(e){setForm(Object.assign({},form,{titulo:e.target.value}));},style:{width:"100%",padding:"10px 14px",borderRadius:10,border:"1px solid #FCD34D",fontSize:13,marginBottom:10,fontFamily:"inherit",background:"#fff"}}),
+      React.createElement("textarea",{placeholder:"Escribe tu nota aquí...",value:form.contenido,onChange:function(e){setForm(Object.assign({},form,{contenido:e.target.value}));},style:{width:"100%",padding:"12px 14px",borderRadius:10,border:"1px solid #FCD34D",fontSize:13,fontFamily:"inherit",resize:"vertical",minHeight:100,marginBottom:10,background:"#fff",lineHeight:1.6}}),
       React.createElement("div",{style:{display:"flex",gap:8}},
-        React.createElement("button",{onClick:addNota,
-          style:{background:"#92400E",color:"#fff",border:"none",borderRadius:10,padding:"9px 22px",fontWeight:900,cursor:"pointer",fontFamily:"inherit",fontSize:13}},
-          editId?"💾 Guardar cambios":"📝 Guardar nota"),
-        editId&&React.createElement("button",{onClick:function(){setEditId(null);setForm({titulo:"",contenido:""}); },
-          style:{background:"#E5E7EB",color:"#374151",border:"none",borderRadius:10,padding:"9px 16px",fontWeight:700,cursor:"pointer",fontFamily:"inherit",fontSize:13}},"Cancelar")
+        React.createElement("button",{onClick:addNota,style:{background:"#92400E",color:"#fff",border:"none",borderRadius:10,padding:"9px 22px",fontWeight:900,cursor:"pointer",fontFamily:"inherit",fontSize:13}},editId?"💾 Guardar cambios":"📝 Guardar nota"),
+        editId&&React.createElement("button",{onClick:function(){setEditId(null);setForm({titulo:"",contenido:""}); },style:{background:"#E5E7EB",color:"#374151",border:"none",borderRadius:10,padding:"9px 16px",fontWeight:700,cursor:"pointer",fontFamily:"inherit",fontSize:13}},"Cancelar")
       )
     ),
-    // Lista de notas
     React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:14}},
       notas.slice().reverse().map(function(n){
-        return React.createElement("div",{key:n.id,style:{background:"#FFFEF0",borderRadius:14,padding:"16px 18px",border:"1px solid #FCD34D",boxShadow:"0 2px 10px rgba(252,211,77,.2)",position:"relative"}},
+        return React.createElement("div",{key:n.id,style:{background:"#FFFEF0",borderRadius:14,padding:"16px 18px",border:"1px solid #FCD34D",boxShadow:"0 2px 10px rgba(252,211,77,.2)"}},
           React.createElement("div",{style:{fontSize:14,fontWeight:900,color:"#92400E",marginBottom:6}},n.titulo),
           React.createElement("div",{style:{fontSize:12,color:"#78350F",lineHeight:1.6,whiteSpace:"pre-wrap",marginBottom:10,maxHeight:150,overflowY:"auto"}},n.contenido),
           React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},
@@ -10361,6 +10538,8 @@ function UFLinealesView({ equipo, info }) {
   var calificadosMesActual = equipo.filter(function(v){ return v.uf >= 12; }).sort(function(a,b){ return b.uf-a.uf; });
   // AGV en zona de foco: entre 6 y 11.99 UF (cerca de llegar a 12, pero aún no suman a la lineal)
   var focoMesActual = equipo.filter(function(v){ return v.uf >= 6 && v.uf < 12; }).sort(function(a,b){ return b.uf-a.uf; });
+  // AGV con mayor brecha: entre 0.01 y 5.99 UF — lejos de llegar a 12
+  var brechaMesActual = equipo.filter(function(v){ return v.uf > 0 && v.uf < 6; }).sort(function(a,b){ return b.uf-a.uf; });
 
   function fmtUF2(n) {
     if(!n&&n!==0) return "0";
@@ -10404,27 +10583,66 @@ function UFLinealesView({ equipo, info }) {
     ),
 
     // Cuadro AMARILLO — Foco AGV cercanos a 12 (6–11.99 UF)
-    focoMesActual.length > 0 && React.createElement('div', {
-      style: { background: "linear-gradient(135deg,#92400E,#78350F)", borderRadius: 20, padding: "22px 32px", marginBottom: 24, color: "#fff", boxShadow: "0 6px 24px rgba(146,64,14,.3)", border: "2px solid rgba(253,211,77,.35)" }
-    },
-      React.createElement('div', { style: { fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", opacity: .8, marginBottom: 6, color: "#FCD34D" } },
-        "🎯 FOCO SUPERVISOR"
+    (focoMesActual.length > 0 || brechaMesActual.length > 0) && React.createElement('div', { style: { marginBottom: 24 } },
+
+      // Cuadro AMARILLO — cercanos (6–11.99 UF)
+      focoMesActual.length > 0 && React.createElement('div', {
+        style: { background: "linear-gradient(135deg,#92400E,#78350F)", borderRadius: 20, padding: "22px 32px", marginBottom: 12, color: "#fff", boxShadow: "0 6px 24px rgba(146,64,14,.3)", border: "2px solid rgba(253,211,77,.35)" }
+      },
+        React.createElement('div', { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 } },
+          React.createElement('div', { style: { fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#FCD34D" } },
+            "🎯 FOCO SUPERVISOR — ZONA AMARILLA"
+          ),
+          React.createElement('div', { style: { background: "rgba(253,211,77,.25)", borderRadius: 99, padding: "3px 12px", fontSize: 12, fontWeight: 900, color: "#FCD34D", border: "1px solid rgba(253,211,77,.5)" } },
+            focoMesActual.length + " AGV cercanos"
+          )
+        ),
+        React.createElement('div', { style: { fontSize: 15, fontWeight: 900, marginBottom: 6, color: "#FDE68A" } },
+          "🎯 Foco sobre estos AGV para llevarlos a 12 (6–11,99 UF)"
+        ),
+        React.createElement('div', { style: { fontSize: 11, opacity: .75, marginBottom: 14, fontStyle: "italic", color: "#FDE68A", background: "rgba(0,0,0,.2)", borderRadius: 8, padding: "6px 12px", lineHeight: 1.5 } },
+          "⚠️ Estos ejecutivos aún NO suman a tu meta lineal. Con foco y cierre, pueden cruzar las 12 UF y sumar directo."
+        ),
+        React.createElement('div', { style: { display: "flex", flexWrap: "wrap", gap: 8 } },
+          focoMesActual.map(function(v) {
+            var faltan = (12 - v.uf).toFixed(2).replace(".",",");
+            return React.createElement('div', { key: v.id, style: { background: "rgba(253,211,77,.2)", borderRadius: 99, padding: "6px 16px", fontSize: 12, fontWeight: 700, border: "1px solid rgba(253,211,77,.5)", display: "flex", gap: 8, alignItems: "center" } },
+              React.createElement('span', {style:{color:"#FDE68A"}}, primerNombreApellido(v.nombre)),
+              React.createElement('span', {style:{color:"#FCD34D",fontWeight:900}}, fmtUF2(v.uf) + " UF"),
+              React.createElement('span', {style:{color:"rgba(253,211,77,.6)",fontSize:10}}, "le faltan " + faltan + " UF")
+            );
+          })
+        )
       ),
-      React.createElement('div', { style: { fontSize: 15, fontWeight: 900, marginBottom: 6, color: "#FDE68A" } },
-        "🎯 Foco sobre estos AGV para llevarlos a 12"
-      ),
-      React.createElement('div', { style: { fontSize: 11, opacity: .75, marginBottom: 14, fontStyle: "italic", color: "#FDE68A", background: "rgba(0,0,0,.2)", borderRadius: 8, padding: "6px 12px", lineHeight: 1.5 } },
-        "⚠️ Estos ejecutivos aún NO suman a tu logro lineal. Con foco y cierre, pueden cruzar las 12 UF y sumar directo a tu meta real."
-      ),
-      React.createElement('div', { style: { display: "flex", flexWrap: "wrap", gap: 8 } },
-        focoMesActual.map(function(v) {
-          var faltan = (12 - v.uf).toFixed(2).replace(".",",");
-          return React.createElement('div', { key: v.id, style: { background: "rgba(253,211,77,.2)", borderRadius: 99, padding: "6px 16px", fontSize: 12, fontWeight: 700, border: "1px solid rgba(253,211,77,.5)", display: "flex", gap: 8, alignItems: "center" } },
-            React.createElement('span', {style:{color:"#FDE68A"}}, primerNombreApellido(v.nombre)),
-            React.createElement('span', {style:{color:"#FCD34D",fontWeight:900}}, fmtUF2(v.uf) + " UF"),
-            React.createElement('span', {style:{color:"rgba(253,211,77,.6)",fontSize:10}}, "le faltan " + faltan + " UF")
-          );
-        })
+
+      // Cuadro ROJO — mayor brecha (0.01–5.99 UF)
+      brechaMesActual.length > 0 && React.createElement('div', {
+        style: { background: "linear-gradient(135deg,#7F1D1D,#991B1B)", borderRadius: 20, padding: "22px 32px", color: "#fff", boxShadow: "0 6px 24px rgba(127,29,29,.4)", border: "2px solid rgba(252,165,165,.25)" }
+      },
+        React.createElement('div', { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 } },
+          React.createElement('div', { style: { fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#FCA5A5" } },
+            "🚨 ZONA ROJA — MAYOR BRECHA"
+          ),
+          React.createElement('div', { style: { background: "rgba(252,165,165,.2)", borderRadius: 99, padding: "3px 12px", fontSize: 12, fontWeight: 900, color: "#FCA5A5", border: "1px solid rgba(252,165,165,.4)" } },
+            brechaMesActual.length + " AGV con mayor brecha"
+          )
+        ),
+        React.createElement('div', { style: { fontSize: 15, fontWeight: 900, marginBottom: 6, color: "#FECACA" } },
+          "🚨 Estos AGV necesitan intervención urgente (0,01–5,99 UF)"
+        ),
+        React.createElement('div', { style: { fontSize: 11, opacity: .75, marginBottom: 14, fontStyle: "italic", color: "#FECACA", background: "rgba(0,0,0,.25)", borderRadius: 8, padding: "6px 12px", lineHeight: 1.5 } },
+          "⚠️ Aún NO suman a tu meta lineal y tienen mayor brecha para llegar a 12 UF. Requieren plan de acción esta semana."
+        ),
+        React.createElement('div', { style: { display: "flex", flexWrap: "wrap", gap: 8 } },
+          brechaMesActual.map(function(v) {
+            var faltan = (12 - v.uf).toFixed(2).replace(".",",");
+            return React.createElement('div', { key: v.id, style: { background: "rgba(252,165,165,.15)", borderRadius: 99, padding: "6px 16px", fontSize: 12, fontWeight: 700, border: "1px solid rgba(252,165,165,.35)", display: "flex", gap: 8, alignItems: "center" } },
+              React.createElement('span', {style:{color:"#FECACA"}}, primerNombreApellido(v.nombre)),
+              React.createElement('span', {style:{color:"#FCA5A5",fontWeight:900}}, fmtUF2(v.uf) + " UF"),
+              React.createElement('span', {style:{color:"rgba(252,165,165,.6)",fontSize:10}}, "le faltan " + faltan + " UF")
+            );
+          })
+        )
       )
     ),
 
