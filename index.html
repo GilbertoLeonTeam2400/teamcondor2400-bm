@@ -1811,8 +1811,10 @@ function hoyInfo() {
   for (let d = new Date(start); d <= lastDay; d.setDate(d.getDate() + 1)) {
     if (d.getDay() !== 0 && d.getDay() !== 6) wdTotal++;
   }
-  let wdLeft = wdTotal - wd;
-  const calLeft = lastDay.getDate() - now.getDate();
+  // wdLeft: días hábiles restantes INCLUYENDO hoy (hoy todavía está disponible)
+  let wdLeft = wdTotal - wd + (now.getDay()!==0&&now.getDay()!==6?1:0);
+  // calLeft: días calendario restantes incluyendo hoy (hoy + días futuros hasta fin de mes)
+  const calLeft = lastDay.getDate() - now.getDate() + 1;
   // Semanas completas transcurridas (para semáforo de metas semanales)
   const semanasCompletadas = Math.floor(wd / 5); // 0,1,2,3,4
   const semanaActual = Math.ceil(wd / 5);         // 1,2,3,4
@@ -2994,6 +2996,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
   var [editCell, setEditCell] = React.useState(null); // {vid, campo}
   var [editVal, setEditVal] = React.useState("");
   var [guardando, setGuardando] = React.useState(false);
+  var [kpiDetalle, setKpiDetalle] = React.useState(null); // key de la card abierta
 
   // Generar últimos 6 meses con totales
   var mesesDisp = [];
@@ -3183,17 +3186,99 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
       )
     )
 
-    // KPIs resumen
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:12,marginBottom:16}}
-      ,[{l:"Total DPS",v:totTotal,c:"#374151",bg:"#F9FAFB"},{l:"DPS Con Venta",v:totConVenta,c:"#16A34A",bg:"#F0FDF4"},{l:"DPS Sin Venta",v:totSinVenta,c:"#2563EB",bg:"#EFF6FF"},{l:"DPS Pendientes",v:totPendiente,c:"#D97706",bg:"#FFFBEB"},{l:"DPS Rechazadas",v:totRechazado,c:"#DC2626",bg:"#FFF1F2"},{l:"Tasa Cierre DPS",v:tasaCierre+"%",c:tasaCierre>=50?"#16A34A":tasaCierre>=30?"#D97706":"#DC2626",bg:tasaCierre>=50?"#F0FDF4":tasaCierre>=30?"#FFFBEB":"#FFF1F2"}]
-        .map(function(k){return React.createElement("div",{key:k.l,style:{background:k.bg,borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #E5E7EB"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:k.c}},k.v) ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},k.l));})
+    // KPIs resumen — FILA 1 (clickeables con detalle desplegable)
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:12,marginBottom:4}}
+      ,[
+        {l:"Total DPS",      k:"totTotal",    v:totTotal,      c:"#374151", bg:"#F9FAFB",  field:"dpsTotal",     fmt:function(x){return x;}},
+        {l:"DPS Con Venta",  k:"conVenta",    v:totConVenta,   c:"#16A34A", bg:"#F0FDF4",  field:"dpsConVenta",  fmt:function(x){return x;}},
+        {l:"DPS Sin Venta",  k:"sinVenta",    v:totSinVenta,   c:"#2563EB", bg:"#EFF6FF",  field:"dpsSinVenta",  fmt:function(x){return x;}},
+        {l:"DPS Pendientes", k:"pendiente",   v:totPendiente,  c:"#D97706", bg:"#FFFBEB",  field:"dpsPendiente", fmt:function(x){return x;}},
+        {l:"DPS Rechazadas", k:"rechazado",   v:totRechazado,  c:"#DC2626", bg:"#FFF1F2",  field:"dpsRechazado", fmt:function(x){return x;}},
+        {l:"Tasa Cierre DPS",k:"tasaCierre",  v:tasaCierre+"%",c:tasaCierre>=50?"#16A34A":tasaCierre>=30?"#D97706":"#DC2626",bg:tasaCierre>=50?"#F0FDF4":tasaCierre>=30?"#FFFBEB":"#FFF1F2",field:null,fmt:function(x){return x;}}
+      ].map(function(k){
+        var isOpen = kpiDetalle===k.k;
+        return React.createElement("div",{key:k.l,onClick:function(){setKpiDetalle(isOpen?null:k.k);},
+          style:{background:k.bg,borderRadius:12,padding:"12px 10px",textAlign:"center",
+            border:"1px solid "+(isOpen?"#374151":"#E5E7EB"),cursor:"pointer",
+            boxShadow:isOpen?"0 2px 12px rgba(0,0,0,.12)":"none",transition:"all .15s",position:"relative"}}
+          ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:k.c}},k.v)
+          ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},k.l)
+          ,React.createElement("div",{style:{fontSize:9,color:"#9CA3AF",marginTop:3}},isOpen?"▲ cerrar":"👆 ver detalle")
+        );
+      })
     )
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}
-      ,React.createElement("div",{style:{background:"#FFF8E7",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #FCD34D"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:"#C9A84C"}},totUF.toFixed(2)+" UF") ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"Total UF"))
-      ,React.createElement("div",{style:{background:"#F0FDFA",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #A7F3D0"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:"#0891B2"}},totBenef) ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"N° Beneficiarios"))
-      ,React.createElement("div",{style:{background:"#F0FDF4",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #86EFAC"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:"#059669"}},totCttos) ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"Contratos Digitados"))
-      ,React.createElement("div",{style:{background:"#ECFDF5",borderRadius:12,padding:"14px",textAlign:"center",border:"1px solid #6EE7B7"}} ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:"#059669"}},totConectaMes) ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},"💚 Planes Conecta"))
+    // Panel desplegable FILA 1
+    ,kpiDetalle&&["totTotal","conVenta","sinVenta","pendiente","rechazado","tasaCierre"].indexOf(kpiDetalle)>=0&&(function(){
+      var cfg = {
+        totTotal:   {l:"Total DPS",      c:"#374151", fn:function(v){return v.dpsTotal||0;}},
+        conVenta:   {l:"DPS Con Venta",  c:"#16A34A", fn:function(v){return v.dpsConVenta||0;}},
+        sinVenta:   {l:"DPS Sin Venta",  c:"#2563EB", fn:function(v){return v.dpsSinVenta||0;}},
+        pendiente:  {l:"DPS Pendientes", c:"#D97706", fn:function(v){return v.dpsPendiente||0;}},
+        rechazado:  {l:"DPS Rechazadas", c:"#DC2626", fn:function(v){return v.dpsRechazado||0;}},
+        tasaCierre: {l:"Tasa Cierre DPS",c:"#374151", fn:function(v){return v.dpsTotal>0?Math.round((v.dpsConVenta/v.dpsTotal)*100)+"%":"0%";}}
+      }[kpiDetalle];
+      var filas = datos.slice().sort(function(a,b){
+        var va=cfg.fn(a), vb=cfg.fn(b);
+        if(typeof va==="string") return -1; // tasa: no ordenar numéricamente
+        return vb-va;
+      });
+      return React.createElement("div",{style:{background:"#F8FAFC",borderRadius:12,padding:"14px 16px",marginBottom:8,border:"1px solid #E5E7EB",animation:"fadeIn .2s"}},
+        React.createElement("div",{style:{fontSize:12,fontWeight:900,color:cfg.c,marginBottom:10,textTransform:"uppercase",letterSpacing:"0.05em"}},"📊 Detalle individual — "+cfg.l),
+        React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:6}},
+          filas.map(function(v,i){
+            var val = cfg.fn(v);
+            return React.createElement("div",{key:v.id,style:{display:"flex",justifyContent:"space-between",alignItems:"center",background:"#fff",borderRadius:8,padding:"7px 12px",border:"1px solid #E5E7EB"}},
+              React.createElement("span",{style:{fontSize:12,fontWeight:700,color:"#374151"}},v.nombre.split(" ")[0]+" "+v.nombre.split(" ")[1]),
+              React.createElement("span",{style:{fontSize:14,fontWeight:900,color:cfg.c}},val)
+            );
+          })
+        )
+      );
+    })()
+    // KPIs FILA 2 (clickeables)
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:4}}
+      ,[
+        {k:"totUF",     l:"Total UF",           v:totUF.toFixed(2)+" UF",  c:"#C9A84C", bg:"#FFF8E7", brd:"#FCD34D"},
+        {k:"totBenef",  l:"N° Beneficiarios",    v:totBenef,                c:"#0891B2", bg:"#F0FDFA", brd:"#A7F3D0"},
+        {k:"totCttos",  l:"Contratos Digitados", v:totCttos,                c:"#059669", bg:"#F0FDF4", brd:"#86EFAC"},
+        {k:"totConecta",l:"💚 Planes Conecta",   v:totConectaMes,           c:"#059669", bg:"#ECFDF5", brd:"#6EE7B7"}
+      ].map(function(k){
+        var isOpen = kpiDetalle===k.k;
+        return React.createElement("div",{key:k.l,onClick:function(){setKpiDetalle(isOpen?null:k.k);},
+          style:{background:k.bg,borderRadius:12,padding:"12px",textAlign:"center",
+            border:"1px solid "+(isOpen?"#374151":k.brd),cursor:"pointer",
+            boxShadow:isOpen?"0 2px 12px rgba(0,0,0,.12)":"none",transition:"all .15s"}}
+          ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:k.c}},k.v)
+          ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},k.l)
+          ,React.createElement("div",{style:{fontSize:9,color:"#9CA3AF",marginTop:3}},isOpen?"▲ cerrar":"👆 ver detalle")
+        );
+      })
     )
+    // Panel desplegable FILA 2
+    ,kpiDetalle&&["totUF","totBenef","totCttos","totConecta"].indexOf(kpiDetalle)>=0&&(function(){
+      var cfg = {
+        totUF:      {l:"Total UF",           c:"#C9A84C", fn:function(v){return parseFloat(v.uf||0).toFixed(2)+" UF";}},
+        totBenef:   {l:"N° Beneficiarios",    c:"#0891B2", fn:function(v){return v.nBenef||0;}},
+        totCttos:   {l:"Contratos Digitados", c:"#059669", fn:function(v){return v.cttosDig||0;}},
+        totConecta: {l:"Planes Conecta",      c:"#059669", fn:function(v){return v.conecta||0;}},
+      }[kpiDetalle];
+      var filas = datos.slice().sort(function(a,b){
+        var va=cfg.fn(a), vb=cfg.fn(b);
+        if(typeof va==="string"){return parseFloat(vb)-parseFloat(va);}
+        return vb-va;
+      });
+      return React.createElement("div",{style:{background:"#F8FAFC",borderRadius:12,padding:"14px 16px",marginBottom:8,border:"1px solid #E5E7EB"}},
+        React.createElement("div",{style:{fontSize:12,fontWeight:900,color:cfg.c,marginBottom:10,textTransform:"uppercase",letterSpacing:"0.05em"}},"📊 Detalle individual — "+cfg.l),
+        React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:6}},
+          filas.map(function(v){
+            return React.createElement("div",{key:v.id,style:{display:"flex",justifyContent:"space-between",alignItems:"center",background:"#fff",borderRadius:8,padding:"7px 12px",border:"1px solid #E5E7EB"}},
+              React.createElement("span",{style:{fontSize:12,fontWeight:700,color:"#374151"}},v.nombre.split(" ")[0]+" "+v.nombre.split(" ")[1]),
+              React.createElement("span",{style:{fontSize:14,fontWeight:900,color:cfg.c}},cfg.fn(v))
+            );
+          })
+        )
+      );
+    })()
 
     // Tabla editable
     ,React.createElement("div",{style:{overflowX:"auto"}}
@@ -4663,11 +4748,13 @@ function PredictorPersonalView({ equipo, form, RD, info }) {
   var hoy2 = new Date();
   var diaHoy2 = hoy2.getDate();
   var diasMes2 = new Date(hoy2.getFullYear(), hoy2.getMonth()+1, 0).getDate();
-  var diasRest2 = diasMes2 - diaHoy2;
+  // +1 para incluir hoy como día disponible para cerrar
+  var diasRest2 = diasMes2 - diaHoy2 + 1;
   var dhTotal=0,dhTransc=0,dhRest=0;
   for(var _d=1;_d<=diasMes2;_d++){
     var _w=new Date(hoy2.getFullYear(),hoy2.getMonth(),_d).getDay();
-    if(_w>=1&&_w<=5){dhTotal++;if(_d<=diaHoy2)dhTransc++;else dhRest++;}
+    // dhRest incluye hoy (_d>=diaHoy2) para que cuente como día disponible
+    if(_w>=1&&_w<=5){dhTotal++;if(_d<diaHoy2)dhTransc++;else dhRest++;}
   }
   var ritmoV = diaHoy2>0 ? parseFloat((ufV/diaHoy2).toFixed(2)) : 0;
   var ritmoHV = dhTransc>0 ? parseFloat((ufV/dhTransc).toFixed(2)) : 0;
@@ -4796,7 +4883,8 @@ function PredictorView({ equipo, info, R, RD, metaUFSafe }) {
   var hoy = new Date();
   var diaHoy = hoy.getDate();
   var diasMes = new Date(hoy.getFullYear(), hoy.getMonth()+1, 0).getDate();
-  var diasRestantes = diasMes - diaHoy;
+  // +1 para incluir hoy como día disponible
+  var diasRestantes = diasMes - diaHoy + 1;
 
   // Calcular días hábiles del mes (lunes a viernes)
   function esHabil(d) { var wd=d.getDay(); return wd>=1&&wd<=5; }
@@ -4805,8 +4893,9 @@ function PredictorView({ equipo, info, R, RD, metaUFSafe }) {
     var fecha = new Date(hoy.getFullYear(), hoy.getMonth(), d);
     if(esHabil(fecha)) {
       diasHabilesTotal++;
-      if(d<=diaHoy) diasHabilesTranscurridos++;
-      if(d>diaHoy)  diasHabilesRestantes++;
+      // hoy (d===diaHoy) se cuenta como restante, no transcurrido
+      if(d<diaHoy) diasHabilesTranscurridos++;
+      else         diasHabilesRestantes++;
     }
   }
 
@@ -5900,6 +5989,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
     metas:     [["meta","🎯 Meta del Equipo"]],
     contenido: [["gestPremios","🏆 Gestionar Premios"],["gestDocs","📂 Gestionar Docs"]],
     analisis:  [["clasificacion","📊 Clasificación AGV"],["agentes0","🚨 Agentes en 0"],["dpsanalisis","📊 Análisis Reporte Diario de Métricas"],["historialMetricas","📋 Ver Historial Métricas por Ejecutivo"],["tendencias","📈 Tendencias y Gráficos"],["predictor","📈 Proyecciones de Cierre"],["correlacion","🔗 Correlación DPS→UF"],["alertas","🚨 Alertas del Equipo"],["planagv","📋 Plan de Trabajo AGV"],["uflineales","📈 UF's Lineales"]],
+    agenda:    [["recordatorios","📌 Recordatorios"],["notas","📝 Bloc de Notas"]],
   };
   const [bulk,     setBulk]     = useState({});
   const [bulkOk,   setBulkOk]   = useState(false);
@@ -6735,7 +6825,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                   )
                   , React.createElement('div', { style: {background:"rgba(255,255,255,.06)",borderRadius:12,padding:"12px 10px",textAlign:"center",border:"1px solid rgba(201,168,76,.2)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3079}}
                     , React.createElement('div', { style: {fontSize:"clamp(18px,4vw,26px)",fontWeight:900,color:"#C9A84C",lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3080}}, info.left>0?fmtUF2(falta/info.left):"0")
-                    , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:"0.12em",marginTop:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3081}}, "UF's a cerrar por día para alcanzar la meta · "+info.left+" días háb.")
+                    , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:"0.12em",marginTop:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3081}}, "UF's a cerrar por día para alcanzar la meta · "+info.left+" días restantes")
                   )
                   , React.createElement('div', { style: {background:"rgba(255,255,255,.06)",borderRadius:12,padding:"12px 10px",textAlign:"center",border:"1px solid rgba(201,168,76,.2)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3083}}
                     , React.createElement('div', { style: {fontSize:"clamp(18px,4vw,26px)",fontWeight:900,color:"#C9A84C",lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3084}}, xCrack)
@@ -8147,7 +8237,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
               React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3668}}
                 , React.createElement('div', { style: {display:"flex",gap:10,marginBottom:22,alignItems:"center",justifyContent:"space-between",flexWrap:"wrap"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3669}}
                   , React.createElement('div', { className:"sup-tabs", style: {display:"flex",gap:10,flexWrap:"wrap"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3670}}
-                    , [["dashboard","📊 Dashboard"],["equipo","👥 Equipo"],["metas","🎯 Metas"],["contenido","📂 Contenido"],["analisis","📊 Análisis"]].map(function(item){
+                    , [["dashboard","📊 Dashboard"],["equipo","👥 Equipo"],["metas","🎯 Metas"],["contenido","📂 Contenido"],["analisis","📊 Análisis"],["agenda","🗂 Agenda & Notas"]].map(function(item){
                       return React.createElement('button', { key: item[0], onClick: function(){
                         setSupGrupo(item[0]);
                         // Auto-select first sub-tab of group
@@ -8578,6 +8668,8 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                     equipo: equipo, info: info, R: R, RD: RD
                   })
                 , supVista==="uflineales"&&React.createElement(UFLinealesView, { equipo: equipo, info: info })
+                , supVista==="recordatorios"&&React.createElement(AgendaRecordatoriosView, { R: R, RD: RD })
+                , supVista==="notas"&&React.createElement(AgendaNotasView, { R: R, RD: RD })
                 , supVista==="dashboard"&&(
                   React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 320px",gap:22,alignItems:"start"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3774}}
                     , React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3775}}
@@ -9112,10 +9204,23 @@ function ReconocidosEspeciales({ equipo, info, RD, R }) {
   // Label semana visible
   var semLabel = "Semana "+lunesStr+" al "+domingoStr.slice(8)+"/"+domingoStr.slice(5,7);
 
+  // Key dinámica que cambia cuando llegan fotos — fuerza re-render de las cards
+  var fotoKey = equipo.map(function(v){return v.id+":"+(v.fotoUrl?"1":"0");}).join("|");
+
+  function normNombre(n){return (n||"").trim().toUpperCase().replace(/\s+/g," ").replace(/[ÁÀÂÄ]/g,"A").replace(/[ÉÈÊË]/g,"E").replace(/[ÍÌÎÏ]/g,"I").replace(/[ÓÒÔÖ]/g,"O").replace(/[ÚÙÛÜ]/g,"U").replace(/Ñ/g,"N");}
+
   function Card(cat){
     var ganadores = (cat.ganadores || [{nombre:cat.nombre, fotoUrl:null}]).map(function(g){
-      // Buscar foto actualizada en equipo (puede haber cargado desde Firebase)
-      var vF = equipo.find(function(e){return e.nombre===g.nombre;});
+      // Búsqueda normalizada + coincidencia parcial para tolerar diferencias de tildes/espacios
+      var gNorm = normNombre(g.nombre);
+      var vF = equipo.find(function(e){
+        var eNorm = normNombre(e.nombre);
+        if(eNorm === gNorm) return true;
+        var gW = gNorm.split(" ").filter(function(w){return w.length>=4;});
+        var eW = eNorm.split(" ").filter(function(w){return w.length>=4;});
+        var matches = gW.filter(function(w){return eW.indexOf(w)>=0;}).length;
+        return matches >= Math.min(gW.length, eW.length, 2);
+      });
       return {nombre:g.nombre, fotoUrl:(vF&&vF.fotoUrl)||g.fotoUrl||null};
     });
     var esEmpate = ganadores.length > 1;
@@ -9158,7 +9263,7 @@ function ReconocidosEspeciales({ equipo, info, RD, R }) {
         ,React.createElement("div",{style:{flex:1,height:1,background:"#F3F4F6"}})
         ,React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",fontWeight:700}},mL.toUpperCase())
       )
-      ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:10}},cM.map(Card))
+      ,React.createElement("div",{key:fotoKey,style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:10}},cM.map(Card))
     )
   );
 }
@@ -9999,6 +10104,209 @@ function NuevoCierreForm({ BTN, INP, RD, cierresHoy, setCierresHoy, crmData, TOD
 
 
 // ── UF's Lineales ─────────────────────────────────────────────────
+// ── Agenda: Recordatorios ─────────────────────────────────────────
+function AgendaRecordatoriosView({ R, RD }) {
+  var [tareas, setTareas] = React.useState(function(){
+    try{ return JSON.parse(localStorage.getItem("agenda_tareas")||"[]"); }catch(e){return [];}
+  });
+  var [form, setForm] = React.useState({titulo:"",tipo:"diaria",urgencia:"media",fecha:"",nota:""});
+  var [editId, setEditId] = React.useState(null);
+  var [alertaTarea, setAlertaTarea] = React.useState(null);
+
+  function guardar(ts){
+    localStorage.setItem("agenda_tareas", JSON.stringify(ts));
+    if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"supervisor","agenda"),{tareas:ts}).catch(function(){});
+    }
+  }
+
+  React.useEffect(function(){
+    if(window.__fbDb&&window.__fbDoc&&window.__fbGetDoc){
+      window.__fbGetDoc(window.__fbDoc(window.__fbDb,"supervisor","agenda")).then(function(snap){
+        if(snap.exists()){var d=typeof snap.data==="function"?snap.data():snap.data;if(d&&d.tareas&&Array.isArray(d.tareas)){setTareas(d.tareas);localStorage.setItem("agenda_tareas",JSON.stringify(d.tareas));}}
+      }).catch(function(){});
+    }
+  },[]);
+
+  // Alertas automáticas: mostrar pop-in si hay tarea con fecha = hoy o ya vencida urgencia alta
+  React.useEffect(function(){
+    var hoy = new Date().toISOString().slice(0,10);
+    var urgentes = tareas.filter(function(t){return !t.hecha && t.fecha && t.fecha<=hoy && t.urgencia==="alta";});
+    if(urgentes.length>0 && !alertaTarea) setAlertaTarea(urgentes[0]);
+  },[tareas]);
+
+  function addTarea(){
+    if(!form.titulo.trim()) return;
+    var nueva = Object.assign({},form,{id:Date.now(),hecha:false});
+    var ts = editId ? tareas.map(function(t){return t.id===editId?nueva:t;}) : tareas.concat([nueva]);
+    setTareas(ts); guardar(ts); setForm({titulo:"",tipo:"diaria",urgencia:"media",fecha:"",nota:""}); setEditId(null);
+  }
+  function toggleHecha(id){
+    var ts=tareas.map(function(t){return t.id===id?Object.assign({},t,{hecha:!t.hecha}):t;});
+    setTareas(ts); guardar(ts);
+  }
+  function eliminar(id){var ts=tareas.filter(function(t){return t.id!==id;});setTareas(ts);guardar(ts);}
+  function editar(t){setForm({titulo:t.titulo,tipo:t.tipo,urgencia:t.urgencia,fecha:t.fecha||"",nota:t.nota||""});setEditId(t.id);}
+
+  var urgColor={alta:"#DC2626",media:"#D97706",baja:"#16A34A"};
+  var urgBg   ={alta:"#FFF1F2",media:"#FFFBEB",baja:"#F0FDF4"};
+  var urgLabel={alta:"🔴 Alta",media:"🟡 Media",baja:"🟢 Baja"};
+  var tipoLabel={diaria:"📅 Diaria",semanal:"📆 Semanal",mensual:"🗓 Mensual"};
+  var hoy=new Date().toISOString().slice(0,10);
+
+  var pendientes=tareas.filter(function(t){return !t.hecha;}).sort(function(a,b){var p={alta:0,media:1,baja:2};return p[a.urgencia]-p[b.urgencia];});
+  var hechas=tareas.filter(function(t){return t.hecha;});
+
+  return React.createElement("div",{style:{padding:"4px 0"}},
+    // Pop-in de alerta
+    alertaTarea&&React.createElement("div",{style:{position:"fixed",top:20,right:20,zIndex:9999,background:"#DC2626",color:"#fff",borderRadius:14,padding:"16px 22px",boxShadow:"0 8px 32px rgba(220,38,38,.4)",maxWidth:340,animation:"fadeIn .3s"}},
+      React.createElement("div",{style:{fontSize:13,fontWeight:900,marginBottom:6}},"🚨 Tarea urgente pendiente"),
+      React.createElement("div",{style:{fontSize:14,fontWeight:700,marginBottom:10}},alertaTarea.titulo),
+      React.createElement("div",{style:{fontSize:11,opacity:.8,marginBottom:12}},alertaTarea.nota),
+      React.createElement("button",{onClick:function(){setAlertaTarea(null);},style:{background:"rgba(255,255,255,.25)",border:"none",borderRadius:8,padding:"6px 14px",color:"#fff",fontWeight:700,cursor:"pointer",fontFamily:"inherit"}},"✓ Entendido")
+    ),
+    React.createElement("div",{style:{fontSize:18,fontWeight:900,color:RD,marginBottom:4}},"📌 Recordatorios & Gestiones"),
+    React.createElement("div",{style:{fontSize:13,color:"#6B7280",marginBottom:18}},"Organiza tus pendientes por tipo y urgencia. Las tareas urgentes vencidas generan alerta automática."),
+    // Formulario
+    React.createElement("div",{style:{background:"#F8FAFC",borderRadius:16,padding:"18px 20px",marginBottom:20,border:"1px solid #E5E7EB"}},
+      React.createElement("div",{style:{fontSize:13,fontWeight:900,color:RD,marginBottom:12}},editId?"✏️ Editar tarea":"➕ Nueva tarea"),
+      React.createElement("input",{placeholder:"Título de la tarea *",value:form.titulo,onChange:function(e){setForm(Object.assign({},form,{titulo:e.target.value}));},
+        style:{width:"100%",padding:"10px 14px",borderRadius:10,border:"1px solid #E5E7EB",fontSize:13,marginBottom:10,fontFamily:"inherit"}}),
+      React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:10}},
+        React.createElement("select",{value:form.tipo,onChange:function(e){setForm(Object.assign({},form,{tipo:e.target.value}));},
+          style:{padding:"9px 10px",borderRadius:10,border:"1px solid #E5E7EB",fontSize:12,fontFamily:"inherit"}},
+          React.createElement("option",{value:"diaria"},"📅 Diaria"),
+          React.createElement("option",{value:"semanal"},"📆 Semanal"),
+          React.createElement("option",{value:"mensual"},"🗓 Mensual")
+        ),
+        React.createElement("select",{value:form.urgencia,onChange:function(e){setForm(Object.assign({},form,{urgencia:e.target.value}));},
+          style:{padding:"9px 10px",borderRadius:10,border:"1px solid #E5E7EB",fontSize:12,fontFamily:"inherit"}},
+          React.createElement("option",{value:"alta"},"🔴 Alta urgencia"),
+          React.createElement("option",{value:"media"},"🟡 Media urgencia"),
+          React.createElement("option",{value:"baja"},"🟢 Baja urgencia")
+        ),
+        React.createElement("input",{type:"date",value:form.fecha,onChange:function(e){setForm(Object.assign({},form,{fecha:e.target.value}));},
+          style:{padding:"9px 10px",borderRadius:10,border:"1px solid #E5E7EB",fontSize:12,fontFamily:"inherit"}})
+      ),
+      React.createElement("textarea",{placeholder:"Nota o detalle (opcional)",value:form.nota,onChange:function(e){setForm(Object.assign({},form,{nota:e.target.value}));},
+        style:{width:"100%",padding:"10px 14px",borderRadius:10,border:"1px solid #E5E7EB",fontSize:12,fontFamily:"inherit",resize:"vertical",minHeight:60,marginBottom:10}}),
+      React.createElement("div",{style:{display:"flex",gap:8}},
+        React.createElement("button",{onClick:addTarea,
+          style:{background:RD,color:"#fff",border:"none",borderRadius:10,padding:"9px 22px",fontWeight:900,cursor:"pointer",fontFamily:"inherit",fontSize:13}},
+          editId?"💾 Guardar cambios":"➕ Agregar tarea"),
+        editId&&React.createElement("button",{onClick:function(){setEditId(null);setForm({titulo:"",tipo:"diaria",urgencia:"media",fecha:"",nota:""}); },
+          style:{background:"#E5E7EB",color:"#374151",border:"none",borderRadius:10,padding:"9px 16px",fontWeight:700,cursor:"pointer",fontFamily:"inherit",fontSize:13}},"Cancelar")
+      )
+    ),
+    // Lista de pendientes
+    pendientes.length>0&&React.createElement("div",{style:{marginBottom:20}},
+      React.createElement("div",{style:{fontSize:13,fontWeight:900,color:"#374151",marginBottom:10}},"⏳ Pendientes ("+pendientes.length+")"),
+      pendientes.map(function(t){
+        var vencida=t.fecha&&t.fecha<hoy;
+        return React.createElement("div",{key:t.id,style:{background:urgBg[t.urgencia],borderRadius:12,padding:"12px 16px",marginBottom:8,border:"2px solid "+(vencida?"#DC2626":"#E5E7EB"),display:"flex",alignItems:"flex-start",gap:12}},
+          React.createElement("input",{type:"checkbox",checked:false,onChange:function(){toggleHecha(t.id);},style:{marginTop:3,cursor:"pointer",width:16,height:16,flexShrink:0}}),
+          React.createElement("div",{style:{flex:1,minWidth:0}},
+            React.createElement("div",{style:{fontWeight:900,fontSize:13,color:"#1F2937",marginBottom:3}},t.titulo,vencida&&React.createElement("span",{style:{marginLeft:8,fontSize:10,color:"#DC2626",fontWeight:700}},"⚠️ VENCIDA")),
+            React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap",fontSize:10,marginBottom:t.nota?4:0}},
+              React.createElement("span",{style:{background:"rgba(0,0,0,.07)",borderRadius:99,padding:"2px 8px",fontWeight:700}},tipoLabel[t.tipo]),
+              React.createElement("span",{style:{background:"rgba(0,0,0,.07)",borderRadius:99,padding:"2px 8px",fontWeight:700,color:urgColor[t.urgencia]}},urgLabel[t.urgencia]),
+              t.fecha&&React.createElement("span",{style:{background:"rgba(0,0,0,.07)",borderRadius:99,padding:"2px 8px"}},t.fecha)
+            ),
+            t.nota&&React.createElement("div",{style:{fontSize:11,color:"#6B7280",marginTop:2}},t.nota)
+          ),
+          React.createElement("div",{style:{display:"flex",gap:6,flexShrink:0}},
+            React.createElement("button",{onClick:function(){editar(t);},style:{background:"#E5E7EB",border:"none",borderRadius:8,padding:"5px 10px",fontSize:11,cursor:"pointer",fontFamily:"inherit",fontWeight:700}},"✏️"),
+            React.createElement("button",{onClick:function(){eliminar(t.id);},style:{background:"#FEE2E2",border:"none",borderRadius:8,padding:"5px 10px",fontSize:11,cursor:"pointer",fontFamily:"inherit",fontWeight:700,color:"#DC2626"}},"🗑")
+          )
+        );
+      })
+    ),
+    // Completadas
+    hechas.length>0&&React.createElement("div",null,
+      React.createElement("div",{style:{fontSize:12,fontWeight:700,color:"#9CA3AF",marginBottom:8}},"✅ Completadas ("+hechas.length+")"),
+      hechas.map(function(t){
+        return React.createElement("div",{key:t.id,style:{background:"#F9FAFB",borderRadius:10,padding:"10px 14px",marginBottom:6,border:"1px solid #E5E7EB",display:"flex",alignItems:"center",gap:10,opacity:.7}},
+          React.createElement("input",{type:"checkbox",checked:true,onChange:function(){toggleHecha(t.id);},style:{cursor:"pointer",width:16,height:16,flexShrink:0}}),
+          React.createElement("div",{style:{flex:1,textDecoration:"line-through",fontSize:12,color:"#9CA3AF"}},t.titulo),
+          React.createElement("button",{onClick:function(){eliminar(t.id);},style:{background:"#FEE2E2",border:"none",borderRadius:8,padding:"4px 8px",fontSize:10,cursor:"pointer",fontFamily:"inherit",color:"#DC2626"}},"🗑")
+        );
+      })
+    ),
+    tareas.length===0&&React.createElement("div",{style:{textAlign:"center",color:"#9CA3AF",fontSize:13,padding:"30px 0"}},"Sin tareas aún. Agrega tu primera gestión pendiente. 📋")
+  );
+}
+
+// ── Agenda: Bloc de Notas ─────────────────────────────────────────
+function AgendaNotasView({ R, RD }) {
+  var [notas, setNotas] = React.useState(function(){
+    try{ return JSON.parse(localStorage.getItem("agenda_notas")||"[]"); }catch(e){return [];}
+  });
+  var [form, setForm] = React.useState({titulo:"",contenido:""});
+  var [editId, setEditId] = React.useState(null);
+
+  function guardar(ns){
+    localStorage.setItem("agenda_notas",JSON.stringify(ns));
+    if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"supervisor","notas"),{notas:ns}).catch(function(){});
+    }
+  }
+
+  React.useEffect(function(){
+    if(window.__fbDb&&window.__fbDoc&&window.__fbGetDoc){
+      window.__fbGetDoc(window.__fbDoc(window.__fbDb,"supervisor","notas")).then(function(snap){
+        if(snap.exists()){var d=typeof snap.data==="function"?snap.data():snap.data;if(d&&d.notas&&Array.isArray(d.notas)){setNotas(d.notas);localStorage.setItem("agenda_notas",JSON.stringify(d.notas));}}
+      }).catch(function(){});
+    }
+  },[]);
+
+  function addNota(){
+    if(!form.titulo.trim()&&!form.contenido.trim()) return;
+    var hoy=new Date().toLocaleDateString("es-CL",{day:"2-digit",month:"long",year:"numeric"});
+    var nueva={id:Date.now(),titulo:form.titulo||"Nota sin título",contenido:form.contenido,fecha:hoy};
+    var ns=editId?notas.map(function(n){return n.id===editId?Object.assign({},nueva,{id:editId}):n;}):notas.concat([nueva]);
+    setNotas(ns);guardar(ns);setForm({titulo:"",contenido:""});setEditId(null);
+  }
+  function eliminar(id){var ns=notas.filter(function(n){return n.id!==id;});setNotas(ns);guardar(ns);}
+  function editar(n){setForm({titulo:n.titulo,contenido:n.contenido});setEditId(n.id);}
+
+  return React.createElement("div",{style:{padding:"4px 0"}},
+    React.createElement("div",{style:{fontSize:18,fontWeight:900,color:RD,marginBottom:4}},"📝 Bloc de Notas"),
+    React.createElement("div",{style:{fontSize:13,color:"#6B7280",marginBottom:18}},"Tus notas personales, ideas y apuntes. Se guardan automáticamente en Firebase."),
+    // Formulario
+    React.createElement("div",{style:{background:"#FFFBEB",borderRadius:16,padding:"18px 20px",marginBottom:20,border:"1px solid #FCD34D"}},
+      React.createElement("div",{style:{fontSize:13,fontWeight:900,color:"#92400E",marginBottom:12}},editId?"✏️ Editando nota":"📝 Nueva nota"),
+      React.createElement("input",{placeholder:"Título (opcional)",value:form.titulo,onChange:function(e){setForm(Object.assign({},form,{titulo:e.target.value}));},
+        style:{width:"100%",padding:"10px 14px",borderRadius:10,border:"1px solid #FCD34D",fontSize:13,marginBottom:10,fontFamily:"inherit",background:"#fff"}}),
+      React.createElement("textarea",{placeholder:"Escribe tu nota aquí...",value:form.contenido,onChange:function(e){setForm(Object.assign({},form,{contenido:e.target.value}));},
+        style:{width:"100%",padding:"12px 14px",borderRadius:10,border:"1px solid #FCD34D",fontSize:13,fontFamily:"inherit",resize:"vertical",minHeight:100,marginBottom:10,background:"#fff",lineHeight:1.6}}),
+      React.createElement("div",{style:{display:"flex",gap:8}},
+        React.createElement("button",{onClick:addNota,
+          style:{background:"#92400E",color:"#fff",border:"none",borderRadius:10,padding:"9px 22px",fontWeight:900,cursor:"pointer",fontFamily:"inherit",fontSize:13}},
+          editId?"💾 Guardar cambios":"📝 Guardar nota"),
+        editId&&React.createElement("button",{onClick:function(){setEditId(null);setForm({titulo:"",contenido:""}); },
+          style:{background:"#E5E7EB",color:"#374151",border:"none",borderRadius:10,padding:"9px 16px",fontWeight:700,cursor:"pointer",fontFamily:"inherit",fontSize:13}},"Cancelar")
+      )
+    ),
+    // Lista de notas
+    React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:14}},
+      notas.slice().reverse().map(function(n){
+        return React.createElement("div",{key:n.id,style:{background:"#FFFEF0",borderRadius:14,padding:"16px 18px",border:"1px solid #FCD34D",boxShadow:"0 2px 10px rgba(252,211,77,.2)",position:"relative"}},
+          React.createElement("div",{style:{fontSize:14,fontWeight:900,color:"#92400E",marginBottom:6}},n.titulo),
+          React.createElement("div",{style:{fontSize:12,color:"#78350F",lineHeight:1.6,whiteSpace:"pre-wrap",marginBottom:10,maxHeight:150,overflowY:"auto"}},n.contenido),
+          React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},
+            React.createElement("span",{style:{fontSize:10,color:"#9CA3AF"}},"📅 "+n.fecha),
+            React.createElement("div",{style:{display:"flex",gap:6}},
+              React.createElement("button",{onClick:function(){editar(n);},style:{background:"#FEF9C3",border:"none",borderRadius:7,padding:"4px 10px",fontSize:11,cursor:"pointer",fontFamily:"inherit",fontWeight:700,color:"#92400E"}},"✏️ Editar"),
+              React.createElement("button",{onClick:function(){eliminar(n.id);},style:{background:"#FEE2E2",border:"none",borderRadius:7,padding:"4px 10px",fontSize:11,cursor:"pointer",fontFamily:"inherit",fontWeight:700,color:"#DC2626"}},"🗑")
+            )
+          )
+        );
+      })
+    ),
+    notas.length===0&&React.createElement("div",{style:{textAlign:"center",color:"#9CA3AF",fontSize:13,padding:"30px 0"}},"Sin notas aún. Crea tu primera nota aquí. 📝")
+  );
+}
+
 function UFLinealesView({ equipo, info }) {
   var RD = "#C41230";
 
@@ -10051,6 +10359,8 @@ function UFLinealesView({ equipo, info }) {
   // Mes actual: datos en vivo del equipo
   var totalMesActual = equipo.reduce(function(sum, v) { return sum + (v.uf >= 12 ? v.uf : 0); }, 0);
   var calificadosMesActual = equipo.filter(function(v){ return v.uf >= 12; }).sort(function(a,b){ return b.uf-a.uf; });
+  // AGV en zona de foco: entre 6 y 11.99 UF (cerca de llegar a 12, pero aún no suman a la lineal)
+  var focoMesActual = equipo.filter(function(v){ return v.uf >= 6 && v.uf < 12; }).sort(function(a,b){ return b.uf-a.uf; });
 
   function fmtUF2(n) {
     if(!n&&n!==0) return "0";
@@ -10071,14 +10381,14 @@ function UFLinealesView({ equipo, info }) {
       "💡 El historial se carga automáticamente desde Firebase al abrir el dashboard."
     ),
 
-    // Mes actual (tiempo real)
+    // Mes actual — recuadro VERDE (ya llegaron ≥12 UF)
     React.createElement('div', {
-      style: { background: "linear-gradient(135deg,#C41230,#8B0418)", borderRadius: 20, padding: "28px 32px", marginBottom: 24, color: "#fff", boxShadow: "0 8px 32px rgba(196,18,48,.35)" }
+      style: { background: "linear-gradient(135deg,#15803D,#166534)", borderRadius: 20, padding: "28px 32px", marginBottom: 16, color: "#fff", boxShadow: "0 8px 32px rgba(21,128,61,.35)" }
     },
       React.createElement('div', { style: { fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", opacity: .7, marginBottom: 6 } },
         "Mes en curso — " + buildMesLabel(0)
       ),
-      React.createElement('div', { style: { fontSize: 13, opacity: .85, marginBottom: 14 } }, "Total UF's Lineales"),
+      React.createElement('div', { style: { fontSize: 13, opacity: .85, marginBottom: 14 } }, "✅ Total UF's Lineales — Ejecutivos que ya suman a tu meta"),
       React.createElement('div', { style: { fontSize: 52, fontWeight: 900, lineHeight: 1, marginBottom: 16 } }, fmtUF2(totalMesActual) + " UF"),
       React.createElement('div', { style: { fontSize: 12, opacity: .75, marginBottom: 10 } },
         calificadosMesActual.length + " ejecutivo(s) con ≥ 12 UF"
@@ -10087,6 +10397,32 @@ function UFLinealesView({ equipo, info }) {
         calificadosMesActual.map(function(v) {
           return React.createElement('div', { key: v.id, style: { background: "rgba(255,255,255,.15)", borderRadius: 99, padding: "4px 14px", fontSize: 12, fontWeight: 700 } },
             primerNombreApellido(v.nombre) + " — " + fmtUF2(v.uf) + " UF"
+          );
+        })
+      ),
+      calificadosMesActual.length === 0 && React.createElement('div', { style: { fontSize: 13, opacity: .7, fontStyle: "italic" } }, "Aún ningún ejecutivo ha alcanzado las 12 UF este mes.")
+    ),
+
+    // Cuadro AMARILLO — Foco AGV cercanos a 12 (6–11.99 UF)
+    focoMesActual.length > 0 && React.createElement('div', {
+      style: { background: "linear-gradient(135deg,#92400E,#78350F)", borderRadius: 20, padding: "22px 32px", marginBottom: 24, color: "#fff", boxShadow: "0 6px 24px rgba(146,64,14,.3)", border: "2px solid rgba(253,211,77,.35)" }
+    },
+      React.createElement('div', { style: { fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", opacity: .8, marginBottom: 6, color: "#FCD34D" } },
+        "🎯 FOCO SUPERVISOR"
+      ),
+      React.createElement('div', { style: { fontSize: 15, fontWeight: 900, marginBottom: 6, color: "#FDE68A" } },
+        "🎯 Foco sobre estos AGV para llevarlos a 12"
+      ),
+      React.createElement('div', { style: { fontSize: 11, opacity: .75, marginBottom: 14, fontStyle: "italic", color: "#FDE68A", background: "rgba(0,0,0,.2)", borderRadius: 8, padding: "6px 12px", lineHeight: 1.5 } },
+        "⚠️ Estos ejecutivos aún NO suman a tu logro lineal. Con foco y cierre, pueden cruzar las 12 UF y sumar directo a tu meta real."
+      ),
+      React.createElement('div', { style: { display: "flex", flexWrap: "wrap", gap: 8 } },
+        focoMesActual.map(function(v) {
+          var faltan = (12 - v.uf).toFixed(2).replace(".",",");
+          return React.createElement('div', { key: v.id, style: { background: "rgba(253,211,77,.2)", borderRadius: 99, padding: "6px 16px", fontSize: 12, fontWeight: 700, border: "1px solid rgba(253,211,77,.5)", display: "flex", gap: 8, alignItems: "center" } },
+            React.createElement('span', {style:{color:"#FDE68A"}}, primerNombreApellido(v.nombre)),
+            React.createElement('span', {style:{color:"#FCD34D",fontWeight:900}}, fmtUF2(v.uf) + " UF"),
+            React.createElement('span', {style:{color:"rgba(253,211,77,.6)",fontSize:10}}, "le faltan " + faltan + " UF")
           );
         })
       )
