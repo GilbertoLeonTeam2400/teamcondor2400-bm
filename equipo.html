@@ -8223,6 +8223,9 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
             : React.createElement(CrmLoginForm, {equipo:equipo, R:R, RD:RD, setCrmAcc:setCrmAcc, setCrmData:setCrmData, setCrmVid:setCrmVid})
           )
 
+        /* ===== MÁS (Reconocimientos + Info y Docs) ===== */
+        , tab==="mas" && React.createElement(MasTabView, {equipo:equipo, form:form, info:info, R:R, RD:RD, BG:BG, recoNombre:recoNombre, setRecoNombre:setRecoNombre, top5:top5, BADGES:BADGES, mesAnt:mesAnt, setMesAnt:setMesAnt, mesAntIdx:mesAntIdx, setMesAntIdx:setMesAntIdx, HALL_MESES:hallDinamico, acceso:acceso, setDraft:setDraft, setEditMes:setEditMes, infoDocsVista:infoDocsVista, setInfoDocsVista:setInfoDocsVista, premiosImgs:premiosImgs, setPremiosImgs:setPremiosImgs, docsGestion:docsGestion, setDocsGestion:setDocsGestion})
+
         /* ===== SUPERVISOR ===== */
         , tab==="supervisor" && (
           React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3658}}
