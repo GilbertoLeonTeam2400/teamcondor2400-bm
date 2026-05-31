@@ -5816,7 +5816,12 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
       React.createElement("div", {style:{marginBottom:8}},
         React.createElement("img", {src:CONDOR_CIRCLE_SRC, style:{width:100,height:100,objectFit:"contain"}, alt:"logo"})
       ),
-      React.createElement("div", {style:{fontSize:22,fontWeight:900,color:"#fff",letterSpacing:1,marginBottom:4}}, cfg("nombreEquipo").toUpperCase()),
+      React.createElement("div", {style:{fontSize:22,fontWeight:900,color:"#fff",letterSpacing:1,marginBottom:4}},
+        (function(){
+          var cc = sessionStorage.getItem("cc_activo");
+          return cc && cc !== "2400" ? "EQUIPO " + cc : cfg("nombreEquipo").toUpperCase();
+        })()
+      ),
       React.createElement("div", {style:{fontSize:13,color:"rgba(255,255,255,.7)",marginBottom:28,fontWeight:500}}, "Centro de Gestión de Ventas"),
       React.createElement("div", {style:{fontSize:13,color:"rgba(255,255,255,.85)",marginBottom:10,textAlign:"left",fontWeight:600}}, "Código de acceso"),
       React.createElement("input", {
