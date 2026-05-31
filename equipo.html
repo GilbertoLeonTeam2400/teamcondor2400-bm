@@ -5854,101 +5854,109 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
  // === FIN COMPONENTE LOGIN MAESTRO ===
 
 // ── Formulario de acceso al CRM (mismo estilo que Mi Plan de Éxito) ──────────
-function CrmLoginForm({ equipo, R, RD, setCrmAcc, setCrmData }) {
+
+// ── PinGate — formulario unificado de PIN (igual a Mis Cierres) ──────────────
+function PinGate({ equipo, R, RD, onSuccess, textoBoton, subtitulo }) {
   var [vid,    setVid]    = React.useState("");
   var [pin,    setPin]    = React.useState("");
   var [pinErr, setPinErr] = React.useState(false);
 
   var INP = {width:"100%",padding:"14px 16px",borderRadius:12,border:"1.5px solid #E5E7EB",
-    fontSize:15,fontFamily:"inherit",color:"#1F2937",outline:"none",marginBottom:0};
+             fontFamily:"inherit",fontSize:14,outline:"none",background:"#fff",
+             boxSizing:"border-box",transition:"border .15s"};
+  var BTN = {background:R,color:"#fff",border:"none",borderRadius:12,padding:"14px",
+             fontWeight:900,cursor:"pointer",fontFamily:"inherit",fontSize:15,
+             boxShadow:"0 4px 16px rgba(196,18,48,.3)",transition:"all .15s"};
 
-  function acceder() {
+  function ingresar() {
     var vC = equipo.find(function(e){ return e.id === Number(vid); });
-    if (vC && pin === vC.pin) {
+    if (vC && pin === String(vC.pin)) {
       setPinErr(false);
-      // Cargar datos CRM directamente sin depender del estado padre
-      setCrmAcc(true);
-      if(window.__fbDb && window.__fbDoc && window.__fbGetDoc){
-        window.__fbGetDoc(window.__fbDoc(window.__fbDb,"crm",String(vid))).then(function(snap){
-          if(snap.exists){
-            var d = snap.data();
-            if(d && Array.isArray(d.contactos) && d.contactos.length > 0){
-              if(typeof setCrmData==="function") setCrmData(d.contactos);
-              return;
-            }
-          }
-          // Firebase vacío → buscar localStorage
-          try{
-            var local = JSON.parse(localStorage.getItem("crm_"+vid)||"[]");
-            if(local.length>0 && typeof setCrmData==="function") setCrmData(local);
-          }catch(e){}
-        }).catch(function(){
-          try{
-            var local = JSON.parse(localStorage.getItem("crm_"+vid)||"[]");
-            if(local.length>0 && typeof setCrmData==="function") setCrmData(local);
-          }catch(e){}
-        });
-      } else {
-        try{
-          var local = JSON.parse(localStorage.getItem("crm_"+vid)||"[]");
-          if(local.length>0 && typeof setCrmData==="function") setCrmData(local);
-        }catch(e){}
-      }
+      onSuccess(vC);
     } else {
       setPinErr(true);
       setPin("");
     }
   }
 
-  return React.createElement('div', { style:{maxWidth:400,margin:"40px auto"} },
-    React.createElement('div', { style:{background:"#fff",borderRadius:20,padding:"36px 32px",
-      boxShadow:"0 4px 28px rgba(233,7,41,.1)",border:"1px solid rgba(233,7,41,.12)",textAlign:"center"} },
-      React.createElement('div', { style:{fontSize:22,fontWeight:900,color:RD,marginBottom:6} }, "Mi Agenda CRM"),
-      React.createElement('div', { style:{color:"#6B7280",fontSize:13,marginBottom:24,lineHeight:1.6} },
-        "Selecciona tu nombre e ingresa tu PIN para ver tu agenda de clientes."
-      ),
-      // Selector nombre
-      React.createElement('div', { style:{textAlign:"left",marginBottom:16} },
-        React.createElement('label', { style:{fontSize:12,fontWeight:700,color:"#6B7280",
-          textTransform:"uppercase",letterSpacing:".06em",display:"block",marginBottom:6} }, "Tu nombre"),
-        React.createElement('select', {
-          value: vid,
-          onChange: function(e){ setVid(e.target.value); setPinErr(false); setPin(""); },
-          style: Object.assign({},INP,{color:vid?"#1F2937":"#9CA3AF"})
+  return React.createElement("div", {style:{maxWidth:440,margin:"32px auto"}},
+    React.createElement("div", {
+      style:{background:"#fff",borderRadius:16,padding:"28px 26px",
+             border:"1.5px solid rgba(233,7,41,.2)",boxShadow:"0 4px 24px rgba(233,7,41,.08)"}
+    },
+      React.createElement("div", {style:{marginBottom:20}},
+        React.createElement("label", {style:{fontSize:12,fontWeight:700,color:"#374151",
+          display:"block",marginBottom:6,textTransform:"uppercase",letterSpacing:".04em"}},
+          "Ejecutivo *"
+        ),
+        React.createElement("select", {
+          value:vid,
+          onChange:function(e){setVid(e.target.value);setPinErr(false);setPin("");},
+          style:Object.assign({},INP,{color:vid?"#1F2937":"#9CA3AF",cursor:"pointer"})
         },
-          React.createElement('option',{value:""},"Selecciona tu nombre"),
+          React.createElement("option",{value:""},"Selecciona tu nombre"),
           equipo.map(function(v){
-            return React.createElement('option',{key:v.id,value:v.id},v.nombre);
+            return React.createElement("option",{key:v.id,value:v.id},v.nombre);
           })
         )
       ),
-      // PIN
-      React.createElement('div', { style:{textAlign:"left",marginBottom:20} },
-        React.createElement('label', { style:{fontSize:12,fontWeight:700,color:"#6B7280",
-          textTransform:"uppercase",letterSpacing:".06em",display:"block",marginBottom:6} }, "Tu PIN de 4 dígitos"),
-        React.createElement('input', {
-          type:"password", value:pin,
+      vid && React.createElement("div", {
+        style:{background:"#fff",borderRadius:16,padding:"22px",
+               border:"1.5px solid rgba(233,7,41,.2)",textAlign:"center"}
+      },
+        React.createElement("div", {style:{fontSize:15,fontWeight:900,color:RD,marginBottom:4}},
+          "Ingresa tu PIN"
+        ),
+        React.createElement("div", {style:{fontSize:12,color:"#6B7280",marginBottom:16}},
+          subtitulo || "Tu información es personal y confidencial"
+        ),
+        React.createElement("input", {
+          type:"password",value:pin,
           onChange:function(e){setPin(e.target.value);setPinErr(false);},
-          onKeyDown:function(e){if(e.key==="Enter")acceder();},
-          placeholder:"* * * * * *",
-          style:Object.assign({},INP,{textAlign:"center",fontSize:22,letterSpacing:".4em",
-            borderColor:pinErr?"#EF4444":"#E5E7EB"})
-        })
-      ),
-      pinErr && React.createElement('div',{style:{color:"#EF4444",fontSize:13,marginBottom:12,fontWeight:600}},"PIN incorrecto. Intenta de nuevo."),
-      React.createElement('button', {
-        onClick: acceder,
-        disabled: !vid,
-        style:{width:"100%",background:vid?R:"#E5E7EB",color:vid?"#fff":"#9CA3AF",
-          border:"none",borderRadius:12,padding:"14px",fontWeight:900,
-          cursor:vid?"pointer":"not-allowed",fontFamily:"inherit",fontSize:15,
-          boxShadow:vid?"0 4px 16px rgba(196,18,48,.3)":"none",transition:"all .15s"}
-      }, "Ver mi agenda")
+          onKeyDown:function(e){if(e.key==="Enter")ingresar();},
+          style:Object.assign({},INP,{textAlign:"center",fontSize:28,letterSpacing:"0.4em",
+                 marginBottom:12,padding:"14px",borderColor:pinErr?"#EF4444":"#E5E7EB"}),
+          placeholder:"••••••"
+        }),
+        pinErr && React.createElement("div", {
+          style:{color:R,fontSize:13,marginBottom:10,fontWeight:600}
+        }, "PIN incorrecto. Intenta nuevamente."),
+        React.createElement("button", {
+          onClick:ingresar,
+          style:Object.assign({},BTN,{width:"100%"})
+        }, textoBoton || "Ingresar")
+      )
     )
   );
 }
 
-// ── Pestaña Más — CRM + Reconocimientos + Info/Docs ─────────────────────────
+function CrmLoginForm({ equipo, R, RD, setCrmAcc, setCrmData }) {
+  function onSuccess(v) {
+    setCrmAcc(true);
+    if(window.__fbDb && window.__fbDoc && window.__fbGetDoc){
+      window.__fbGetDoc(window.__fbDoc(window.__fbDb,"crm",String(v.id))).then(function(snap){
+        try{
+          var d = snap.exists() ? (typeof snap.data==="function"?snap.data():snap.data) : null;
+          if(d && Array.isArray(d.contactos) && d.contactos.length>0){
+            if(typeof setCrmData==="function") setCrmData(d.contactos); return;
+          }
+        }catch(e){}
+        try{
+          var local=JSON.parse(localStorage.getItem("crm_"+v.id)||"[]");
+          if(local.length>0 && typeof setCrmData==="function") setCrmData(local);
+        }catch(e){}
+      }).catch(function(){
+        try{
+          var local=JSON.parse(localStorage.getItem("crm_"+v.id)||"[]");
+          if(local.length>0 && typeof setCrmData==="function") setCrmData(local);
+        }catch(e){}
+      });
+    }
+  }
+  return React.createElement(PinGate, {equipo:equipo, R:R, RD:RD, onSuccess:onSuccess,
+    textoBoton:"Ver mi agenda", subtitulo:"Tu información es personal y confidencial"});
+}
+
 function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmData, setCrmVid, setCrmPin, crmLogin, recoNombre, setRecoNombre, top5, BADGES, mesAnt, setMesAnt, mesAntIdx, setMesAntIdx, HALL_MESES, acceso, setDraft, setEditMes, infoDocsVista, setInfoDocsVista, premiosImgs, setPremiosImgs, docsGestion, setDocsGestion }) {
   var [masTab, setMasTab] = React.useState("crm");
   return React.createElement('div', null,
@@ -5964,7 +5972,20 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
       })
     ),
     masTab==="crm" && React.createElement('div', null, crmAcc
-      ? React.createElement(CRMView, {equipo:equipo, crmVid:form.vid||"", crmData:crmData, setCrmData:setCrmData, R:R, RD:RD, BG:BG, TODAY:TODAY})
+      ? React.createElement('div', {style:{maxWidth:900,margin:"0 auto"}},
+          React.createElement('div', {style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}},
+            React.createElement('div', {style:{fontSize:20,fontWeight:900,color:RD}}, "📒 Mi Agenda CRM"),
+            React.createElement('button', {
+              onClick:function(){setCrmAcc(false);},
+              style:{background:"#F3F4F6",color:"#374151",border:"none",borderRadius:8,padding:"8px 16px",fontWeight:700,cursor:"pointer",fontFamily:"inherit",fontSize:13}
+            }, "← Cerrar sesión")
+          ),
+          React.createElement('div', {style:{background:"#F9FAFB",borderRadius:16,padding:"28px",border:"1px solid #E5E7EB",textAlign:"center",color:"#6B7280"}},
+            React.createElement('div', {style:{fontSize:40,marginBottom:12}}, "📒"),
+            React.createElement('div', {style:{fontSize:16,fontWeight:700,color:"#374151",marginBottom:8}}, "Agenda CRM activa"),
+            React.createElement('div', {style:{fontSize:13}}, "La agenda de clientes estará disponible próximamente. Por ahora el acceso fue validado correctamente.")
+          )
+        )
       : React.createElement(CrmLoginForm, {equipo:equipo, R:R, RD:RD, setCrmAcc:setCrmAcc, setCrmData:setCrmData})
     ),
     masTab==="reconocimiento" && React.createElement('div', { style:{maxWidth:760,margin:"0 auto"} },
@@ -6018,7 +6039,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
               return React.createElement('button',{key:i,onClick:function(){setMesAnt(m);setMesAntIdx(realIdx);},
                 style:{padding:"6px 14px",border:"none",borderRadius:99,cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:12,background:mesAntIdx===realIdx?R:"#F3F4F6",color:mesAntIdx===realIdx?"#fff":"#6B7280"}},m.label);
             }),
-            acceso&&React.createElement('button',{onClick:function(){setDraft({label:mesAnt.label,top:mesAnt.top.map(function(t){return Object.assign({},t);})});setEditMes(true);},style:{background:BG,color:R,border:"1.5px solid "+R,borderRadius:10,padding:"7px 14px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}},"Editar")
+            null
           )
         ),
         React.createElement('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14}},[1,0,2].map(function(i){return React.createElement(TarjetaBadge,{key:i,entry:mesAnt.top[i],badge:BADGES[i],equipo:equipo});})),
@@ -6870,10 +6891,10 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
   }
 
   // Historial login
-  function histLogin(){
-    const v=equipo.find(function(v){return v.id===Number(histVid);});
-    if(v&&histPin===v.pin){setHistAcc(true);setHistErr(false);}
-    else{setHistErr(true);setHistPin("");}
+  function histLogin(vPre){
+    const v=vPre||equipo.find(function(v){return v.id===Number(histVid);});
+    if(v){setHistVid(String(v.id));setHistAcc(true);setHistErr(false);}
+    else{setHistErr(true);}
   }
   function histLogout(){setHistAcc(false);setHistPin("");setHistVid("");}
 
@@ -7897,19 +7918,12 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
         , (tab==="desempeno"||tab==="planexito") && (
           React.createElement('div', { style: {maxWidth:700,margin:"0 auto"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3444}}
             , !histAcc?(
-              React.createElement('div', { style: {background:"#fff",borderRadius:20,padding:36,boxShadow:"0 4px 24px rgba(233,7,41,.1)",border:"1px solid rgba(233,7,41,.12)",maxWidth:400,margin:"0 auto",textAlign:"center"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3446}}
-                , React.createElement('div', { style: {fontSize:22,fontWeight:900,color:RD,marginBottom:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3447}}, tab==="desempeno"?"Mi Productividad":"Mi Plan de Éxito" )
-                , React.createElement('div', { style: {color:"#6B7280",fontSize:13,marginBottom:24,lineHeight:1.6}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3448}}, "Selecciona tu nombre e ingresa tu PIN para ver tu actividad del mes. Tus datos son privados."                )
-                , React.createElement('label', { style: Object.assign({},LBL,{textAlign:"left"}), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3449}}, "Tu nombre" )
-                , React.createElement('select', { value: histVid, onChange: function(e){setHistVid(e.target.value);setHistAcc(false);}, style: Object.assign({},INP,{marginBottom:14}), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3450}}
-                  , React.createElement('option', { value: "", __self: this, __source: {fileName: _jsxFileName, lineNumber: 3451}}, "Selecciona tu nombre"  )
-                  , equipo.map(function(v){return React.createElement('option', { key: v.id, value: v.id, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3452}}, v.nombre);})
-                )
-                , React.createElement('label', { style: Object.assign({},LBL,{textAlign:"left"}), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3454}}, "Tu PIN de 4 digitos"    )
-                , React.createElement('input', { type: "password", value: histPin, onChange: function(e){setHistPin(e.target.value);}, onKeyDown: function(e){if(e.key==="Enter")histLogin();}, style: Object.assign({},INP,{textAlign:"center",fontSize:26,letterSpacing:"0.4em",marginBottom:14,padding:"14px"}), placeholder: "******", __self: this, __source: {fileName: _jsxFileName, lineNumber: 3455}} )
-                , histErr&&React.createElement('div', { style: {color:R,fontSize:13,marginBottom:12,fontWeight:600}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3456}}, "PIN incorrecto. Verifica con tu supervisor."     )
-                , React.createElement('button', { onClick: histLogin, style: Object.assign({},BTN,{width:"100%",fontSize:16}), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3457}}, "Ver mi historial"  )
-              )
+              React.createElement(PinGate, {
+                equipo:equipo, R:R, RD:RD,
+                textoBoton:"Ver mi historial",
+                subtitulo:"Tu información es personal y confidencial",
+                onSuccess:function(v){setHistVid(String(v.id));histLogin(v);}
+              })
             ):(
               React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3460}}
                 , React.createElement('div', { style: {display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3461}}
@@ -11710,24 +11724,18 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
       )
 
       /* ── LOGIN ── */
-      , !pinOk && React.createElement('div', { style:{background:"#fff",borderRadius:16,padding:"24px",border:"1.5px solid rgba(233,7,41,.2)",marginBottom:16} }
-        , React.createElement('div', { style:{fontSize:14,fontWeight:700,color:RD,marginBottom:12} }, "Selecciona tu nombre e ingresa tu PIN")
-        , React.createElement('select', { value:selId, onChange:function(e){setSelId(e.target.value);setPinOk(false);setPinCal("");setPinErr(false);},
-            style:{width:"100%",padding:"12px",borderRadius:10,border:"1px solid #E5E7EB",fontSize:14,marginBottom:10} }
-          , React.createElement('option', { value:"" }, "Selecciona tu nombre")
-          , equipo.map(function(e){ return React.createElement('option', {key:e.id,value:e.id}, e.nombre); })
-        )
-        , selId && React.createElement('div', null
-          , React.createElement('input', { type:"password", placeholder:"Tu PIN personal", value:pinCal,
-              onChange:function(e){setPinCal(e.target.value);},
-              onKeyDown:function(e){if(e.key==="Enter")loginCal();},
-              style:{width:"100%",padding:"12px",borderRadius:10,border:"1px solid #E5E7EB",fontSize:14,marginBottom:10,boxSizing:"border-box"} })
-          , React.createElement('button', { onClick:loginCal,
-              style:{width:"100%",padding:"12px",background:R,color:"#fff",border:"none",borderRadius:10,fontSize:15,fontWeight:700,cursor:"pointer"} },
-              "Entrar →")
-          , pinErr && React.createElement('div', { style:{color:R,fontSize:13,marginTop:8,textAlign:"center"} }, "PIN incorrecto. Intenta de nuevo.")
-        )
-      )
+      , !pinOk && React.createElement(PinGate, {
+          equipo:equipo, R:R, RD:RD,
+          textoBoton:"Entrar →",
+          subtitulo:"Tu información es personal y confidencial",
+          onSuccess:function(vOk){
+            setSelId(String(vOk.id));
+            setPinOk(true); setPinErr(false);
+            setUfSim(vOk.metaUF); setUfMeta(vOk.metaPropia||vOk.metaUF);
+            var cantConectaGuardada = vOk.metaConecta||0;
+            setPremios([{id:1, nombre: nombrePremio||"Premio Plan Conecta", valorUnitario:premioConecta||100000, cantidad:cantConectaGuardada}]);
+          }
+        })
 
       /* ── LOGGED IN: 2 CARDS ── */
       , pinOk && v && (function(){
