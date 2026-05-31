@@ -9214,7 +9214,7 @@ function ReconocidosEspeciales({ equipo, info, RD, R }) {
       return {nombre:g.nombre, fotoUrl:(vF&&vF.fotoUrl)||g.fotoUrl||null};
     });
     var esEmpate = ganadores.length > 1;
-    var fotoSize = ganadores.length===1 ? 64 : ganadores.length===2 ? 52 : 42;
+    var fotoSize = ganadores.length===1 ? 72 : ganadores.length===2 ? 58 : 46;
     var overlap = ganadores.length===1 ? 0 : -12;
     var fotosEl = React.createElement("div",{style:{display:"flex",justifyContent:"center",alignItems:"center",marginBottom:8,minHeight:fotoSize,flexWrap:"nowrap",overflow:"visible"}}
       ,ganadores.map(function(g,gi){
@@ -10574,8 +10574,8 @@ function UFLinealesView({ equipo, info }) {
       ),
       React.createElement('div', { style: { fontSize: 11, opacity: .8, marginBottom: 14, color: "#DCFCE7", background: "rgba(0,0,0,.2)", borderRadius: 8, padding: "6px 12px", lineHeight: 1.5 } },
         calificadosMesActual.length > 0
-          ? "Estos " + calificadosMesActual.length + " ejecutivos YA aportan a tu suma lineal este mes. ¡Sigan así, VAMOS CÓNDORES!"
-          : "Aún ningún ejecutivo ha alcanzado las 12 UF este mes. ¡El equipo puede lograrlo!"
+          ? "Mantén el ritmo semanal de cada uno. Revisa que ninguno baje de su promedio — un ejecutivo en racha no debe perder impulso."
+          : "Aún nadie cruza las 12 UF. Define hoy con quiénes hablar primero y qué acciones concretas van a mover el marcador."
       ),
       React.createElement('div', { style: { fontSize: 48, fontWeight: 900, lineHeight: 1, marginBottom: 14, color: "#fff" } }, fmtUF2(totalMesActual) + " UF"),
       calificadosMesActual.length > 0 && React.createElement('div', { style: { display: "flex", flexWrap: "wrap", gap: 8 } },
@@ -10607,18 +10607,21 @@ function UFLinealesView({ equipo, info }) {
           "🎯 Foco sobre estos AGV para llevarlos a 12 — aún NO suman a tu meta lineal"
         ),
         React.createElement('div', { style: { fontSize: 11, opacity: .8, marginBottom: 14, color: "#FDE68A", background: "rgba(0,0,0,.2)", borderRadius: 8, padding: "6px 12px", lineHeight: 1.5 } },
-          "⚠️ Con foco y cierre pueden cruzar las 12 UF y sumar directo a tu meta lineal este mes."
+          "Prioridad esta semana: agenda 1 llamada de cierre con cada uno. Están a tiro — un empujón bien dado los cruza."
         ),
         React.createElement('div', { style: { fontSize: 48, fontWeight: 900, lineHeight: 1, marginBottom: 14, color: "#fff" } },
           fmtUF2(focoMesActual.reduce(function(s,v){return s+v.uf;},0)) + " UF"
         ),
-        React.createElement('div', { style: { display: "flex", flexWrap: "wrap", gap: 8 } },
+        React.createElement('div', { style: { display: "flex", flexWrap: "wrap", gap: 10 } },
           focoMesActual.map(function(v) {
             var faltan = (12 - v.uf).toFixed(2).replace(".",",");
-            return React.createElement('div', { key: v.id, style: { background: "rgba(253,211,77,.15)", borderRadius: 99, padding: "6px 16px", fontSize: 12, fontWeight: 700, border: "1px solid rgba(253,211,77,.45)", display: "flex", gap: 8, alignItems: "center" } },
-              React.createElement('span', {style:{color:"#FDE68A"}}, primerNombreApellido(v.nombre)),
-              React.createElement('span', {style:{color:"#FCD34D",fontWeight:900}}, fmtUF2(v.uf) + " UF"),
-              React.createElement('span', {style:{color:"rgba(253,211,77,.6)",fontSize:10}}, "le faltan " + faltan + " UF")
+            return React.createElement('div', { key: v.id, style: { background: "rgba(253,211,77,.15)", borderRadius: 12, padding: "10px 16px", border: "1px solid rgba(253,211,77,.45)", display: "flex", flexDirection: "column", gap: 4, minWidth: 160 } },
+              React.createElement('span', {style:{color:"#FDE68A", fontSize:14, fontWeight:900}}, primerNombreApellido(v.nombre)),
+              React.createElement('div', {style:{display:"flex", gap:8, alignItems:"center"}},
+                React.createElement('span', {style:{color:"#FCD34D", fontSize:14, fontWeight:900}}, fmtUF2(v.uf) + " UF"),
+                React.createElement('span', {style:{color:"rgba(253,211,77,.5)", fontSize:12}}, "·")
+              ),
+              React.createElement('span', {style:{color:"#FCD34D", fontSize:14, fontWeight:900}}, "Faltan: " + faltan + " UF")
             );
           })
         )
@@ -10640,18 +10643,21 @@ function UFLinealesView({ equipo, info }) {
           "🚨 Estos AGV necesitan intervención urgente — aún NO suman a tu meta lineal"
         ),
         React.createElement('div', { style: { fontSize: 11, opacity: .8, marginBottom: 14, color: "#FECACA", background: "rgba(0,0,0,.25)", borderRadius: 8, padding: "6px 12px", lineHeight: 1.5 } },
-          "⚠️ Tienen mayor brecha para llegar a 12 UF. Requieren plan de acción urgente esta semana."
+          "Intervención directa esta semana. Define 3 acciones concretas con cada uno: qué van a hacer, cuándo y cómo lo vas a medir."
         ),
         React.createElement('div', { style: { fontSize: 48, fontWeight: 900, lineHeight: 1, marginBottom: 14, color: "#fff" } },
           fmtUF2(brechaMesActual.reduce(function(s,v){return s+v.uf;},0)) + " UF"
         ),
-        React.createElement('div', { style: { display: "flex", flexWrap: "wrap", gap: 8 } },
+        React.createElement('div', { style: { display: "flex", flexWrap: "wrap", gap: 10 } },
           brechaMesActual.map(function(v) {
             var faltan = (12 - v.uf).toFixed(2).replace(".",",");
-            return React.createElement('div', { key: v.id, style: { background: "rgba(252,165,165,.15)", borderRadius: 99, padding: "6px 16px", fontSize: 12, fontWeight: 700, border: "1px solid rgba(252,165,165,.35)", display: "flex", gap: 8, alignItems: "center" } },
-              React.createElement('span', {style:{color:"#FECACA"}}, primerNombreApellido(v.nombre)),
-              React.createElement('span', {style:{color:"#FCA5A5",fontWeight:900}}, fmtUF2(v.uf) + " UF"),
-              React.createElement('span', {style:{color:"rgba(252,165,165,.6)",fontSize:10}}, "le faltan " + faltan + " UF")
+            return React.createElement('div', { key: v.id, style: { background: "rgba(252,165,165,.15)", borderRadius: 12, padding: "10px 16px", border: "1px solid rgba(252,165,165,.35)", display: "flex", flexDirection: "column", gap: 4, minWidth: 160 } },
+              React.createElement('span', {style:{color:"#FECACA", fontSize:14, fontWeight:900}}, primerNombreApellido(v.nombre)),
+              React.createElement('div', {style:{display:"flex", gap:8, alignItems:"center"}},
+                React.createElement('span', {style:{color:"#FCA5A5", fontSize:14, fontWeight:900}}, fmtUF2(v.uf) + " UF"),
+                React.createElement('span', {style:{color:"rgba(252,165,165,.5)", fontSize:12}}, "·")
+              ),
+              React.createElement('span', {style:{color:"#FCA5A5", fontSize:14, fontWeight:900}}, "Faltan: " + faltan + " UF")
             );
           })
         )
