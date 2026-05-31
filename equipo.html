@@ -6468,6 +6468,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
   const [crmModal, setCrmModal] = useState(false);
   const [crmEdit,  setCrmEdit]  = useState(null);
   const [crmVista, setCrmVista] = useState("calendario"); // calendario | activos | cerrados | noConcretados | ufCerradas | ufPotencial
+  const [crmFiltro, setCrmFiltro] = useState("todos"); // todos | activos | cerrados | perdidos
   // ── Info y Docs Importantes ──
   const [infoDocsVista, setInfoDocsVista] = useState("premios");
   const [premiosImgs,   setPremiosImgs]   = useState(function(){
@@ -6556,7 +6557,8 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
   const tasaCierreDPS     = totDpsTotal > 0 ? Math.round((totDpsConVenta/totDpsTotal)*100) : 0;
   const metaUFSafe = (isNaN(META_UF)||META_UF<=0) ? 550 : META_UF;
   const falta   = Math.max(0, metaUFSafe - totUF);
-  const xCrack  = equipoValido.length > 0 ? fmtUF2(falta/equipoValido.length) : "0";
+  const faltaDisplay = parseFloat(falta.toFixed(2)); // solo para mostrar, no para cálculos internos
+  const xCrack  = equipoValido.length > 0 ? fmtUF2(faltaDisplay/equipoValido.length) : "0";
   const totHombres = equipoValido.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.hombres)||0);},0);},0);
   const totMujeres = equipoValido.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.mujeres)||0);},0);},0);
   const totConecta = equipoValido.reduce(function(s,v){return s+(parseInt(((v.historial||{})[info.mesKey]||{}).conecta)||0);},0);
@@ -7118,9 +7120,9 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                 if((tab==="desempeno"||tab==="planexito") && t.k!=="desempeno" && t.k!=="planexito" && histAcc) {
                   histLogout();
                 }
-                // Auto-logout cuando sale de Más (que contiene CRM)
-                if(tab==="mas" && t.k!=="mas" && crmAcc) {
-                  crmLogout();
+                // Auto-logout CRM al salir de pestaña crm
+                if(tab==="crm" && t.k!=="crm" && crmAcc) {
+                  setCrmAcc(false); setCrmVid(""); setCrmData([]);
                 }
                 // Auto-logout calculadora (remount)
                 if(tab==="calculadora" && t.k!=="calculadora") {
@@ -7208,11 +7210,11 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                 /* KPIs fila */
                 , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3074}}
                   , React.createElement('div', { style: {background:"rgba(255,255,255,.06)",borderRadius:12,padding:"12px 10px",textAlign:"center",border:"1px solid rgba(201,168,76,.2)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3075}}
-                    , React.createElement('div', { style: {fontSize:"clamp(18px,4vw,26px)",fontWeight:900,color:"#C9A84C",lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3076}}, fmtUF2(parseFloat(falta.toFixed(2))))
+                    , React.createElement('div', { style: {fontSize:"clamp(18px,4vw,26px)",fontWeight:900,color:"#C9A84C",lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3076}}, fmtUF2(faltaDisplay))
                     , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:"0.12em",marginTop:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3077}}, "UF que faltan"  )
                   )
                   , React.createElement('div', { style: {background:"rgba(255,255,255,.06)",borderRadius:12,padding:"12px 10px",textAlign:"center",border:"1px solid rgba(201,168,76,.2)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3079}}
-                    , React.createElement('div', { style: {fontSize:"clamp(18px,4vw,26px)",fontWeight:900,color:"#C9A84C",lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3080}}, info.calLeft>0?fmtUF2(falta/info.calLeft):"0")
+                    , React.createElement('div', { style: {fontSize:"clamp(18px,4vw,26px)",fontWeight:900,color:"#C9A84C",lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3080}}, info.calLeft>0?fmtUF2(faltaDisplay/info.calLeft):"0")
                     , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:"0.12em",marginTop:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3081}}, "UF's a cerrar por día para alcanzar la meta · "+info.calLeft+" días restantes")
                   )
                   , React.createElement('div', { style: {background:"rgba(255,255,255,.06)",borderRadius:12,padding:"12px 10px",textAlign:"center",border:"1px solid rgba(201,168,76,.2)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3083}}
@@ -8024,9 +8026,104 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                   )
                 ),
                 React.createElement('div', {style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:18}},
-                  [{label:"Activos",val:pendientes,color:"#1D4ED8",bg:"#EFF6FF"},{label:"Cerrados",val:cerrados,color:"#16A34A",bg:"#F0FDF4"},{label:"No concretados",val:perdidos,color:"#DC2626",bg:"#FEF2F2"},{label:"UF potencial",val:ufPotencial.toFixed(2)+" UF",color:"#D97706",bg:"#FFFBEB"}]
-                    .map(function(k,i){ return React.createElement('div',{key:i,style:{background:k.bg,borderRadius:12,padding:"12px 10px",textAlign:"center",border:"1.5px solid "+k.color+"33"}},React.createElement('div',{style:{fontSize:20,fontWeight:900,color:k.color}},k.val),React.createElement('div',{style:{fontSize:11,color:"#6B7280",marginTop:2,fontWeight:600}},k.label)); })
+                  (function(){
+                    var ufCerrados = crmData.filter(function(c){return c.proxAct==="cerrado";}).reduce(function(s,c){return s+(parseFloat(c.planUF)||0);},0);
+                    var kpis = [
+                      {key:"activos",  label:"Activos",          val:pendientes,                    sub:ufPotencial.toFixed(2)+" UF potencial", color:"#1D4ED8",bg:"#EFF6FF"},
+                      {key:"cerrados", label:"Cerrados",          val:cerrados,                      sub:ufCerrados.toFixed(2)+" UF cerradas",   color:"#16A34A",bg:"#F0FDF4"},
+                      {key:"perdidos", label:"No concretados",    val:perdidos,                      sub:"click para ver detalle",               color:"#DC2626",bg:"#FEF2F2"},
+                      {key:"ufpot",    label:"UF potencial",      val:ufPotencial.toFixed(2)+" UF",  sub:"clientes activos",                    color:"#D97706",bg:"#FFFBEB"},
+                    ];
+                    return kpis.map(function(k,i){
+                      return React.createElement('div',{key:i,onClick:function(){setCrmFiltro(crmFiltro===k.key?"":k.key);},
+                        style:{background:crmFiltro===k.key?k.color:k.bg,borderRadius:12,padding:"12px 10px",textAlign:"center",
+                               border:"2px solid "+(crmFiltro===k.key?k.color:k.color+"33"),cursor:"pointer",
+                               transition:"all .15s",boxShadow:crmFiltro===k.key?"0 4px 12px "+k.color+"44":"none"}},
+                        React.createElement('div',{style:{fontSize:20,fontWeight:900,color:crmFiltro===k.key?"#fff":k.color}},k.val),
+                        React.createElement('div',{style:{fontSize:11,color:crmFiltro===k.key?"rgba(255,255,255,.8)":"#6B7280",marginTop:2,fontWeight:600}},k.label),
+                        React.createElement('div',{style:{fontSize:10,color:crmFiltro===k.key?"rgba(255,255,255,.6)":"#9CA3AF",marginTop:2}},k.sub)
+                      );
+                    });
+                  })()
                 ),
+                // ── PANEL DE DESGLOSE AL HACER CLICK EN CARD ──
+                crmFiltro && (function(){
+                  var canalLabel = function(c){ return {terreno:"🚶 Terreno",referido:"👥 Referido",redes:"📱 Redes",leads:"📋 Leads",llamada:"📞 Llamada en frío"}[c]||c||"—"; };
+                  var ufCerrados = crmData.filter(function(c){return c.proxAct==="cerrado";}).reduce(function(s,c){return s+(parseFloat(c.planUF)||0);},0);
+
+                  // Datos según filtro
+                  var items = crmFiltro==="activos"  ? crmData.filter(function(c){return c.proxAct!=="cerrado"&&c.proxAct!=="perdido";})
+                            : crmFiltro==="cerrados" ? crmData.filter(function(c){return c.proxAct==="cerrado";})
+                            : crmFiltro==="perdidos" ? crmData.filter(function(c){return c.proxAct==="perdido";})
+                            : crmData.filter(function(c){return c.proxAct!=="cerrado"&&c.proxAct!=="perdido";});
+
+                  var color = crmFiltro==="activos"?"#1D4ED8":crmFiltro==="cerrados"?"#16A34A":crmFiltro==="perdidos"?"#DC2626":"#D97706";
+                  var titulo = crmFiltro==="activos"?"🔵 Clientes Activos":crmFiltro==="cerrados"?"✅ Clientes Cerrados":crmFiltro==="perdidos"?"❌ No Concretados":"💰 Pipeline Activo";
+
+                  // Agrupar por canal
+                  var porCanal = {};
+                  items.forEach(function(c){ var k=c.canal||"sin_canal"; if(!porCanal[k])porCanal[k]=[]; porCanal[k].push(c); });
+
+                  return React.createElement('div',{style:{background:"#F8FAFC",borderRadius:16,padding:"18px 20px",marginBottom:16,border:"2px solid "+color+"33"}},
+                    React.createElement('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}},
+                      React.createElement('div',{style:{fontSize:15,fontWeight:900,color:color}},titulo+" ("+items.length+")"),
+                      crmFiltro==="cerrados"&&React.createElement('div',{style:{fontSize:13,fontWeight:700,color:"#16A34A",background:"#F0FDF4",borderRadius:99,padding:"4px 14px",border:"1px solid #BBF7D0"}},
+                        "Total: "+ufCerrados.toFixed(2)+" UF cerradas")
+                    ),
+                    items.length===0
+                      ? React.createElement('div',{style:{textAlign:"center",color:"#9CA3AF",padding:"20px",fontSize:14}},"Sin clientes en esta categoría")
+                      : React.createElement('div',null,
+                          // Tabla de clientes
+                          React.createElement('div',{style:{overflowX:"auto"}},
+                            React.createElement('table',{style:{width:"100%",borderCollapse:"collapse",fontSize:13}},
+                              React.createElement('thead',null,
+                                React.createElement('tr',{style:{borderBottom:"2px solid "+color+"33"}},
+                                  React.createElement('th',{style:{padding:"8px 12px",textAlign:"left",color:"#374151",fontWeight:700,fontSize:12}},"Cliente"),
+                                  React.createElement('th',{style:{padding:"8px 12px",textAlign:"left",color:"#374151",fontWeight:700,fontSize:12}},"Canal"),
+                                  crmFiltro==="cerrados"&&React.createElement('th',{style:{padding:"8px 12px",textAlign:"right",color:"#374151",fontWeight:700,fontSize:12}},"UF"),
+                                  crmFiltro==="cerrados"&&React.createElement('th',{style:{padding:"8px 12px",textAlign:"left",color:"#374151",fontWeight:700,fontSize:12}},"Fecha cierre"),
+                                  crmFiltro==="activos"&&React.createElement('th',{style:{padding:"8px 12px",textAlign:"right",color:"#374151",fontWeight:700,fontSize:12}},"UF potencial"),
+                                  crmFiltro==="activos"&&React.createElement('th',{style:{padding:"8px 12px",textAlign:"left",color:"#374151",fontWeight:700,fontSize:12}},"Temperatura"),
+                                  crmFiltro==="perdidos"&&React.createElement('th',{style:{padding:"8px 12px",textAlign:"left",color:"#374151",fontWeight:700,fontSize:12}},"Motivo"),
+                                  crmFiltro==="ufpot"&&React.createElement('th',{style:{padding:"8px 12px",textAlign:"right",color:"#374151",fontWeight:700,fontSize:12}},"UF"),
+                                  crmFiltro==="ufpot"&&React.createElement('th',{style:{padding:"8px 12px",textAlign:"left",color:"#374151",fontWeight:700,fontSize:12}},"Próx. acción")
+                                )
+                              ),
+                              React.createElement('tbody',null,
+                                items.map(function(c,i){
+                                  var tempIcon=c.temperatura==="caliente"?"🔥":c.temperatura==="tibio"?"🌡️":"❄️";
+                                  return React.createElement('tr',{key:c.id,style:{borderBottom:"1px solid #F3F4F6",background:i%2===0?"#fff":"#F9FAFB"}},
+                                    React.createElement('td',{style:{padding:"10px 12px",fontWeight:700,color:"#111"}},c.nombre+(c.plan?" · "+c.plan:"")),
+                                    React.createElement('td',{style:{padding:"10px 12px",color:"#6B7280"}},canalLabel(c.canal)+(c.canalDetalle?" ("+c.canalDetalle+")":"")),
+                                    crmFiltro==="cerrados"&&React.createElement('td',{style:{padding:"10px 12px",textAlign:"right",fontWeight:700,color:"#16A34A"}},c.planUF?c.planUF+" UF":"—"),
+                                    crmFiltro==="cerrados"&&React.createElement('td',{style:{padding:"10px 12px",color:"#6B7280"}},c.fechaCierre||"—"),
+                                    crmFiltro==="activos"&&React.createElement('td',{style:{padding:"10px 12px",textAlign:"right",fontWeight:700,color:"#1D4ED8"}},c.planUF?c.planUF+" UF":"—"),
+                                    crmFiltro==="activos"&&React.createElement('td',{style:{padding:"10px 12px"}},tempIcon+" "+(c.temperatura==="caliente"?"Caliente":c.temperatura==="tibio"?"Tibio":"Frío")),
+                                    crmFiltro==="perdidos"&&React.createElement('td',{style:{padding:"10px 12px",color:"#DC2626"}},c.motivoNoConcretar||c.nota||"—"),
+                                    crmFiltro==="ufpot"&&React.createElement('td',{style:{padding:"10px 12px",textAlign:"right",fontWeight:700,color:"#D97706"}},c.planUF?c.planUF+" UF":"—"),
+                                    crmFiltro==="ufpot"&&React.createElement('td',{style:{padding:"10px 12px",color:"#6B7280"}},c.proxFecha?(c.proxFecha+(c.proxAct?" — "+c.proxAct:"")):"—")
+                                  );
+                                })
+                              )
+                            )
+                          ),
+                          // Resumen por canal
+                          React.createElement('div',{style:{marginTop:14,paddingTop:12,borderTop:"1px solid #E5E7EB"}},
+                            React.createElement('div',{style:{fontSize:12,fontWeight:700,color:"#374151",marginBottom:8}},"📊 Por canal:"),
+                            React.createElement('div',{style:{display:"flex",flexWrap:"wrap",gap:8}},
+                              Object.keys(porCanal).map(function(k){
+                                var arr=porCanal[k];
+                                var ufSum=arr.reduce(function(s,c){return s+(parseFloat(c.planUF)||0);},0);
+                                return React.createElement('div',{key:k,style:{background:"#fff",border:"1px solid "+color+"33",borderRadius:8,padding:"6px 12px",fontSize:12}},
+                                  React.createElement('span',{style:{fontWeight:700,color:color}},canalLabel(k)),
+                                  React.createElement('span',{style:{color:"#6B7280"}},": "+arr.length+" cliente"+(arr.length===1?"":"s")+(ufSum>0?" · "+ufSum.toFixed(2)+" UF":""))
+                                );
+                              })
+                            )
+                          )
+                        )
+                  );
+                })(),
                 crmVista==="calendario" && (function(){
                   var hoy=new Date(); hoy.setHours(0,0,0,0);
                   var activos=crmData.filter(function(c){return c.proxAct!=="cerrado"&&c.proxAct!=="perdido";});
@@ -8083,7 +8180,13 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                 crmVista==="lista" && (crmData.length===0
                   ? React.createElement('div',{style:{textAlign:"center",padding:"48px",color:"#9CA3AF",background:"#F9FAFB",borderRadius:16,border:"1.5px dashed #E5E7EB"}},React.createElement('div',{style:{fontSize:40,marginBottom:12}},"📒"),React.createElement('div',{style:{fontSize:16,fontWeight:700,color:"#374151",marginBottom:6}},"Sin clientes aún"),React.createElement('button',{onClick:function(){abrirNuevoContacto();},style:{background:R,color:"#fff",border:"none",borderRadius:10,padding:"12px 24px",fontWeight:700,cursor:"pointer",fontFamily:"inherit",fontSize:14,marginTop:10}},"➕ Nuevo cliente"))
                   : React.createElement('div',{style:{display:"flex",flexDirection:"column",gap:10}},
-                      crmData.filter(function(c){return c.proxAct!=="cerrado"&&c.proxAct!=="perdido";}).concat(crmData.filter(function(c){return c.proxAct==="cerrado"||c.proxAct==="perdido";})).map(function(c){
+                      (function(){
+                        var datos = crmFiltro==="activos" ? crmData.filter(function(c){return c.proxAct!=="cerrado"&&c.proxAct!=="perdido";})
+                                  : crmFiltro==="cerrados" ? crmData.filter(function(c){return c.proxAct==="cerrado";})
+                                  : crmFiltro==="perdidos" ? crmData.filter(function(c){return c.proxAct==="perdido";})
+                                  : crmData.filter(function(c){return c.proxAct!=="cerrado"&&c.proxAct!=="perdido";}).concat(crmData.filter(function(c){return c.proxAct==="cerrado"||c.proxAct==="perdido";}));
+                        return datos;
+                      })().map(function(c){
                         var esActivo=c.proxAct!=="cerrado"&&c.proxAct!=="perdido";
                         var tempColor=c.temperatura==="caliente"?"#DC2626":c.temperatura==="tibio"?"#D97706":"#2563EB";
                         var tempBg=c.temperatura==="caliente"?"#FEF2F2":c.temperatura==="tibio"?"#FFFBEB":"#EFF6FF";
