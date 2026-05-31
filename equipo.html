@@ -5814,7 +5814,19 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
              maxWidth:380,width:"90%",boxShadow:"0 20px 60px rgba(0,0,0,0.35)",textAlign:"center",border:"1px solid rgba(255,255,255,.15)"}
     },
       React.createElement("div", {style:{marginBottom:8}},
-        React.createElement("img", {src:CONDOR_CIRCLE_SRC, style:{width:100,height:100,objectFit:"contain"}, alt:"logo"})
+        (function(){
+          var cc = sessionStorage.getItem("cc_activo");
+          var esCondor = !cc || cc === "2400";
+          if(esCondor){
+            return React.createElement("img", {src:CONDOR_CIRCLE_SRC, style:{width:100,height:100,objectFit:"contain"}, alt:"logo"});
+          } else {
+            return React.createElement("div", {
+              style:{width:100,height:100,borderRadius:"50%",background:"rgba(255,255,255,.15)",
+                     display:"flex",alignItems:"center",justifyContent:"center",
+                     fontSize:28,fontWeight:900,color:"#fff",letterSpacing:-1,border:"3px solid rgba(255,255,255,.3)"}
+            }, "CC\n"+cc);
+          }
+        })()
       ),
       React.createElement("div", {style:{fontSize:22,fontWeight:900,color:"#fff",letterSpacing:1,marginBottom:4}},
         (function(){
@@ -5822,7 +5834,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
           return cc && cc !== "2400" ? "EQUIPO " + cc : cfg("nombreEquipo").toUpperCase();
         })()
       ),
-      React.createElement("div", {style:{fontSize:13,color:"rgba(255,255,255,.7)",marginBottom:28,fontWeight:500}}, "Centro de Gestión de Ventas"),
+      React.createElement("div", {style:{fontSize:13,color:"rgba(255,255,255,.7)",marginBottom:28,fontWeight:500}}, "Centro de Gestión Equipos Banmédica"),
       React.createElement("div", {style:{fontSize:13,color:"rgba(255,255,255,.85)",marginBottom:10,textAlign:"left",fontWeight:600}}, "Código de acceso"),
       React.createElement("input", {
         type:"password",
@@ -5935,27 +5947,38 @@ function PinGate({ equipo, R, RD, onSuccess, textoBoton, subtitulo }) {
   );
 }
 
-function CrmLoginForm({ equipo, R, RD, setCrmAcc, setCrmData }) {
+function CrmLoginForm({ equipo, R, RD, setCrmAcc, setCrmData, setCrmVid }) {
   function onSuccess(v) {
+    setCrmVid(String(v.id));  // ← CRÍTICO: guardar el vid para que saveCrmData funcione
     setCrmAcc(true);
+    // Intentar cargar desde Firebase primero
     if(window.__fbDb && window.__fbDoc && window.__fbGetDoc){
       window.__fbGetDoc(window.__fbDoc(window.__fbDb,"crm",String(v.id))).then(function(snap){
         try{
-          var d = snap.exists() ? (typeof snap.data==="function"?snap.data():snap.data) : null;
+          var exists = typeof snap.exists === "function" ? snap.exists() : snap.exists;
+          var d = exists ? (typeof snap.data==="function"?snap.data():snap.data) : null;
           if(d && Array.isArray(d.contactos) && d.contactos.length>0){
-            if(typeof setCrmData==="function") setCrmData(d.contactos); return;
+            if(typeof setCrmData==="function") setCrmData(d.contactos);
+            try{localStorage.setItem("crm_"+v.id, JSON.stringify(d.contactos));}catch(e){}
+            return;
           }
         }catch(e){}
+        // Firebase vacío o sin datos → intentar localStorage
         try{
           var local=JSON.parse(localStorage.getItem("crm_"+v.id)||"[]");
-          if(local.length>0 && typeof setCrmData==="function") setCrmData(local);
-        }catch(e){}
+          if(typeof setCrmData==="function") setCrmData(local);
+        }catch(e){ if(typeof setCrmData==="function") setCrmData([]); }
       }).catch(function(){
         try{
           var local=JSON.parse(localStorage.getItem("crm_"+v.id)||"[]");
-          if(local.length>0 && typeof setCrmData==="function") setCrmData(local);
-        }catch(e){}
+          if(typeof setCrmData==="function") setCrmData(local);
+        }catch(e){ if(typeof setCrmData==="function") setCrmData([]); }
       });
+    } else {
+      try{
+        var local=JSON.parse(localStorage.getItem("crm_"+v.id)||"[]");
+        if(typeof setCrmData==="function") setCrmData(local);
+      }catch(e){ if(typeof setCrmData==="function") setCrmData([]); }
     }
   }
   return React.createElement(PinGate, {equipo:equipo, R:R, RD:RD, onSuccess:onSuccess,
@@ -6977,7 +7000,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
     {k:"desempeno",     l:"📊 Mi Desempeño"},
     {k:"planexito",     l:"🎯 Mi Plan de Éxito"},
     {k:"calculadora",   l:"💰 Mi Meta"},
-    {k:"crm",           l:"📒 Mi CRM"},
+    {k:"crm",           l:"📒 Mi Agenda"},
     {k:"mas",           l:"☰ Más"},
     {k:"supervisor",    l:"🔐 Supervisor"},
   ];
@@ -7185,7 +7208,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                 /* KPIs fila */
                 , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3074}}
                   , React.createElement('div', { style: {background:"rgba(255,255,255,.06)",borderRadius:12,padding:"12px 10px",textAlign:"center",border:"1px solid rgba(201,168,76,.2)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3075}}
-                    , React.createElement('div', { style: {fontSize:"clamp(18px,4vw,26px)",fontWeight:900,color:"#C9A84C",lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3076}}, fmtUF2(falta))
+                    , React.createElement('div', { style: {fontSize:"clamp(18px,4vw,26px)",fontWeight:900,color:"#C9A84C",lineHeight:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3076}}, fmtUF2(parseFloat(falta.toFixed(2))))
                     , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:"0.12em",marginTop:4}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3077}}, "UF que faltan"  )
                   )
                   , React.createElement('div', { style: {background:"rgba(255,255,255,.06)",borderRadius:12,padding:"12px 10px",textAlign:"center",border:"1px solid rgba(201,168,76,.2)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3079}}
@@ -7979,105 +8002,123 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
         /* ===== MÁS — CRM + Reconocimientos + Info/Docs ===== */
         , tab==="crm" && React.createElement('div', null, crmAcc
             ? React.createElement('div', {style:{maxWidth:960,margin:"0 auto"}},
-                // Header
                 React.createElement('div', {style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}},
                   React.createElement('div', null,
-                    React.createElement('div', {style:{fontSize:20,fontWeight:900,color:RD}}, "📒 Mi Agenda CRM"),
-                    React.createElement('div', {style:{fontSize:12,color:"#9CA3AF"}}, "Bienvenido, "+(crmV?crmV.nombre.split(" ")[0]:"")+" · "+crmData.length+" cliente"+(crmData.length===1?"":"s"))
+                    React.createElement('div', {style:{fontSize:20,fontWeight:900,color:RD}}, "📒 Mi Agenda"),
+                    React.createElement('div', {style:{fontSize:12,color:"#9CA3AF"}}, "Hola, "+(crmV?crmV.nombre.split(" ")[0]:"")+(" · ")+crmData.length+" cliente"+(crmData.length===1?"":"s"))
                   ),
-                  React.createElement('div', {style:{display:"flex",gap:8,flexWrap:"wrap"}},
-                    React.createElement('button', {
-                      onClick: function(){abrirNuevoContacto();},
-                      style:{background:R,color:"#fff",border:"none",borderRadius:10,padding:"10px 18px",fontWeight:700,cursor:"pointer",fontFamily:"inherit",fontSize:13}
-                    }, "➕ Nuevo cliente"),
-                    React.createElement('button', {
-                      onClick:function(){setCrmAcc(false);},
-                      style:{background:"#F3F4F6",color:"#374151",border:"none",borderRadius:10,padding:"10px 16px",fontWeight:700,cursor:"pointer",fontFamily:"inherit",fontSize:13}
-                    }, "← Cerrar sesión")
+                  React.createElement('div', {style:{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}},
+                    React.createElement('div', {style:{display:"flex",borderRadius:10,overflow:"hidden",border:"1.5px solid #E5E7EB"}},
+                      [["calendario","📅 Agenda"],["lista","📋 Lista"]].map(function(v){
+                        return React.createElement('button',{key:v[0],onClick:function(){setCrmVista(v[0]);},
+                          style:{padding:"7px 14px",border:"none",cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:12,
+                                 background:crmVista===v[0]?R:"#fff",color:crmVista===v[0]?"#fff":"#6B7280"}},v[1]);
+                      })
+                    ),
+                    React.createElement('button',{onClick:function(){abrirNuevoContacto();},
+                      style:{background:R,color:"#fff",border:"none",borderRadius:10,padding:"9px 16px",fontWeight:700,cursor:"pointer",fontFamily:"inherit",fontSize:13}
+                    },"➕ Nuevo"),
+                    React.createElement('button',{onClick:function(){setCrmAcc(false);},
+                      style:{background:"#F3F4F6",color:"#374151",border:"none",borderRadius:10,padding:"9px 14px",fontWeight:700,cursor:"pointer",fontFamily:"inherit",fontSize:13}
+                    },"← Salir")
                   )
                 ),
-                // KPIs
                 React.createElement('div', {style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:18}},
-                  [
-                    {label:"Activos",val:pendientes,color:"#1D4ED8",bg:"#EFF6FF"},
-                    {label:"Cerrados",val:cerrados,color:"#16A34A",bg:"#F0FDF4"},
-                    {label:"No concretados",val:perdidos,color:"#DC2626",bg:"#FEF2F2"},
-                    {label:"UF potencial",val:ufPotencial.toFixed(2)+" UF",color:"#D97706",bg:"#FFFBEB"},
-                  ].map(function(k,i){
-                    return React.createElement('div', {key:i, style:{background:k.bg,borderRadius:12,padding:"14px 12px",textAlign:"center",border:"1.5px solid "+k.color+"33"}},
-                      React.createElement('div', {style:{fontSize:22,fontWeight:900,color:k.color}}, k.val),
-                      React.createElement('div', {style:{fontSize:11,color:"#6B7280",marginTop:3,fontWeight:600}}, k.label)
-                    );
-                  })
+                  [{label:"Activos",val:pendientes,color:"#1D4ED8",bg:"#EFF6FF"},{label:"Cerrados",val:cerrados,color:"#16A34A",bg:"#F0FDF4"},{label:"No concretados",val:perdidos,color:"#DC2626",bg:"#FEF2F2"},{label:"UF potencial",val:ufPotencial.toFixed(2)+" UF",color:"#D97706",bg:"#FFFBEB"}]
+                    .map(function(k,i){ return React.createElement('div',{key:i,style:{background:k.bg,borderRadius:12,padding:"12px 10px",textAlign:"center",border:"1.5px solid "+k.color+"33"}},React.createElement('div',{style:{fontSize:20,fontWeight:900,color:k.color}},k.val),React.createElement('div',{style:{fontSize:11,color:"#6B7280",marginTop:2,fontWeight:600}},k.label)); })
                 ),
-                // Lista de contactos
-                crmData.length === 0
-                  ? React.createElement('div', {style:{textAlign:"center",padding:"48px",color:"#9CA3AF",background:"#F9FAFB",borderRadius:16,border:"1.5px dashed #E5E7EB"}},
-                      React.createElement('div',{style:{fontSize:40,marginBottom:12}},"📒"),
-                      React.createElement('div',{style:{fontSize:16,fontWeight:700,color:"#374151",marginBottom:6}},"Sin clientes aún"),
-                      React.createElement('div',{style:{fontSize:13,marginBottom:20}},"Agrega tu primer cliente con el botón ➕"),
-                      React.createElement('button',{onClick:function(){abrirNuevoContacto();},style:{background:R,color:"#fff",border:"none",borderRadius:10,padding:"12px 24px",fontWeight:700,cursor:"pointer",fontFamily:"inherit",fontSize:14}},"➕ Nuevo cliente")
-                    )
-                  : React.createElement('div', {style:{display:"flex",flexDirection:"column",gap:10}},
-                      crmData.filter(function(c){return c.proxAct!=="cerrado"&&c.proxAct!=="perdido";})
-                        .concat(crmData.filter(function(c){return c.proxAct==="cerrado"||c.proxAct==="perdido";}))
-                        .map(function(c){
-                          var esActivo = c.proxAct!=="cerrado"&&c.proxAct!=="perdido";
-                          var tempColor = c.temperatura==="caliente"?"#DC2626":c.temperatura==="tibio"?"#D97706":"#2563EB";
-                          var tempBg   = c.temperatura==="caliente"?"#FEF2F2":c.temperatura==="tibio"?"#FFFBEB":"#EFF6FF";
-                          var tempIcon = c.temperatura==="caliente"?"🔥":c.temperatura==="tibio"?"🌡️":"❄️";
-                          var estadoLabel = {
-                            "cotizando":"Cotizando","dps_pendiente":"DPS pendiente",
-                            "en_seguimiento":"En seguimiento","listo_cierre":"Listo para cierre",
-                            "cerrado":"✅ Cerrado","perdido":"❌ No concretado","":" —"
-                          }[c.oportunidad||c.proxAct]||c.proxAct;
-                          // Semáforo de seguimiento por fecha
-                          var semColor="#22C55E";
-                          if(c.proxFecha){
-                            var p=c.proxFecha.split("-");
-                            var fd=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
-                            var diff=Math.floor((fd-new Date())/(1000*60*60*24));
-                            semColor=diff<0?"#DC2626":diff<=2?"#F97316":"#22C55E";
-                          }
-                          return React.createElement('div',{key:c.id,
-                            style:{background:"#fff",borderRadius:14,padding:"14px 16px",border:"1.5px solid "+(esActivo?"#E5E7EB":"#F3F4F6"),
-                                   opacity:esActivo?1:.7,boxShadow:esActivo?"0 2px 8px rgba(0,0,0,.05)":"none"}},
-                            React.createElement('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10,flexWrap:"wrap"}},
-                              // Info principal
-                              React.createElement('div',{style:{flex:1,minWidth:0}},
-                                React.createElement('div',{style:{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}},
-                                  React.createElement('span',{style:{fontSize:15,fontWeight:900,color:"#111"}},c.nombre),
-                                  c.temperatura&&esActivo&&React.createElement('span',{style:{fontSize:11,fontWeight:700,color:tempColor,background:tempBg,borderRadius:99,padding:"2px 8px"}},tempIcon+" "+(c.temperatura==="caliente"?"Caliente":c.temperatura==="tibio"?"Tibio":"Frío")),
-                                  !esActivo&&React.createElement('span',{style:{fontSize:11,fontWeight:700,color:c.proxAct==="cerrado"?"#16A34A":"#9CA3AF",background:c.proxAct==="cerrado"?"#F0FDF4":"#F3F4F6",borderRadius:99,padding:"2px 8px"}},c.proxAct==="cerrado"?"✅ Cerrado":"❌ No concretado")
-                                ),
-                                React.createElement('div',{style:{fontSize:12,color:"#6B7280",display:"flex",gap:14,flexWrap:"wrap"}},
-                                  c.tel&&React.createElement('span',null,"📞 "+c.tel),
-                                  c.plan&&React.createElement('span',null,"📋 "+c.plan+(c.planUF?" · "+c.planUF+" UF":"")),
-                                  c.canal&&React.createElement('span',null,"📌 "+(c.canal==="terreno"?"Terreno":c.canal==="referido"?"Referido":c.canal==="redes"?"Redes":c.canal==="leads"?"Leads":c.canal==="llamada"?"Llamada en frío":c.canal))
-                                ),
-                                c.proxFecha&&esActivo&&React.createElement('div',{style:{fontSize:12,marginTop:6,display:"flex",alignItems:"center",gap:6}},
-                                  React.createElement('span',{style:{width:8,height:8,borderRadius:"50%",background:semColor,display:"inline-block",flexShrink:0}}),
-                                  React.createElement('span',{style:{color:"#374151",fontWeight:600}},"Próx. acción: "+c.proxFecha+(c.proxAct?" — "+c.proxAct:""))
-                                ),
-                                c.nota&&React.createElement('div',{style:{fontSize:12,color:"#6B7280",marginTop:4,fontStyle:"italic"}},'"'+c.nota+'"')
+                crmVista==="calendario" && (function(){
+                  var hoy=new Date(); hoy.setHours(0,0,0,0);
+                  var activos=crmData.filter(function(c){return c.proxAct!=="cerrado"&&c.proxAct!=="perdido";});
+                  var sinFecha=activos.filter(function(c){return !c.proxFecha;});
+                  var conFecha=activos.filter(function(c){return !!c.proxFecha;}).sort(function(a,b){return a.proxFecha.localeCompare(b.proxFecha);});
+                  var vencidos=[],hoyArr=[],semana=[],proximos=[];
+                  var finSem=new Date(hoy); finSem.setDate(hoy.getDate()+7);
+                  conFecha.forEach(function(c){
+                    var p=c.proxFecha.split("-"); var fd=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+                    if(fd<hoy) vencidos.push(c);
+                    else if(fd.toDateString()===hoy.toDateString()) hoyArr.push(c);
+                    else if(fd<=finSem) semana.push(c);
+                    else proximos.push(c);
+                  });
+                  function grupoCard(titulo,arr,color,icon){
+                    if(!arr||arr.length===0) return null;
+                    return React.createElement('div',{style:{marginBottom:16}},
+                      React.createElement('div',{style:{display:"flex",alignItems:"center",gap:8,marginBottom:10,paddingBottom:8,borderBottom:"2px solid "+color+"33"}},
+                        React.createElement('span',{style:{fontSize:16}},icon),
+                        React.createElement('span',{style:{fontSize:14,fontWeight:900,color:color}},titulo),
+                        React.createElement('span',{style:{background:color+"22",color:color,borderRadius:99,padding:"2px 10px",fontSize:12,fontWeight:700}},arr.length)
+                      ),
+                      React.createElement('div',{style:{display:"flex",flexDirection:"column",gap:8}},
+                        arr.map(function(c){
+                          var tempIcon=c.temperatura==="caliente"?"🔥":c.temperatura==="tibio"?"🌡️":"❄️";
+                          return React.createElement('div',{key:c.id,style:{background:"#fff",borderRadius:12,padding:"12px 14px",border:"1.5px solid "+color+"44",display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:"wrap"}},
+                            React.createElement('div',{style:{flex:1,minWidth:0}},
+                              React.createElement('div',{style:{display:"flex",alignItems:"center",gap:6,marginBottom:3,flexWrap:"wrap"}},
+                                React.createElement('span',{style:{fontSize:14,fontWeight:800,color:"#111"}},c.nombre),
+                                c.temperatura&&React.createElement('span',{style:{fontSize:11}},tempIcon),
+                                c.plan&&React.createElement('span',{style:{fontSize:11,color:"#6B7280"}},c.plan+(c.planUF?" · "+c.planUF+" UF":""))
                               ),
-                              // Botones
-                              esActivo&&React.createElement('div',{style:{display:"flex",gap:6,flexShrink:0}},
-                                React.createElement('button',{onClick:function(){abrirEditContacto(c);},
-                                  style:{background:"#F3F4F6",color:"#374151",border:"none",borderRadius:8,padding:"6px 12px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}},"✏️ Editar"),
-                                c.tel&&React.createElement('a',{href:"https://wa.me/56"+c.tel.replace(/\D/g,"").replace(/^56/,""),target:"_blank",
-                                  style:{background:"#22C55E",color:"#fff",borderRadius:8,padding:"6px 12px",fontSize:12,fontWeight:700,textDecoration:"none",display:"inline-flex",alignItems:"center"}},"💬 WA"),
-                                React.createElement('button',{onClick:function(){if(confirm("¿Eliminar a "+c.nombre+"?"))eliminarContacto(c.id);},
-                                  style:{background:"#FEF2F2",color:"#DC2626",border:"none",borderRadius:8,padding:"6px 10px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}},"🗑️")
-                              )
+                              React.createElement('div',{style:{fontSize:12,color:color,fontWeight:700}},c.proxFecha?"📅 "+c.proxFecha+(c.proxAct?" — "+c.proxAct:""):"Sin fecha"),
+                              c.tel&&React.createElement('div',{style:{fontSize:11,color:"#9CA3AF"}},"📞 "+c.tel)
+                            ),
+                            React.createElement('div',{style:{display:"flex",gap:6,flexShrink:0}},
+                              React.createElement('button',{onClick:function(){abrirEditContacto(c);},style:{background:"#F3F4F6",color:"#374151",border:"none",borderRadius:8,padding:"6px 12px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}},"✏️"),
+                              c.tel&&React.createElement('a',{href:"https://wa.me/56"+c.tel.replace(/\D/g,"").replace(/^56/,""),target:"_blank",style:{background:"#22C55E",color:"#fff",borderRadius:8,padding:"6px 10px",fontSize:12,fontWeight:700,textDecoration:"none"}},"💬")
                             )
                           );
                         })
+                      )
+                    );
+                  }
+                  if(activos.length===0) return React.createElement('div',{style:{textAlign:"center",padding:"48px",color:"#9CA3AF",background:"#F9FAFB",borderRadius:16,border:"1.5px dashed #E5E7EB"}},React.createElement('div',{style:{fontSize:40,marginBottom:12}},"📅"),React.createElement('div',{style:{fontSize:16,fontWeight:700,color:"#374151",marginBottom:10}},"Sin clientes activos"),React.createElement('button',{onClick:function(){abrirNuevoContacto();},style:{background:R,color:"#fff",border:"none",borderRadius:10,padding:"12px 24px",fontWeight:700,cursor:"pointer",fontFamily:"inherit",fontSize:14}},"➕ Nuevo cliente"));
+                  return React.createElement('div',null,
+                    grupoCard("🚨 Vencidos — gestiona ya",vencidos,"#DC2626",""),
+                    grupoCard("📌 Hoy",hoyArr,"#D97706",""),
+                    grupoCard("📅 Esta semana",semana,"#2563EB",""),
+                    grupoCard("🗓️ Próximamente",proximos,"#6B7280",""),
+                    sinFecha.length>0&&grupoCard("❓ Sin fecha",sinFecha,"#9CA3AF","")
+                  );
+                })(),
+                crmVista==="lista" && (crmData.length===0
+                  ? React.createElement('div',{style:{textAlign:"center",padding:"48px",color:"#9CA3AF",background:"#F9FAFB",borderRadius:16,border:"1.5px dashed #E5E7EB"}},React.createElement('div',{style:{fontSize:40,marginBottom:12}},"📒"),React.createElement('div',{style:{fontSize:16,fontWeight:700,color:"#374151",marginBottom:6}},"Sin clientes aún"),React.createElement('button',{onClick:function(){abrirNuevoContacto();},style:{background:R,color:"#fff",border:"none",borderRadius:10,padding:"12px 24px",fontWeight:700,cursor:"pointer",fontFamily:"inherit",fontSize:14,marginTop:10}},"➕ Nuevo cliente"))
+                  : React.createElement('div',{style:{display:"flex",flexDirection:"column",gap:10}},
+                      crmData.filter(function(c){return c.proxAct!=="cerrado"&&c.proxAct!=="perdido";}).concat(crmData.filter(function(c){return c.proxAct==="cerrado"||c.proxAct==="perdido";})).map(function(c){
+                        var esActivo=c.proxAct!=="cerrado"&&c.proxAct!=="perdido";
+                        var tempColor=c.temperatura==="caliente"?"#DC2626":c.temperatura==="tibio"?"#D97706":"#2563EB";
+                        var tempBg=c.temperatura==="caliente"?"#FEF2F2":c.temperatura==="tibio"?"#FFFBEB":"#EFF6FF";
+                        var tempIcon=c.temperatura==="caliente"?"🔥":c.temperatura==="tibio"?"🌡️":"❄️";
+                        var semColor="#22C55E";
+                        if(c.proxFecha){var p=c.proxFecha.split("-");var fd=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));var diff=Math.floor((fd-new Date())/(1000*60*60*24));semColor=diff<0?"#DC2626":diff<=2?"#F97316":"#22C55E";}
+                        return React.createElement('div',{key:c.id,style:{background:"#fff",borderRadius:14,padding:"14px 16px",border:"1.5px solid "+(esActivo?"#E5E7EB":"#F3F4F6"),opacity:esActivo?1:.7}},
+                          React.createElement('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10,flexWrap:"wrap"}},
+                            React.createElement('div',{style:{flex:1,minWidth:0}},
+                              React.createElement('div',{style:{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}},
+                                React.createElement('span',{style:{fontSize:15,fontWeight:900,color:"#111"}},c.nombre),
+                                c.temperatura&&esActivo&&React.createElement('span',{style:{fontSize:11,fontWeight:700,color:tempColor,background:tempBg,borderRadius:99,padding:"2px 8px"}},tempIcon+" "+(c.temperatura==="caliente"?"Caliente":c.temperatura==="tibio"?"Tibio":"Frío")),
+                                !esActivo&&React.createElement('span',{style:{fontSize:11,fontWeight:700,color:c.proxAct==="cerrado"?"#16A34A":"#9CA3AF",background:c.proxAct==="cerrado"?"#F0FDF4":"#F3F4F6",borderRadius:99,padding:"2px 8px"}},c.proxAct==="cerrado"?"✅ Cerrado":"❌ No concretado")
+                              ),
+                              React.createElement('div',{style:{fontSize:12,color:"#6B7280",display:"flex",gap:14,flexWrap:"wrap"}},
+                                c.tel&&React.createElement('span',null,"📞 "+c.tel),
+                                c.plan&&React.createElement('span',null,"📋 "+c.plan+(c.planUF?" · "+c.planUF+" UF":"")),
+                                c.canal&&React.createElement('span',null,"📌 "+(c.canal==="terreno"?"Terreno":c.canal==="referido"?"Referido":c.canal==="redes"?"Redes":c.canal==="leads"?"Leads":c.canal==="llamada"?"Llamada en frío":c.canal))
+                              ),
+                              c.proxFecha&&esActivo&&React.createElement('div',{style:{fontSize:12,marginTop:6,display:"flex",alignItems:"center",gap:6}},React.createElement('span',{style:{width:8,height:8,borderRadius:"50%",background:semColor,display:"inline-block",flexShrink:0}}),React.createElement('span',{style:{color:"#374151",fontWeight:600}},"Próx: "+c.proxFecha+(c.proxAct?" — "+c.proxAct:""))),
+                              c.nota&&React.createElement('div',{style:{fontSize:12,color:"#6B7280",marginTop:4,fontStyle:"italic"}},'"'+c.nota+'"')
+                            ),
+                            esActivo&&React.createElement('div',{style:{display:"flex",gap:6,flexShrink:0}},
+                              React.createElement('button',{onClick:function(){abrirEditContacto(c);},style:{background:"#F3F4F6",color:"#374151",border:"none",borderRadius:8,padding:"6px 12px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}},"✏️ Editar"),
+                              c.tel&&React.createElement('a',{href:"https://wa.me/56"+c.tel.replace(/\D/g,"").replace(/^56/,""),target:"_blank",style:{background:"#22C55E",color:"#fff",borderRadius:8,padding:"6px 12px",fontSize:12,fontWeight:700,textDecoration:"none",display:"inline-flex",alignItems:"center"}},"💬 WA"),
+                              React.createElement('button',{onClick:function(){if(confirm("¿Eliminar a "+c.nombre+"?"))eliminarContacto(c.id);},style:{background:"#FEF2F2",color:"#DC2626",border:"none",borderRadius:8,padding:"6px 10px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}},"🗑️")
+                            )
+                          )
+                        );
+                      })
                     )
+                )
               )
-            : React.createElement(CrmLoginForm, {equipo:equipo, R:R, RD:RD, setCrmAcc:setCrmAcc, setCrmData:setCrmData})
+            : React.createElement(CrmLoginForm, {equipo:equipo, R:R, RD:RD, setCrmAcc:setCrmAcc, setCrmData:setCrmData, setCrmVid:setCrmVid})
           )
-        , tab==="mas" && React.createElement(MasTabView, {equipo:equipo, form:form, info:info, R:R, RD:RD, BG:BG, recoNombre:recoNombre, setRecoNombre:setRecoNombre, top5:top5, BADGES:BADGES, mesAnt:mesAnt, setMesAnt:setMesAnt, mesAntIdx:mesAntIdx, setMesAntIdx:setMesAntIdx, HALL_MESES:hallDinamico, acceso:acceso, setDraft:setDraft, setEditMes:setEditMes, infoDocsVista:infoDocsVista, setInfoDocsVista:setInfoDocsVista, premiosImgs:premiosImgs, setPremiosImgs:setPremiosImgs, docsGestion:docsGestion, setDocsGestion:setDocsGestion})
 
         /* ===== SUPERVISOR ===== */
         , tab==="supervisor" && (
