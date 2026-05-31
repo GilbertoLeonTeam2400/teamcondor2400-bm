@@ -99,17 +99,6 @@ window.__CONFIG = {
 
 // Paleta de temas del tablero principal
 window.__TEMAS = {
-  vinotinto: {
-    headerBg:   "linear-gradient(135deg,#6B0115 0%,#8B0418 35%,#e90729 100%)",
-    marcadorBg: "linear-gradient(135deg,#1a0a0a 0%,#3d0c14 45%,#6b1020 100%)",
-    barraColor: "linear-gradient(90deg,#8B1020,#C9A84C)",
-    loginBg:    "linear-gradient(135deg,#B4001E 0%,#8B0016 50%,#6B0010 100%)",
-    darkCard1:  "linear-gradient(135deg,#1a0a0a,#3d0c14)",
-    darkCard2:  "linear-gradient(135deg,#1a0008,#3d0010,#6B0018)",
-    darkCard3:  "linear-gradient(135deg,#1a0008,#2d0010)",
-    shadow:     "rgba(233,7,41,.4)",
-    label:      "Vinotinto",
-  },
   azul: {
     headerBg:   "linear-gradient(135deg,#0a1a4a 0%,#1a3a8a 35%,#2563EB 100%)",
     marcadorBg: "linear-gradient(135deg,#0a0f1a 0%,#0f1e3d 45%,#1e3a7a 100%)",
@@ -119,7 +108,7 @@ window.__TEMAS = {
     darkCard2:  "linear-gradient(135deg,#0a1020,#0f2040,#1a3060)",
     darkCard3:  "linear-gradient(135deg,#0a1020,#0f2040)",
     shadow:     "rgba(37,99,235,.4)",
-    label:      "Azul Corporativo",
+    label:      "Azul",
   },
   verde: {
     headerBg:   "linear-gradient(135deg,#052e16 0%,#14532d 35%,#16a34a 100%)",
@@ -130,7 +119,7 @@ window.__TEMAS = {
     darkCard2:  "linear-gradient(135deg,#0a1a0a,#0f2d0f,#1a4d1a)",
     darkCard3:  "linear-gradient(135deg,#0a1a0a,#0f2d0f)",
     shadow:     "rgba(22,163,74,.4)",
-    label:      "Verde Esmeralda",
+    label:      "Verde",
   },
   negro: {
     headerBg:   "linear-gradient(135deg,#000000 0%,#1a1a1a 35%,#374151 100%)",
@@ -141,7 +130,7 @@ window.__TEMAS = {
     darkCard2:  "linear-gradient(135deg,#000000,#111111,#1f2937)",
     darkCard3:  "linear-gradient(135deg,#000000,#111827)",
     shadow:     "rgba(0,0,0,.6)",
-    label:      "Negro Élite",
+    label:      "Negro",
   },
   rojo: {
     headerBg:   "linear-gradient(135deg,#6B0010 0%,#C41230 35%,#E9192A 100%)",
@@ -5264,7 +5253,11 @@ function CorrelacionView({ equipo, info, R, RD }) {
             ,React.createElement("div",{style:{background:"#E5E7EB",borderRadius:99,height:5,overflow:"hidden"}}
               ,React.createElement("div",{style:{width:pct+"%",height:"100%",background:mejor?"#16A34A":"#D97706",borderRadius:99}})
             )
-            ,React.createElement("div",{style:{fontSize:9,color:"#9CA3AF",marginTop:2}},d.uf.toFixed(2)+" UF / "+d.dps+" DPS")
+            ,React.createElement("div",{style:{display:"flex",gap:12,marginTop:4}},
+              React.createElement("span",{style:{fontSize:13,fontWeight:900,color:mejor?"#16A34A":"#D97706"}},d.uf.toFixed(2)+" UF"),
+              React.createElement("span",{style:{fontSize:13,fontWeight:700,color:"#6B7280"}},"·"),
+              React.createElement("span",{style:{fontSize:13,fontWeight:900,color:"#2563EB"}},d.dps+" DPS")
+            )
           )
         );
       })
@@ -5866,6 +5859,109 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
  }
  // === FIN COMPONENTE LOGIN MAESTRO ===
 
+// ── Pestaña Más — CRM + Reconocimientos + Info/Docs ─────────────────────────
+function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, recoNombre, setRecoNombre, top5, BADGES, mesAnt, setMesAnt, mesAntIdx, setMesAntIdx, HALL_MESES, acceso, setDraft, setEditMes, infoDocsVista, setInfoDocsVista, premiosImgs, setPremiosImgs, docsGestion, setDocsGestion }) {
+  var [masTab, setMasTab] = React.useState("crm");
+  return React.createElement('div', null,
+    // Sub-tabs internos
+    React.createElement('div', { style:{display:"flex",gap:8,marginBottom:20,borderBottom:"2px solid #F3F4F6",paddingBottom:12} },
+      [["crm","📒 Mi Agenda CRM"],["reconocimiento","🌟 Reconocimientos"],["infodocs","📌 Info y Docs"]].map(function(st){
+        return React.createElement('button',{key:st[0],onClick:function(){setMasTab(st[0]);},
+          style:{padding:"8px 18px",border:"none",borderRadius:99,cursor:"pointer",fontFamily:"inherit",
+            fontWeight:700,fontSize:13,
+            background:masTab===st[0]?R:"#F3F4F6",
+            color:masTab===st[0]?"#fff":"#6B7280",
+            transition:"all .15s"}},st[1]);
+      })
+    ),
+    masTab==="crm" && React.createElement('div', null, crmAcc
+      ? React.createElement('div', { style:{maxWidth:900,margin:"0 auto"} },
+          React.createElement('div', { style:{fontSize:22,fontWeight:900,color:RD,marginBottom:4} }, "📒 Mi Agenda y Gestión de Clientes"),
+          React.createElement('div', { style:{fontSize:13,color:"#9CA3AF",marginBottom:18} }, "Gestiona tus clientes, pipeline y próximas actividades.")
+        )
+      : React.createElement('div', { style:{textAlign:"center",padding:"40px",color:"#9CA3AF"} },
+          React.createElement('div',{style:{fontSize:36,marginBottom:12}},"📒"),
+          React.createElement('div',{style:{fontSize:16,fontWeight:700,marginBottom:8}},"Accede al CRM"),
+          React.createElement('div',{style:{fontSize:13,marginBottom:20}},"Ingresa tu PIN para ver tu agenda de clientes"),
+          React.createElement('input',{type:"password",placeholder:"Tu PIN",id:"crm-pin-mas",
+            style:{padding:"10px 16px",borderRadius:10,border:"1.5px solid #E5E7EB",fontSize:16,textAlign:"center",letterSpacing:".3em",marginBottom:10,width:160,fontFamily:"inherit"}}),
+          React.createElement('br',null),
+          React.createElement('button',{
+            onClick:function(){
+              var pval=document.getElementById("crm-pin-mas").value;
+              var vC=equipo.find(function(e){return e.id===Number(form.vid);});
+              if(vC&&pval===vC.pin){setCrmAcc(true);}else{alert("PIN incorrecto");}
+            },
+            style:{background:R,color:"#fff",border:"none",borderRadius:10,padding:"10px 24px",fontWeight:700,cursor:"pointer",fontFamily:"inherit",fontSize:14}
+          },"Acceder")
+        )
+    ),
+    masTab==="reconocimiento" && React.createElement('div', { style:{maxWidth:760,margin:"0 auto"} },
+      React.createElement('div', { style:{background:"#fff",borderRadius:20,padding:"28px 26px",boxShadow:"0 4px 24px rgba(233,7,41,.09)",marginBottom:24,border:"1px solid rgba(233,7,41,.1)"} },
+        React.createElement('div', { style:{marginBottom:20,display:"flex",alignItems:"center",gap:12} },
+          recoNombre && (function(){
+            var vR=equipo.find(function(e){return e.nombre===recoNombre;});
+            if(!vR) return null;
+            var ini=vR.nombre.split(' ').slice(0,2).map(function(p){return p[0];}).join('');
+            return React.createElement('div',{style:{width:44,height:44,borderRadius:"50%",overflow:"hidden",border:"2px solid "+RD,flexShrink:0,background:vR.fotoUrl?"#000":"rgba(233,7,41,.1)",display:"flex",alignItems:"center",justifyContent:"center"}},
+              vR.fotoUrl?React.createElement('img',{src:vR.fotoUrl,style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement('span',{style:{fontSize:14,fontWeight:900,color:RD}},ini)
+            );
+          })(),
+          React.createElement('select',{value:recoNombre,onChange:function(e){setRecoNombre(e.target.value);},
+            style:{flex:1,padding:"12px 14px",borderRadius:12,border:"1.5px solid rgba(233,7,41,.2)",fontSize:15,fontWeight:600,background:"#fff"}},
+            React.createElement('option',{value:""},"👤 Selecciona tu nombre"),
+            equipo.map(function(v){return React.createElement('option',{key:v.id,value:v.nombre},v.nombre);})
+          )
+        ),
+        React.createElement('div',{style:{display:"flex",alignItems:"center",gap:12,marginBottom:18}},
+          React.createElement('div',{style:{background:"linear-gradient(135deg,"+R+",#c01232)",borderRadius:10,padding:"6px 14px",color:"#fff",fontWeight:900,fontSize:12,letterSpacing:"0.06em"}},"EN VIVO"),
+          React.createElement('div',null,
+            React.createElement('div',{style:{fontSize:22,fontWeight:900,color:RD}},"Punteros del Mes"),
+            React.createElement('div',{style:{fontSize:14,fontWeight:700,color:R,marginTop:2,textTransform:"capitalize"}},info.mes)
+          )
+        ),
+        React.createElement('div',{style:{fontSize:13,color:"#6B7280",marginBottom:18}},"Se actualiza con cada reporte. Ranking por UF brutas acumuladas del mes."),
+        top5.length===0
+          ? React.createElement('div',{style:{textAlign:"center",padding:"40px",color:"#9CA3AF"}},React.createElement('div',{style:{fontSize:15,fontWeight:700}},"Sin reportes este mes aun."))
+          : React.createElement('div',null,
+              React.createElement('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14}},[1,0,2].map(function(i){return React.createElement(TarjetaBadge,{key:i,entry:top5[i],badge:BADGES[i],equipo:equipo});})),
+              React.createElement('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}},[3,4].map(function(i){return React.createElement(TarjetaBadge,{key:i,entry:top5[i],badge:BADGES[i],equipo:equipo});}))
+            ),
+        recoNombre && React.createElement('div',{style:{marginTop:16,background:top5.some(function(e){return e.nombre===recoNombre;})?'linear-gradient(135deg,#FEF3C7,#FDE68A)':"linear-gradient(135deg,#EFF6FF,#DBEAFE)",borderRadius:12,padding:"16px 20px",textAlign:"center",border:top5.some(function(e){return e.nombre===recoNombre;})?"2px solid #D97706":"1.5px solid #93C5FD"}},
+          top5.some(function(e){return e.nombre===recoNombre;})
+            ? React.createElement('div',{style:{fontSize:18,fontWeight:900,color:"#92400E"}},"🏆 ¡Felicitaciones! Estás entre los TOP 5 del mes — ¡el equipo te reconoce!")
+            : React.createElement('div',{style:{fontSize:16,fontWeight:900,color:"#1D4ED8"}},"💪 ¡Sigue trabajando que muy pronto estarás acá! ¡VAMOS, tú puedes! 🔥")
+        )
+      ),
+      React.createElement(ReconocidosEspeciales,{equipo:equipo,info:info,RD:RD,R:R}),
+      React.createElement('div',{style:{background:"#fff",borderRadius:20,padding:"28px 26px",boxShadow:"0 4px 24px rgba(233,7,41,.09)",border:"1px solid rgba(233,7,41,.1)"}},
+        React.createElement('div',{style:{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:22,flexWrap:"wrap",gap:12}},
+          React.createElement('div',null,
+            React.createElement('div',{style:{fontSize:10,letterSpacing:"0.18em",textTransform:"uppercase",color:"#9CA3AF",marginBottom:4}},"Reconocimiento mensual"),
+            React.createElement('div',{style:{fontSize:22,fontWeight:900,color:RD}},"Hall de Honor"),
+            React.createElement('div',{style:{fontSize:15,fontWeight:700,color:R,marginTop:2,textTransform:"capitalize"}},mesAnt.label)
+          ),
+          React.createElement('div',{style:{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}},
+            HALL_MESES.map(function(m,i){
+              return React.createElement('button',{key:i,onClick:function(){setMesAnt(m);setMesAntIdx(i);},
+                style:{padding:"6px 14px",border:"none",borderRadius:99,cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:12,background:mesAntIdx===i?R:"#F3F4F6",color:mesAntIdx===i?"#fff":"#6B7280"}},m.label);
+            }),
+            acceso&&React.createElement('button',{onClick:function(){setDraft({label:mesAnt.label,top:mesAnt.top.map(function(t){return Object.assign({},t);})});setEditMes(true);},style:{background:BG,color:R,border:"1.5px solid "+R,borderRadius:10,padding:"7px 14px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}},"Editar")
+          )
+        ),
+        React.createElement('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14}},[1,0,2].map(function(i){return React.createElement(TarjetaBadge,{key:i,entry:mesAnt.top[i],badge:BADGES[i],equipo:equipo});})),
+        React.createElement('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}},[3,4].map(function(i){return React.createElement(TarjetaBadge,{key:i,entry:mesAnt.top[i],badge:BADGES[i],equipo:equipo});})),
+        React.createElement('div',{style:{marginTop:16,background:BG,borderRadius:10,padding:"10px 16px",fontSize:12,color:"#9CA3AF",textAlign:"center"}},"Solo nombres y posicion. Sin cifras de produccion individual.")
+      )
+    ),
+    masTab==="infodocs" && React.createElement(InfoDocsTab,{
+      info:info, acceso:acceso, infoDocsVista:infoDocsVista, setInfoDocsVista:setInfoDocsVista,
+      premiosImgs:premiosImgs, setPremiosImgs:setPremiosImgs,
+      docsGestion:docsGestion, setDocsGestion:setDocsGestion, R:R, RD:RD
+    })
+  );
+}
+
  function App() {
   const info = useMemo(hoyInfo, []);
 
@@ -6190,7 +6286,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
   const [supGrupo, setSupGrupo] = useState("rendimiento");
   // Map group -> sub-tabs
   const SUP_GRUPOS = {
-    rendimiento:  [["dashboard","📊 Dashboard"],["uflineales","📈 UF's Lineales"],["predictor","📈 Proyecciones de Cierre"],["tendencias","📈 Tendencias y Gráficos"],["correlacion","🔗 Correlación DPS→UF"],["clasificacion","📊 Clasificación AGV"],["alertas","🚨 Alertas del Equipo"],["agentes0","🚨 Agentes en 0"],["planagv","📋 Plan de Trabajo AGV"],["dpsanalisis","📊 Análisis de Métricas"]],
+    rendimiento:  [["dashboard","📊 Dashboard"],["uflineales","📈 UF's Lineales"],["tendencias","📈 Tendencias y Gráficos"],["correlacion","🔗 Correlación DPS→UF"],["clasificacion","📊 Clasificación AGV"],["agentes0","🚨 Agentes en 0"],["planagv","📋 Plan de Trabajo AGV"],["dpsanalisis","📊 Análisis de Métricas"]],
     equipo:       [["gestion","👥 Gestionar Equipo"],["meta","🎯 Meta del Equipo"]],
     herramientas: [["carga","📥 Carga de Datos"],["gestPremios","🏆 Gestionar Premios"],["gestDocs","📂 Gestionar Docs"],["recordatorios","📌 Recordatorios"],["notas","📝 Bloc de Notas"],["config","⚙️ Configuración del Equipo"]],
   };
@@ -7724,7 +7820,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                     , React.createElement(NuevoCierreForm, { BTN: BTN, INP: INP, RD: RD, cierresHoy: cierresHoy, setCierresHoy: setCierresHoy, crmData: crmData, TODAY: TODAY, onGuardar: guardarCierreInmediato })
                   )
 
-                  , form.vid !== "" && pinFormOk && React.createElement(PredictorPersonalView, {equipo:equipo, form:form, RD:RD, info:info})
+                  
                   , React.createElement(HistorialTresMeses, { vid: Number(form.vid), info: info, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3434}} )
                 )
 
@@ -7814,104 +7910,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
         )
 
         /* ===== MÁS — CRM + Reconocimientos + Info/Docs ===== */
-        , tab==="mas" && (function(){
-            var [masTab, setMasTab] = React.useState("crm");
-            return React.createElement('div', null,
-              // Sub-tabs internos
-              React.createElement('div', { style:{display:"flex",gap:8,marginBottom:20,borderBottom:"2px solid #F3F4F6",paddingBottom:12} },
-                [["crm","📒 Mi Agenda CRM"],["reconocimiento","🌟 Reconocimientos"],["infodocs","📌 Info y Docs"]].map(function(st){
-                  return React.createElement('button',{key:st[0],onClick:function(){setMasTab(st[0]);},
-                    style:{padding:"8px 18px",border:"none",borderRadius:99,cursor:"pointer",fontFamily:"inherit",
-                      fontWeight:700,fontSize:13,
-                      background:masTab===st[0]?R:"#F3F4F6",
-                      color:masTab===st[0]?"#fff":"#6B7280",
-                      transition:"all .15s"}},st[1]);
-                })
-              ),
-              masTab==="crm" && React.createElement('div', null, crmAcc
-                ? React.createElement('div', { style:{maxWidth:900,margin:"0 auto"} },
-                    React.createElement('div', { style:{fontSize:22,fontWeight:900,color:RD,marginBottom:4} }, "📒 Mi Agenda y Gestión de Clientes"),
-                    React.createElement('div', { style:{fontSize:13,color:"#9CA3AF",marginBottom:18} }, "Gestiona tus clientes, pipeline y próximas actividades.")
-                  )
-                : React.createElement('div', { style:{textAlign:"center",padding:"40px",color:"#9CA3AF"} },
-                    React.createElement('div',{style:{fontSize:36,marginBottom:12}},"📒"),
-                    React.createElement('div',{style:{fontSize:16,fontWeight:700,marginBottom:8}},"Accede al CRM"),
-                    React.createElement('div',{style:{fontSize:13,marginBottom:20}},"Ingresa tu PIN para ver tu agenda de clientes"),
-                    React.createElement('input',{type:"password",placeholder:"Tu PIN",id:"crm-pin-input",
-                      style:{padding:"10px 16px",borderRadius:10,border:"1.5px solid #E5E7EB",fontSize:16,textAlign:"center",letterSpacing:".3em",marginBottom:10,width:160,fontFamily:"inherit"}}),
-                    React.createElement('br',null),
-                    React.createElement('button',{
-                      onClick:function(){
-                        var pval=document.getElementById("crm-pin-input").value;
-                        var vC=equipo.find(function(e){return e.id===Number(form.vid);});
-                        if(vC&&pval===vC.pin){setCrmAcc(true);}else{alert("PIN incorrecto");}
-                      },
-                      style:{background:R,color:"#fff",border:"none",borderRadius:10,padding:"10px 24px",fontWeight:700,cursor:"pointer",fontFamily:"inherit",fontSize:14}
-                    },"Acceder")
-                  )
-              ),
-              masTab==="reconocimiento" && React.createElement('div', { style:{maxWidth:760,margin:"0 auto"} },
-                React.createElement('div', { style:{background:"#fff",borderRadius:20,padding:"28px 26px",boxShadow:"0 4px 24px rgba(233,7,41,.09)",marginBottom:24,border:"1px solid rgba(233,7,41,.1)"} },
-                  React.createElement('div', { style:{marginBottom:20,display:"flex",alignItems:"center",gap:12} },
-                    recoNombre && (function(){
-                      var vR=equipo.find(function(e){return e.nombre===recoNombre;});
-                      if(!vR) return null;
-                      var ini=vR.nombre.split(' ').slice(0,2).map(function(p){return p[0];}).join('');
-                      return React.createElement('div',{style:{width:44,height:44,borderRadius:"50%",overflow:"hidden",border:"2px solid "+RD,flexShrink:0,background:vR.fotoUrl?"#000":"rgba(233,7,41,.1)",display:"flex",alignItems:"center",justifyContent:"center"}},
-                        vR.fotoUrl?React.createElement('img',{src:vR.fotoUrl,style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement('span',{style:{fontSize:14,fontWeight:900,color:RD}},ini)
-                      );
-                    })()
-                    , React.createElement('select',{value:recoNombre,onChange:function(e){setRecoNombre(e.target.value);},
-                      style:{flex:1,padding:"12px 14px",borderRadius:12,border:"1.5px solid rgba(233,7,41,.2)",fontSize:15,fontWeight:600,background:"#fff"}},
-                      React.createElement('option',{value:""},"👤 Selecciona tu nombre"),
-                      equipo.map(function(v){return React.createElement('option',{key:v.id,value:v.nombre},v.nombre);})
-                    )
-                  ),
-                  React.createElement('div',{style:{display:"flex",alignItems:"center",gap:12,marginBottom:18}},
-                    React.createElement('div',{style:{background:"linear-gradient(135deg,"+R+",#c01232)",borderRadius:10,padding:"6px 14px",color:"#fff",fontWeight:900,fontSize:12,letterSpacing:"0.06em"}},"EN VIVO"),
-                    React.createElement('div',null,React.createElement('div',{style:{fontSize:22,fontWeight:900,color:RD}},"Punteros del Mes"),React.createElement('div',{style:{fontSize:14,fontWeight:700,color:R,marginTop:2,textTransform:"capitalize"}},info.mes))
-                  ),
-                  React.createElement('div',{style:{fontSize:13,color:"#6B7280",marginBottom:18}},"Se actualiza con cada reporte. Ranking por UF brutas acumuladas del mes."),
-                  top5.length===0
-                    ? React.createElement('div',{style:{textAlign:"center",padding:"40px",color:"#9CA3AF"}},React.createElement('div',{style:{fontSize:15,fontWeight:700}},"Sin reportes este mes aun."))
-                    : React.createElement('div',null,
-                        React.createElement('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14}},[1,0,2].map(function(i){return React.createElement(TarjetaBadge,{key:i,entry:top5[i],badge:BADGES[i],equipo:equipo});})),
-                        React.createElement('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}},[3,4].map(function(i){return React.createElement(TarjetaBadge,{key:i,entry:top5[i],badge:BADGES[i],equipo:equipo});}))
-                      ),
-                  recoNombre && React.createElement('div',{style:{marginTop:16,background:top5.some(function(e){return e.nombre===recoNombre;})?'linear-gradient(135deg,#FEF3C7,#FDE68A)':"linear-gradient(135deg,#EFF6FF,#DBEAFE)",borderRadius:12,padding:"16px 20px",textAlign:"center",border:top5.some(function(e){return e.nombre===recoNombre;})?"2px solid #D97706":"1.5px solid #93C5FD"}},
-                    top5.some(function(e){return e.nombre===recoNombre;})
-                      ? React.createElement('div',{style:{fontSize:18,fontWeight:900,color:"#92400E"}},"🏆 ¡Felicitaciones! Estás entre los TOP 5 del mes — ¡el equipo te reconoce!")
-                      : React.createElement('div',{style:{fontSize:16,fontWeight:900,color:"#1D4ED8"}},"💪 ¡Sigue trabajando que muy pronto estarás acá! ¡VAMOS, tú puedes! 🔥")
-                  )
-                ),
-                React.createElement(ReconocidosEspeciales,{equipo:equipo,info:info,RD:RD,R:R}),
-                React.createElement('div',{style:{background:"#fff",borderRadius:20,padding:"28px 26px",boxShadow:"0 4px 24px rgba(233,7,41,.09)",border:"1px solid rgba(233,7,41,.1)"}},
-                  React.createElement('div',{style:{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:22,flexWrap:"wrap",gap:12}},
-                    React.createElement('div',null,
-                      React.createElement('div',{style:{fontSize:10,letterSpacing:"0.18em",textTransform:"uppercase",color:"#9CA3AF",marginBottom:4}},"Reconocimiento mensual"),
-                      React.createElement('div',{style:{fontSize:22,fontWeight:900,color:RD}},"Hall de Honor"),
-                      React.createElement('div',{style:{fontSize:15,fontWeight:700,color:R,marginTop:2,textTransform:"capitalize"}},mesAnt.label)
-                    ),
-                    React.createElement('div',{style:{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}},
-                      HALL_MESES.map(function(m,i){
-                        return React.createElement('button',{key:i,onClick:function(){setMesAnt(m);setMesAntIdx(i);},
-                          style:{padding:"6px 14px",border:"none",borderRadius:99,cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:12,background:mesAntIdx===i?R:"#F3F4F6",color:mesAntIdx===i?"#fff":"#6B7280"}},m.label);
-                      }),
-                      acceso&&React.createElement('button',{onClick:function(){setDraft({label:mesAnt.label,top:mesAnt.top.map(function(t){return Object.assign({},t);})});setEditMes(true);},style:{background:BG,color:R,border:"1.5px solid "+R,borderRadius:10,padding:"7px 14px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}},"Editar")
-                    )
-                  ),
-                  React.createElement('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14}},[1,0,2].map(function(i){return React.createElement(TarjetaBadge,{key:i,entry:mesAnt.top[i],badge:BADGES[i],equipo:equipo});})),
-                  React.createElement('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}},[3,4].map(function(i){return React.createElement(TarjetaBadge,{key:i,entry:mesAnt.top[i],badge:BADGES[i],equipo:equipo});})),
-                  React.createElement('div',{style:{marginTop:16,background:BG,borderRadius:10,padding:"10px 16px",fontSize:12,color:"#9CA3AF",textAlign:"center"}},"Solo nombres y posicion. Sin cifras de produccion individual.")
-                )
-              ),
-              masTab==="infodocs" && React.createElement(InfoDocsTab,{
-                info:info, acceso:acceso, infoDocsVista:infoDocsVista, setInfoDocsVista:setInfoDocsVista,
-                premiosImgs:premiosImgs, setPremiosImgs:setPremiosImgs,
-                docsGestion:docsGestion, setDocsGestion:setDocsGestion, R:R, RD:RD
-              })
-            );
-          })()
+        , tab==="mas" && React.createElement(MasTabView, {equipo:equipo, form:form, info:info, R:R, RD:RD, BG:BG, crmAcc:crmAcc, setCrmAcc:setCrmAcc, recoNombre:recoNombre, setRecoNombre:setRecoNombre, top5:top5, BADGES:BADGES, mesAnt:mesAnt, setMesAnt:setMesAnt, mesAntIdx:mesAntIdx, setMesAntIdx:setMesAntIdx, HALL_MESES:HALL_MESES, acceso:acceso, setDraft:setDraft, setEditMes:setEditMes, infoDocsVista:infoDocsVista, setInfoDocsVista:setInfoDocsVista, premiosImgs:premiosImgs, setPremiosImgs:setPremiosImgs, docsGestion:docsGestion, setDocsGestion:setDocsGestion})
 
         /* ===== SUPERVISOR ===== */
         , tab==="supervisor" && (
@@ -8330,8 +8329,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
 
                 , false&&React.createElement(EditarDatosView, { equipo: equipo, setEquipo: setEquipo, info: info, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3770}} )
                 , supVista==="meta"&&React.createElement('div', { style: {display:"flex",flexDirection:"column",gap:18} },
-                  React.createElement(MetasIndividualesView, { equipo: equipo, setEquipo: setEquipo, setMetaEquipo: setMetaEquipo, info: info }),
-                  React.createElement(EditarMetaEquipo, { metaEquipo: metaEquipo, setMetaEquipo: setMetaEquipo, premioConecta: premioConecta, setPremioConecta: setPremioConecta, nombrePremio: nombrePremio, setNombrePremio: setNombrePremio })
+                  React.createElement(MetasIndividualesView, { equipo: equipo, setEquipo: setEquipo, setMetaEquipo: setMetaEquipo, info: info })
                 )
                 , supVista==="excel"&&React.createElement(ExcelDataView, { equipo: equipo, setEquipo: setEquipo, info: info, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3772}} )
                 , supVista==="agentes0"&&React.createElement(AgentesEnCeroView, { equipo: equipo, info: info, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3773}} )
@@ -8339,9 +8337,7 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                 , supVista==="historialMetricas" && React.createElement(HistorialMetricasView, { equipo:equipo, info:info, R:R, RD:RD })
                 , supVista==="metricas" && React.createElement(MetricasReportView, { equipo:equipo, setEquipo:setEquipo, info:info, R:R, RD:RD })
                 , supVista==="tendencias" && React.createElement(TendenciasView, { equipo:equipo, info:info, R:R, RD:RD })
-                , supVista==="predictor" && React.createElement(PredictorView, { equipo:equipo, info:info, R:R, RD:RD, metaUFSafe:metaUFSafe })
                 , supVista==="correlacion" && React.createElement(CorrelacionView, { equipo:equipo, info:info, R:R, RD:RD })
-                , supVista==="alertas" && React.createElement(AlertasView, { equipo:equipo, info:info, R:R, RD:RD })
                 , supVista==="planagv" && React.createElement(PlanAGVView, { equipo:equipo, info:info, R:R, RD:RD })
                 
                 , supVista==="gestPremios" && React.createElement(GestPremiosView, {
