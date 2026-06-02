@@ -3034,6 +3034,45 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
     var mesKey = mesCarga;
     var esMesActual = mesKey === info.mesKey;
 
+    // ── BLINDAJE MES ACTUAL vs MES HISTÓRICO ──────────────────────────────
+    // Si se está cargando el mes actual con UF > 0, verificar que no sea un Excel
+    // de un mes anterior cargado por error
+    if (esMesActual) {
+      var totUFExcel = preview.reduce(function(s,p){return s+(p.uf||0);},0);
+      var totUFActual = equipo.reduce(function(s,v){return s+(parseFloat(v.uf)||0);},0);
+      // Si el Excel trae muchas más UF que las actuales, es sospechoso
+      if (totUFExcel > totUFActual * 1.5 && totUFActual > 0 && totUFExcel > 10) {
+        var ok = confirm(
+          "⚠️ ADVERTENCIA IMPORTANTE ⚠️\n\n" +
+          "El mes seleccionado es " + info.mes + " (MES ACTUAL).\n\n" +
+          "Las UF del Excel: " + totUFExcel.toFixed(2) + " UF\n" +
+          "Las UF actuales del equipo: " + totUFActual.toFixed(2) + " UF\n\n" +
+          "El Excel tiene " + (totUFExcel/totUFActual).toFixed(1) + "x más UF que el acumulado actual.\n" +
+          "¿Estás seguro de que este Excel corresponde a " + info.mes + " y NO a un mes anterior?\n\n" +
+          "✅ OK = Sí, es el Excel correcto del mes actual\n" +
+          "❌ Cancelar = No, me equivoqué de archivo"
+        );
+        if (!ok) {
+          setMsg("⚠️ Carga cancelada. Selecciona el mes correcto antes de cargar.");
+          return;
+        }
+      }
+    } else {
+      // Es un mes histórico — advertir que NO modifica el mes actual
+      var _nmHist = mesesOpciones.find(function(m){return m.mk===mesKey;});
+      var ok2 = confirm(
+        "📅 Cargando datos históricos para: " + (_nmHist?_nmHist.nom:mesKey) + "\n\n" +
+        "Este Excel actualizará SOLO el historial de " + (_nmHist?_nmHist.nom:mesKey) + ".\n" +
+        "El mes actual (" + info.mes + ") NO será modificado.\n\n" +
+        "¿Confirmas que este Excel corresponde a " + (_nmHist?_nmHist.nom:mesKey) + "?"
+      );
+      if (!ok2) {
+        setMsg("⚠️ Carga cancelada.");
+        return;
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     // PASO 1: Matching fuzzy entre Excel y equipo
     var resultados = preview.map(function(p) {
       var nombreP = (p.nombre||"").toUpperCase().trim().replace(/\s+/g," ");
