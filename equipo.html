@@ -8948,7 +8948,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                       , React.createElement('table', { style: {width:"100%",borderCollapse:"collapse",fontSize:13,minWidth:560}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3786}}
                         , React.createElement('thead', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3787}}, React.createElement('tr', { style: {borderBottom:"2px solid "+BG}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3787}}, ["Ejecutivo","RUT","PIN","Meta UF","UF Lograda","% Meta UF","Meta DPS","DPS Lograda","% Meta DPS","Estado"].map(function(h){return React.createElement('th', { key: h, style: {padding:"9px 10px",textAlign:"left",fontSize:11,color:"#9CA3AF",fontWeight:700,textTransform:"uppercase",whiteSpace:"nowrap"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3787}}, h);})))
                         , React.createElement('tbody', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3788}}
-                          , equipo.slice().sort(function(a,b){return b.uf-a.uf;}).map(function(v){
+                          , equipo.slice().sort(function(a,b){return b.uf-a.uf;}).map(function(v, _idx){
                             const pctMeta=v.metaUF>0?Math.round((v.uf/v.metaUF)*100):0,colM=colSem(pctMeta);
                              const metaDPS=parseInt(v.metaDPS)||0;
                              const dpsMes=(function(){var h=(v.historial||{})[info.mesKey]||{};var s=(parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0);return s>0?s:(parseInt(v.dps)||0);})();
