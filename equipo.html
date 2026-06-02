@@ -234,6 +234,15 @@ const R       = "#e90729";
 const RD      = "#8B0418";
 const BG      = "#ffffff";
 // Truncar a 3 decimales SIN redondear (evita error de punto flotante)
+// ── Nombre legible: "FLORES CONTRERAS CATALINA" → "CATALINA FLORES" ──────
+function _nombreCorto(nombreCompleto) {
+  var p = (nombreCompleto||"").trim().split(/\s+/).filter(Boolean);
+  if (!p.length) return "";
+  if (p.length <= 2) return p[0] + (p[1]?" "+p[1]:"");
+  // 3+ palabras: última = nombre de pila, primera = apellido paterno
+  return p[p.length-1] + " " + p[0];
+}
+
 function truncUF3(n) {
   // Convert to string first to avoid float precision errors
   var str = String(n||0).replace(',','.');
@@ -1815,31 +1824,31 @@ const HISTORIAL_EXCEL = {
 };
 
 const EJECUTIVOS_BASE = [
-  { id:  0, nombre: "ORTIZ DE ZARATE RODRIGO", rut: "Ingresar RUT", pin: "975306", metaUF: 50, metaDPS: 0 },
-  { id:  1, nombre: "MERINO RIVEROS MARCELA", rut: "Ingresar RUT", pin: "230195", metaUF: 50, metaDPS: 0 },
-  { id:  2, nombre: "DOMINGUEZ CORNEJO CHRISTIAN", rut: "Ingresar RUT", pin: "265286", metaUF: 50, metaDPS: 0 },
-  { id:  3, nombre: "PERDOMO GUEVARA LOLA", rut: "Ingresar RUT", pin: "890437", metaUF: 50, metaDPS: 0 },
-  { id:  4, nombre: "TRINCADO SALAS PAMELA", rut: "Ingresar RUT", pin: "179278", metaUF: 50, metaDPS: 0 },
-  { id:  5, nombre: "DE LA CHINQUINQUI GOMEZ MATHISON KENIA", rut: "Ingresar RUT", pin: "237451", metaUF: 50, metaDPS: 0 },
-  { id:  6, nombre: "OVALLOS ROMERO LUISANA", rut: "Ingresar RUT", pin: "929217", metaUF: 50, metaDPS: 0 },
-  { id:  7, nombre: "REYES REYES EDWIN", rut: "Ingresar RUT", pin: "303983", metaUF: 50, metaDPS: 0 },
-  { id:  8, nombre: "RAMIREZ SAAVEDRA MARIANA", rut: "Ingresar RUT", pin: "399259", metaUF: 50, metaDPS: 0 },
-  { id:  9, nombre: "UNDURRAGA DIEZ CRISTINA", rut: "Ingresar RUT", pin: "298689", metaUF: 50, metaDPS: 0 },
-  { id: 10, nombre: "LAGOS ACEVEDO ROSSANA", rut: "Ingresar RUT", pin: "820696", metaUF: 50, metaDPS: 0 },
-  { id: 11, nombre: "SANDOVAL CUEVAS LESLY", rut: "Ingresar RUT", pin: "914668", metaUF: 50, metaDPS: 0 },
-  { id: 12, nombre: "URRUTIA GARCIA CAMILA", rut: "Ingresar RUT", pin: "727413", metaUF: 50, metaDPS: 0 },
-  { id: 13, nombre: "NEIRA SEPULVEDA CRISTIAN", rut: "Ingresar RUT", pin: "713289", metaUF: 50, metaDPS: 0 },
-  { id: 14, nombre: "RAMIREZ ARACENA LEONOR", rut: "Ingresar RUT", pin: "417877", metaUF: 50, metaDPS: 0 },
-  { id: 15, nombre: "SALINAS TAPIA ROMINA", rut: "Ingresar RUT", pin: "757914", metaUF: 50, metaDPS: 0 },
-  { id: 16, nombre: "ESCOBEDO CEPEDA JOCELYN", rut: "Ingresar RUT", pin: "675292", metaUF: 50, metaDPS: 0 },
-  { id: 17, nombre: "ROJAS IBANEZ PERLA", rut: "Ingresar RUT", pin: "336247", metaUF: 50, metaDPS: 0 },
-  { id: 18, nombre: "GALVEZ ABARCA ELIZABETH", rut: "Ingresar RUT", pin: "162167", metaUF: 50, metaDPS: 0 },
-  { id: 19, nombre: "OVALLE BERNAL PAULINA", rut: "Ingresar RUT", pin: "652089", metaUF: 50, metaDPS: 0 },
-  { id: 20, nombre: "ALVAREZ ASENCIO MARIA ELENA", rut: "Ingresar RUT", pin: "753656", metaUF: 50, metaDPS: 0 },
-  { id: 21, nombre: "CIFUENTES MOREIRA ALEJANDRA", rut: "Ingresar RUT", pin: "188298", metaUF: 50, metaDPS: 0 },
-  { id: 22, nombre: "FLORES CONTRERAS CATALINA", rut: "Ingresar RUT", pin: "735770", metaUF: 50, metaDPS: 0 },
-  { id: 23, nombre: "ROCHA ORELLANA ROMINA", rut: "Ingresar RUT", pin: "596504", metaUF: 50, metaDPS: 0 },
-  { id: 24, nombre: "AVILES RAMOS ANA JULIA", rut: "Ingresar RUT", pin: "563917", metaUF: 50, metaDPS: 0 },
+  { id:  0, nombre: "ORTIZ DE ZARATE RODRIGO", rut: "", pin: "975306", metaUF: 50, metaDPS: 0 },
+  { id:  1, nombre: "MERINO RIVEROS MARCELA", rut: "", pin: "230195", metaUF: 50, metaDPS: 0 },
+  { id:  2, nombre: "DOMINGUEZ CORNEJO CHRISTIAN", rut: "", pin: "265286", metaUF: 50, metaDPS: 0 },
+  { id:  3, nombre: "PERDOMO GUEVARA LOLA", rut: "", pin: "890437", metaUF: 50, metaDPS: 0 },
+  { id:  4, nombre: "TRINCADO SALAS PAMELA", rut: "", pin: "179278", metaUF: 50, metaDPS: 0 },
+  { id:  5, nombre: "DE LA CHINQUINQUI GOMEZ MATHISON KENIA", rut: "", pin: "237451", metaUF: 50, metaDPS: 0 },
+  { id:  6, nombre: "OVALLOS ROMERO LUISANA", rut: "", pin: "929217", metaUF: 50, metaDPS: 0 },
+  { id:  7, nombre: "REYES REYES EDWIN", rut: "", pin: "303983", metaUF: 50, metaDPS: 0 },
+  { id:  8, nombre: "RAMIREZ SAAVEDRA MARIANA", rut: "", pin: "399259", metaUF: 50, metaDPS: 0 },
+  { id:  9, nombre: "UNDURRAGA DIEZ CRISTINA", rut: "", pin: "298689", metaUF: 50, metaDPS: 0 },
+  { id: 10, nombre: "LAGOS ACEVEDO ROSSANA", rut: "", pin: "820696", metaUF: 50, metaDPS: 0 },
+  { id: 11, nombre: "SANDOVAL CUEVAS LESLY", rut: "", pin: "914668", metaUF: 50, metaDPS: 0 },
+  { id: 12, nombre: "URRUTIA GARCIA CAMILA", rut: "", pin: "727413", metaUF: 50, metaDPS: 0 },
+  { id: 13, nombre: "NEIRA SEPULVEDA CRISTIAN", rut: "", pin: "713289", metaUF: 50, metaDPS: 0 },
+  { id: 14, nombre: "RAMIREZ ARACENA LEONOR", rut: "", pin: "417877", metaUF: 50, metaDPS: 0 },
+  { id: 15, nombre: "SALINAS TAPIA ROMINA", rut: "", pin: "757914", metaUF: 50, metaDPS: 0 },
+  { id: 16, nombre: "ESCOBEDO CEPEDA JOCELYN", rut: "", pin: "675292", metaUF: 50, metaDPS: 0 },
+  { id: 17, nombre: "ROJAS IBANEZ PERLA", rut: "", pin: "336247", metaUF: 50, metaDPS: 0 },
+  { id: 18, nombre: "GALVEZ ABARCA ELIZABETH", rut: "", pin: "162167", metaUF: 50, metaDPS: 0 },
+  { id: 19, nombre: "OVALLE BERNAL PAULINA", rut: "", pin: "652089", metaUF: 50, metaDPS: 0 },
+  { id: 20, nombre: "ALVAREZ ASENCIO MARIA ELENA", rut: "", pin: "753656", metaUF: 50, metaDPS: 0 },
+  { id: 21, nombre: "CIFUENTES MOREIRA ALEJANDRA", rut: "", pin: "188298", metaUF: 50, metaDPS: 0 },
+  { id: 22, nombre: "FLORES CONTRERAS CATALINA", rut: "", pin: "735770", metaUF: 50, metaDPS: 0 },
+  { id: 23, nombre: "ROCHA ORELLANA ROMINA", rut: "", pin: "596504", metaUF: 50, metaDPS: 0 },
+  { id: 24, nombre: "AVILES RAMOS ANA JULIA", rut: "", pin: "563917", metaUF: 50, metaDPS: 0 },
 ];
 
 // ── HERRAMIENTA DE RECUPERACIÓN DE DATOS ─────────────────────────────────────
@@ -1858,7 +1867,19 @@ window.recuperarDatos = function() {
     // Reconstruir con EJECUTIVOS_BASE — preservar UF y datos del ejecutivo que quedó
     var reconstruido = EJECUTIVOS_BASE.map(function(base) {
       var existente = equipoActual.find(function(e){ return e && String(e.id) === String(base.id); });
-      return Object.assign({rep:[], uf:0, dps:0, historial:{}}, base, existente || {});
+      var merged = Object.assign({rep:[], uf:0, dps:0, historial:{}}, base, existente || {});
+      // Firebase siempre gana para campos críticos — nunca sobreescribir con base vacía
+      if (existente) {
+        if (existente.rut && existente.rut !== "Ingresar RUT") merged.rut = existente.rut;
+        if (existente.email)    merged.email    = existente.email;
+        if (existente.fechaNac) merged.fechaNac = existente.fechaNac;
+        if (existente.fotoUrl)  merged.fotoUrl  = existente.fotoUrl;
+        if (existente.historial && Object.keys(existente.historial).length > 0)
+          merged.historial = existente.historial;
+      } else {
+        merged.rut = "";
+      }
+      return merged;
     });
     console.log("Reconstruyendo equipo con", reconstruido.length, "miembros...");
     var metaSave = actual.metaEquipo && !isNaN(actual.metaEquipo) && actual.metaEquipo > 0 ? actual.metaEquipo : 550;
@@ -2084,7 +2105,7 @@ function TarjetaBadge({ entry, badge, equipo }) {
   const p = entry.nombre.split(" ");
   // Try to match with equipo to get the canonical name
   var vFotoMatch = equipo ? equipo.find(function(e){return nombreCoincide(e.nombre, entry.nombre);}) : null;
-  var displayName = vFotoMatch ? vFotoMatch.nombre.split(" ").slice(0,2).join(" ") : (p.length >= 2 ? p[0] + " " + p[1] : entry.nombre);
+  var displayName = vFotoMatch ? _nombreCorto(vFotoMatch.nombre) : _nombreCorto(entry.nombre);
   var corto = displayName;
   // Find photo from equipo using word matching (names may be in different order)
   var vFoto = vFotoMatch || (equipo ? equipo.find(function(e){return nombreCoincide(e.nombre, entry.nombre);}) : null);
@@ -2466,7 +2487,7 @@ function PanelAlertas({ equipo, proyV }) {
           var proy = proyV(v);
           var pct  = Math.round((v.uf / proy) * 100);
           var p    = v.nombre.split(" ");
-          var corto = p.length >= 2 ? p[0]+" "+p[1] : v.nombre;
+          var corto = _nombreCorto(v.nombre);
           return (
             React.createElement('div', { key: v.id, style: {background:"#fff",borderRadius:10,padding:"8px 14px",border:"1.5px solid #FCA5A5",display:"flex",alignItems:"center",gap:8}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2422}}
               , React.createElement('div', { style: {width:8,height:8,borderRadius:"50%",background:pct<30?"#DC2626":"#F97316",flexShrink:0}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2423}} )
@@ -5200,7 +5221,7 @@ function CorrelacionView({ equipo, info, R, RD }) {
   var _mck=(function(){var n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");})();
   function _gd(v){var h=(v.historial||{})[_mck]||{};var s=(parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0);return s>0?s:(parseInt(v.dps)||0);}
   var datos = equipo
-    .map(function(v){var d=_gd(v),u=parseFloat(v.uf)||0;return{nombre:v.nombre.split(" ").slice(0,2).join(" "),uf:u,dps:d,tasa:d>0?parseFloat((u/d).toFixed(2)):0};})
+    .map(function(v){var d=_gd(v),u=parseFloat(v.uf)||0;return{nombre:_nombreCorto(v.nombre),uf:u,dps:d,tasa:d>0?parseFloat((u/d).toFixed(2)):0};})
     .filter(function(v){return v.dps>0;})
     .sort(function(a,b){return b.tasa-a.tasa;});
 
@@ -5296,7 +5317,7 @@ function AlertasView({ equipo, info, R, RD }) {
           ,React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:6}}
             ,g.lista.map(function(v){
                 return React.createElement("div",{key:v.id,style:{background:"rgba(255,255,255,.7)",borderRadius:99,padding:"4px 12px",fontSize:11,fontWeight:700,color:g.color}}
-                  ,v.nombre.split(" ").slice(0,2).join(" ")
+                  ,_nombreCorto(v.nombre)
                 );
               })
           )
@@ -6452,7 +6473,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
   const SUP_GRUPOS = {
     rendimiento:  [["dashboard","📊 Dashboard"],["dpsanalisis","📊 Análisis de Métricas"],["tendencias","📈 Tendencias y Gráficos"],["clasificacion","📊 Clasificación AGV"],["agentes0","🚨 Agentes en 0"],["planagv","📋 Plan de Trabajo AGV"],["uflineales","📈 UF's Lineales"],["correlacion","🔗 Correlación DPS→UF"]],
     equipo:       [["gestion","👥 Gestionar Equipo"],["meta","🎯 Meta del Equipo"]],
-    herramientas: [["carga","📥 Carga de Datos"],["gestPremios","🏆 Gestionar Premios"],["gestDocs","📂 Gestionar Docs"],["recordatorios","📌 Recordatorios"],["notas","📝 Bloc de Notas"],["config","⚙️ Configuración del Equipo"]],
+    herramientas: [["gestPremios","🏆 Gestionar Premios"],["gestDocs","📂 Gestionar Docs"],["recordatorios","📌 Recordatorios"],["notas","📝 Bloc de Notas"],["config","⚙️ Configuración del Equipo"]],
   };
   const [bulk,     setBulk]     = useState({});
   const [bulkOk,   setBulkOk]   = useState(false);
@@ -6626,7 +6647,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
   const pctH = totTitulares > 0 ? Math.round((totHombres/totTitulares)*100) : 0;
   const pctM = totTitulares > 0 ? Math.round((totMujeres/totTitulares)*100) : 0;
   const proyV   = function(v){return ((parseFloat(v.metaUF)||0)/info.wdTotal)*info.elapsed;};
-  const proyEq  = metaUFSafe>0 ? (metaUFSafe/info.wdTotal)*info.elapsed : 0;
+  const proyEq  = metaUFSafe>0 && info.elapsed>0 ? parseFloat(((metaUFSafe/info.wdTotal)*info.elapsed).toFixed(2)) : 0;
   const pctEq   = proyEq>0?Math.round((totUF/proyEq)*100):0;
   const TODAY   = hoyStr();
   const ufHoy   = equipoValido.reduce(function(s,v){return s+(v.rep||[]).filter(function(r){return r.fecha===TODAY;}).reduce(function(a,r){return a+(parseFloat(r.uf)||0);},0);},0);
@@ -7322,7 +7343,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                       React.createElement('div', { style: {fontSize:9,color:"rgba(253,224,71,.7)",textTransform:"uppercase",letterSpacing:"0.15em",marginBottom:7,fontWeight:700,display:"flex",alignItems:"center",gap:6}}, "🌟 CRACKS que ya comenzaron a sumar!", React.createElement('span',{style:{background:"rgba(253,224,71,.3)",color:"#FDE047",borderRadius:99,padding:"1px 8px",fontSize:10,fontWeight:900}},cracks.length+" de "+total)),
                       React.createElement('div', { style: {display:"flex",flexWrap:"wrap",gap:5,justifyContent:"center",marginBottom:8}},
                         cracks.map(function(v){
-                          var p = v.nombre.trim().split(/\s+/); var nombreCorto = p.length >= 2 ? p[0] + " " + p[1] : p[0];
+                          var nombreCorto = _nombreCorto(v.nombre);
                           return React.createElement('span', {key:v.id, style: {background:"rgba(253,224,71,.2)",color:"#FDE047",borderRadius:99,padding:"3px 10px",fontSize:11,fontWeight:800}}, nombreCorto);
                         })
                       ),
@@ -7352,7 +7373,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                         ? null
                         : React.createElement('div', { style: {display:"flex",flexWrap:"wrap",gap:5,justifyContent:"center",marginBottom:8}},
                             sumaLineal.map(function(v){
-                              var p = v.nombre.trim().split(/\s+/); var nombreCorto = p.length >= 2 ? p[0] + " " + p[1] : p[0];
+                              var nombreCorto = _nombreCorto(v.nombre);
                               return React.createElement('span', {key:v.id, style: {background:"rgba(134,239,172,.2)",color:"#86EFAC",borderRadius:99,padding:"3px 10px",fontSize:11,fontWeight:800}}, nombreCorto + " · " + (function(){var t=Math.floor(v.uf*100)/100;return parseFloat(t.toFixed(2)).toString().replace(".",",");}()) + " UF");
                             })
                           ),
@@ -7380,7 +7401,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                       React.createElement('div', { style: {fontSize:9,color:"rgba(125,211,252,.9)",textTransform:"uppercase",letterSpacing:"0.15em",marginBottom:7,fontWeight:700,display:"flex",alignItems:"center",gap:6}}, "💰 CRACKS ya Comisionando!", React.createElement('span',{style:{background:"rgba(125,211,252,.3)",color:"#7DD3FC",borderRadius:99,padding:"1px 8px",fontSize:10,fontWeight:900}},comisionando.length+" de "+total)),
                       comisionando.length > 0 && React.createElement('div', { style: {display:"flex",flexWrap:"wrap",gap:5,justifyContent:"center",marginBottom:8}},
                           comisionando.map(function(v){
-                            var p = v.nombre.trim().split(/\s+/); var nombreCorto = p.length >= 2 ? p[0] + " " + p[1] : p[0];
+                            var nombreCorto = _nombreCorto(v.nombre);
                             return React.createElement('span', {key:v.id, style: {background:"rgba(56,189,248,.2)",color:"#7DD3FC",borderRadius:99,padding:"3px 10px",fontSize:11,fontWeight:800}}, nombreCorto);
                           })
                       ),
@@ -7399,7 +7420,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                         : React.createElement('div', null,
                             React.createElement('div', { style: {display:"flex",flexWrap:"wrap",gap:5,justifyContent:"center",marginBottom:8}},
                               cracksHoy.map(function(v){
-                                var p = v.nombre.trim().split(/\s+/); var nombreCorto = p.length >= 2 ? p[0] + " " + p[1] : p[0];
+                                var nombreCorto = _nombreCorto(v.nombre);
                                 var ufHoyV = (v.rep||[]).filter(function(r){return r.fecha===hoyStr2;}).reduce(function(s,r){return s+(r.uf||0);},0);
                                 return React.createElement('span', {key:v.id, style: {background:"rgba(201,168,76,.25)",color:"#C9A84C",borderRadius:99,padding:"3px 10px",fontSize:11,fontWeight:800}}, "🔥 "+nombreCorto+" +"+(function(){var t=Math.floor(ufHoyV*100)/100;return parseFloat(t.toFixed(2)).toString().replace(".",",");}())+" UF");
                               })
@@ -8838,7 +8859,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                           );
                         })()
                       , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:20}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3782}}
-                        , [{l:"UF equipo",v:fmtUF(totUF),c:R},{l:"vs Proyección",v:fmtUF2(proyEq)+" UF",c:colSem(pctEq)},{l:"DPS totales",v:totDPS,c:"#15803D"},{l:"Con reportes",v:equipo.filter(function(v){return (v.rep||[]).length>0;}).length,c:"#7C3AED"}].map(function(k){return React.createElement('div', { key: k.l, style: {background:"#F8FAFC",borderRadius:12,padding:"12px 14px",borderLeft:"3px solid "+k.c}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3783}}, React.createElement('div', { style: {fontSize:20,fontWeight:900,color:RD}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3783}}, k.v), React.createElement('div', { style: {fontSize:11,color:"#9CA3AF",marginTop:2}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3783}}, k.l));})
+                        , [{l:"UF equipo",v:fmtUF(totUF),c:R},{l:"Ritmo esperado hoy",v:proyEq>0?fmtUF2(proyEq)+" UF":"Día 1",c:colSem(pctEq)},{l:"DPS totales",v:totDPS,c:"#15803D"},{l:"Con reportes",v:equipo.filter(function(v){return (v.rep||[]).length>0;}).length,c:"#7C3AED"}].map(function(k){return React.createElement('div', { key: k.l, style: {background:"#F8FAFC",borderRadius:12,padding:"12px 14px",borderLeft:"3px solid "+k.c}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3783}}, React.createElement('div', { style: {fontSize:20,fontWeight:900,color:RD}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3783}}, k.v), React.createElement('div', { style: {fontSize:11,color:"#9CA3AF",marginTop:2}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3783}}, k.l));})
                       )
                       , React.createElement('div', { style: {overflowX:"auto"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3785}}
                       , React.createElement('table', { style: {width:"100%",borderCollapse:"collapse",fontSize:13,minWidth:560}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3786}}
@@ -11262,7 +11283,7 @@ function AgentesEnCeroView({ equipo, info }) {
   function NombreRut(props) {
     var v = props.v;
     var p = v.nombre.split(" ");
-    var corto = p.length >= 2 ? p[0] + " " + p[1] : v.nombre;
+    var corto = _nombreCorto(v.nombre);
     return React.createElement('div', { key: v.id, style: {background:"#fff",borderRadius:10,padding:"10px 16px",border:"1.5px solid #FECACA",display:"flex",flexDirection:"column",gap:2} },
       React.createElement('span', { style: {fontWeight:800,color:"#7F1D1D",fontSize:13} }, v.nombre),
       React.createElement('span', { style: {fontFamily:"monospace",fontSize:11,color:"#6B7280",fontWeight:600} }, "RUT: " + (v.rut || "Sin RUT"))
