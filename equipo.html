@@ -1928,16 +1928,21 @@ function hoyInfo() {
   }
   // wdLeft: días hábiles restantes INCLUYENDO hoy (hoy todavía está disponible)
   let wdLeft = wdTotal - wd + (now.getDay()!==0&&now.getDay()!==6?1:0);
-  // calLeft: días calendario restantes incluyendo hoy (hoy + días futuros hasta fin de mes)
+  // calLeft: días calendario restantes incluyendo hoy
   const calLeft = lastDay.getDate() - now.getDate() + 1;
+  // calTotal: días calendario totales del mes
+  const calTotal = lastDay.getDate();
+  // calElapsed: días calendario transcurridos incluyendo hoy
+  const calElapsed = now.getDate();
   // Semanas completas transcurridas (para semáforo de metas semanales)
-  const semanasCompletadas = Math.floor(wd / 5); // 0,1,2,3,4
-  const semanaActual = Math.ceil(wd / 5);         // 1,2,3,4
+  const semanasCompletadas = Math.floor(wd / 5);
+  const semanaActual = Math.ceil(wd / 5);
   return {
     elapsed: wd, left: wdLeft, calLeft,
-    wdTotal,            // días hábiles reales del mes (reemplaza WD_MES fijo)
-    semanasCompletadas, // cuántas semanas completas han pasado
-    semanaActual,       // en qué semana estamos
+    calTotal, calElapsed,      // días CALENDARIO — usar para ritmo y proyección
+    wdTotal,                   // días hábiles reales del mes
+    semanasCompletadas,
+    semanaActual,
     mes: now.toLocaleString("es-CL", { month: "long", year: "numeric" }),
     dia: now.toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" }),
     mesKey: now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0"),
@@ -3013,48 +3018,97 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
   function confirmarCarga() {
     if (!preview.length) return;
     var mesKey = mesCarga;
-    var nuevoEquipo = equipo.map(function(v){
-      var nombreVUp = v.nombre.toUpperCase().trim();
-      var match = preview.find(function(p){
-        var nombrePUp = (p.nombre||"").toUpperCase().trim();
-        if(nombreVUp === nombrePUp) return true;
-        var palabrasV = nombreVUp.split(/\s+/).filter(function(w){return w.length>2;});
-        var palabrasP = nombrePUp.split(/\s+/).filter(function(w){return w.length>2;});
-        if(!palabrasV.length || !palabrasP.length) return false;
-        var hits = palabrasP.filter(function(w){ return nombreVUp.indexOf(w)>=0; }).length;
-        var minHits = palabrasP.length >= 3 ? 2 : Math.ceil(palabrasP.length*0.7);
-        return hits >= minHits;
+    var esMesActual = mesKey === info.mesKey;
+
+    // PASO 1: Matching fuzzy entre Excel y equipo
+    var resultados = preview.map(function(p) {
+      var nombreP = (p.nombre||"").toUpperCase().trim().replace(/\s+/g," ");
+      var match = equipo.find(function(v) {
+        return v.nombre.toUpperCase().trim() === nombreP;
       });
-      if (!match) return v;
-      var hist = Object.assign({}, v.historial||{});
-      // SIEMPRE sobreescribir completamente los campos DPS del mes — nunca acumular
-      var mesExistente = hist[mesKey]||{};
-      var mes = {
-        uf:          mesExistente.uf||0,
-        dps:         match.dpsTotal || (match.dpsConVenta + match.dpsSinVenta + match.dpsPendiente + match.dpsRechazado),
-        dpsVenta:    match.dpsConVenta,
-        dpsSinVenta: match.dpsSinVenta,
-        dpsPendiente:match.dpsPendiente,
-        dpsRechazado:match.dpsRechazado,
-        nBenef:      match.nBenef>0 ? match.nBenef : (mesExistente.nBenef||0),
-        cttosDig:    match.cttosDig>0 ? match.cttosDig : (mesExistente.cttosDig||0),
-        pctF:        match.pctF>0 ? match.pctF : (mesExistente.pctF||0),
-        pctM:        match.pctM>0 ? match.pctM : (mesExistente.pctM||0),
-        ufDig:       match.uf>0 ? match.uf : (mesExistente.ufDig||0),
-        conecta:     match.conecta>0 ? match.conecta : (mesExistente.conecta||0),
-      };
-      hist[mesKey] = mes;
-      var _mn=(function(){var n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");})();
-      var _dt=match.dpsTotal>0?match.dpsTotal:(match.dpsConVenta+match.dpsSinVenta+match.dpsPendiente+match.dpsRechazado);
-      return Object.assign({}, v, {historial:hist}, mesKey===_mn?{dps:_dt}:{});
+      if (!match) {
+        match = equipo.find(function(v) {
+          var palabrasV = v.nombre.toUpperCase().split(/\s+/).filter(function(w){return w.length>2;});
+          var palabrasP = nombreP.split(/\s+/).filter(function(w){return w.length>2;});
+          if(!palabrasV.length||!palabrasP.length) return false;
+          var hits = palabrasP.filter(function(w){return palabrasV.indexOf(w)>=0;}).length;
+          var minHits = Math.ceil(Math.min(palabrasV.length,palabrasP.length)*0.6);
+          return hits>=minHits && minHits>0;
+        });
+      }
+      return { excel: p, equipo: match||null, estado: match?"ok":"sinMatch" };
     });
+
+    // PASO 2: Detectar sin match y preguntar
+    var sinMatch = resultados.filter(function(r){return r.estado==="sinMatch";});
+    if (sinMatch.length > 0) {
+      var nombres = sinMatch.map(function(r){return "• "+r.excel.nombre+" ("+r.excel.uf+" UF, "+r.excel.dpsConVenta+" DPS venta)";}).join("\n");
+      var ok = confirm(
+        "⚠️ "+sinMatch.length+" ejecutivo(s) del Excel no encontrados en el equipo actual:\n\n"+nombres+
+        "\n\nPuede ser un nombre diferente (ej: ROMA vs ROMINA) o un ejecutivo ya retirado."+
+        "\n\n✅ OK = Guardar sus datos en el historial del mes igualmente"+
+        "\n❌ Cancelar = Volver para revisar"
+      );
+      if (!ok) {
+        setMsg("⚠️ Carga cancelada. Revisa los nombres en el Excel e intenta nuevamente.");
+        return;
+      }
+    }
+
+    // PASO 3: Actualizar historial de ejecutivos que sí matchearon
+    var nuevoEquipo = equipo.map(function(v) {
+      var r = resultados.find(function(x){return x.equipo && x.equipo.id===v.id;});
+      if (!r) return v;
+      var p = r.excel;
+      var hist = Object.assign({}, v.historial||{});
+      var mesExistente = hist[mesKey]||{};
+      var dpsCV  = p.dpsConVenta  !== null ? p.dpsConVenta  : 0;
+      var dpsSV  = p.dpsSinVenta  !== null ? p.dpsSinVenta  : 0;
+      var dpsPen = p.dpsPendiente !== null ? p.dpsPendiente : 0;
+      var dpsRec = p.dpsRechazado !== null ? p.dpsRechazado : 0;
+      var dpsTotal = p.dpsTotal || (dpsCV+dpsSV+dpsPen+dpsRec);
+      // UF: si viene 0 en un mes anterior, sí sobreescribir (es el total final)
+      // En mes actual: solo actualizar si > 0 (el daily no siempre trae UF)
+      var ufNueva = (!esMesActual) ? p.uf : (p.uf > 0 ? p.uf : (mesExistente.uf||0));
+      hist[mesKey] = {
+        uf:          ufNueva,
+        dps:         dpsTotal,
+        dpsVenta:    dpsCV,
+        dpsSinVenta: dpsSV,
+        dpsPendiente:dpsPen,
+        dpsRechazado:dpsRec,
+        nBenef:      p.nBenef>0  ? p.nBenef  : (mesExistente.nBenef||0),
+        cttosDig:    p.cttosDig>0? p.cttosDig: (mesExistente.cttosDig||0),
+        pctF:        p.pctF>0    ? p.pctF     : (mesExistente.pctF||0),
+        pctM:        p.pctM>0    ? p.pctM     : (mesExistente.pctM||0),
+        ufDig:       p.uf>0      ? p.uf       : (mesExistente.ufDig||0),
+        conecta:     p.conecta>0 ? p.conecta  : (mesExistente.conecta||0),
+      };
+      var extra = esMesActual ? {dps:dpsTotal, uf:ufNueva} : {};
+      return Object.assign({}, v, {historial:hist}, extra);
+    });
+
+    // PASO 4: Guardar sin match como referencia (no se pierden)
+    var sinMatchData = sinMatch.map(function(r){
+      var p = r.excel;
+      return {nombre:p.nombre, uf:p.uf, dpsVenta:p.dpsConVenta, dpsSinVenta:p.dpsSinVenta,
+              dpsTotal:p.dpsTotal||(p.dpsConVenta+p.dpsSinVenta+p.dpsPendiente+p.dpsRechazado),
+              nBenef:p.nBenef, cttosDig:p.cttosDig, conecta:p.conecta};
+    });
+
     if(window.skipSnapshotRef) window.skipSnapshotRef.current=true;
     setEquipo(nuevoEquipo);
     setPreview([]);
     var _nm=mesesOpciones.find(function(m){return m.mk===mesKey;});
+    var docData = {equipo:nuevoEquipo, metaEquipo:window.__metaEquipoActual||metaEquipo||550};
+    if (sinMatchData.length>0) docData._sinMatch = sinMatchData;
     if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey),{equipo:nuevoEquipo,metaEquipo:window.__metaEquipoActual||550})
-        .then(function(){ setMsg("✅ ¡Guardado! DPS de "+(_nm?_nm.nom:mesKey)+" actualizadas."); setTimeout(function(){if(window.skipSnapshotRef)window.skipSnapshotRef.current=false;},4000); })
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey), docData, {merge:true})
+        .then(function(){
+          var extra2 = sinMatchData.length>0?" ("+sinMatchData.length+" sin match guardados igualmente)":"";
+          setMsg("✅ ¡Guardado! "+(_nm?_nm.nom:mesKey)+" actualizado."+extra2);
+          setTimeout(function(){if(window.skipSnapshotRef)window.skipSnapshotRef.current=false;},4000);
+        })
         .catch(function(e){ setMsg("⚠️ Error Firebase: "+e.message); if(window.skipSnapshotRef)window.skipSnapshotRef.current=false; });
     else { setMsg("✅ Actualizado localmente."); if(window.skipSnapshotRef)window.skipSnapshotRef.current=false; }
   }
@@ -6649,8 +6703,8 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
   const totTitulares = totHombres + totMujeres;
   const pctH = totTitulares > 0 ? Math.round((totHombres/totTitulares)*100) : 0;
   const pctM = totTitulares > 0 ? Math.round((totMujeres/totTitulares)*100) : 0;
-  const proyV   = function(v){return ((parseFloat(v.metaUF)||0)/info.wdTotal)*info.elapsed;};
-  const proyEq  = metaUFSafe>0 && info.elapsed>0 ? parseFloat(((metaUFSafe/info.wdTotal)*info.elapsed).toFixed(2)) : 0;
+  const proyV   = function(v){return ((parseFloat(v.metaUF)||0)/info.calTotal)*info.calElapsed;};
+  const proyEq  = metaUFSafe>0 && info.calElapsed>0 ? parseFloat(((metaUFSafe/info.calTotal)*info.calElapsed).toFixed(2)) : 0;
   const pctEq   = proyEq>0?Math.round((totUF/proyEq)*100):0;
   const TODAY   = hoyStr();
   const ufHoy   = equipoValido.reduce(function(s,v){return s+(v.rep||[]).filter(function(r){return r.fecha===TODAY;}).reduce(function(a,r){return a+(parseFloat(r.uf)||0);},0);},0);
@@ -7451,7 +7505,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                     , React.createElement('div', { style: {fontSize:38,fontWeight:900,lineHeight:1,color:"#C9A84C"} }, fmtUF2(ufHoy))
                     , React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.45)",marginTop:4} }, "Cada UF suma al EQUIPO!")
                     , React.createElement('div', { style: {marginTop:8,background:"rgba(255,255,255,.1)",borderRadius:99,height:5,overflow:"hidden"} }
-                      , React.createElement('div', { style: {width:Math.min(metaUFSafe>0?(ufHoy/(metaUFSafe/info.wdTotal))*100:0,100)+"%",height:"100%",background:window.__t("barraColor"),borderRadius:99} })
+                      , React.createElement('div', { style: {width:Math.min(metaUFSafe>0?(ufHoy/(metaUFSafe/info.calTotal))*100:0,100)+"%",height:"100%",background:window.__t("barraColor"),borderRadius:99} })
                     )
                   )
                   /* DPS HOY */
@@ -7883,16 +7937,6 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                         )
                         , React.createElement('div', { style: {fontSize:10,color:"rgba(255,255,255,.6)",marginTop:2} }
                           , "Deberías llevar "+fmtUF2(deberiaLlevar)+" UF hoy"
-                        )
-                      )
-                      // Proyección cierre
-                      , React.createElement('div', { style: {background:"rgba(255,255,255,.12)",borderRadius:10,padding:"10px 14px"} }
-                        , React.createElement('div', { style: {fontSize:9,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:4} }, "📈 Proyección al cierre")
-                        , React.createElement('div', { style: {fontSize:13,fontWeight:900,color:llegaMeta?"#4ADE80":"#FCD34D"} }
-                          , fmtUF2(proyFin)+" UF"
-                        )
-                        , React.createElement('div', { style: {fontSize:10,color:"rgba(255,255,255,.6)",marginTop:2} }
-                          , llegaMeta ? "✅ ¡Al ritmo de llegar!" : "⚠️ Necesitas acelerar "+fmtUF2(faltaPersonal)+" UF"
                         )
                       )
                     )
@@ -8997,9 +9041,9 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                         , React.createElement('div', { style: {background:BG,borderRadius:14,padding:"14px 16px",marginBottom:12,border:"1px solid rgba(233,7,41,.12)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3819}}
                           , React.createElement('div', { style: {fontSize:11,fontWeight:800,color:R,marginBottom:10,textTransform:"uppercase"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3820}}, "Detalle UF" )
                           , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3821}}
-                            , [["Meta mes",selV.metaUF+" UF"],["Meta sem",fmtUF2(selV.metaUF/(WD_MES/WD_SEM))+" UF"],["Meta dia",fmtUF(selV.metaUF/WD_MES)+" UF"],["Logradas",fmtUF(selV.uf)+" UF"],["Proy.hoy",fmtUF(proyV(selV))+" UF"],["Faltan",fmtUF(Math.max(0,selV.metaUF-selV.uf))+" UF"]].map(function(item){return React.createElement('div', { key: item[0], style: {background:"#fff",borderRadius:8,padding:"8px 10px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3822}}, React.createElement('div', { style: {fontSize:10,color:"#6B7280"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3822}}, item[0]), React.createElement('div', { style: {fontSize:14,fontWeight:800,color:RD,marginTop:2}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3822}}, item[1]));})
+                            , [["Meta mes",selV.metaUF+" UF"],["Meta sem",fmtUF2(selV.metaUF/(WD_MES/WD_SEM))+" UF"],["Meta dia",fmtUF(selV.metaUF/WD_MES)+" UF"],["Logradas",fmtUF(selV.uf)+" UF"],["Faltan",fmtUF(Math.max(0,selV.metaUF-selV.uf))+" UF"]].map(function(item){return React.createElement('div', { key: item[0], style: {background:"#fff",borderRadius:8,padding:"8px 10px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3822}}, React.createElement('div', { style: {fontSize:10,color:"#6B7280"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3822}}, item[0]), React.createElement('div', { style: {fontSize:14,fontWeight:800,color:RD,marginTop:2}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3822}}, item[1]));})
                           )
-                          , React.createElement('div', { style: {marginTop:10,fontSize:12,color:R,background:"#fff",borderRadius:8,padding:"6px 10px",fontWeight:600}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3824}}, "Ritmo: "+(info.left>0?fmtUF(Math.max(0,selV.metaUF-selV.uf)/info.left):"---")+" UF/dia en "+info.left+" dias")
+                          , React.createElement('div', { style: {marginTop:10,fontSize:12,color:R,background:"#fff",borderRadius:8,padding:"6px 10px",fontWeight:600}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3824}}, "Ritmo: "+(info.calLeft>0?fmtUF(Math.max(0,selV.metaUF-selV.uf)/info.calLeft):"---")+" UF/dia en "+info.calLeft+" dias cal.")
                         )
                         , React.createElement('div', { style: {background:"#F0FDF4",borderRadius:14,padding:"14px 16px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3826}}
                           , React.createElement('div', { style: {fontSize:11,fontWeight:800,color:"#16A34A",marginBottom:8,textTransform:"uppercase"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3827}}, "Detalle DPS" )
@@ -12144,8 +12188,8 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
           // ── Tendencia ──
           var metaV2 = v.metaPropia || v.metaUF || ufMeta || 1;
           var pct = metaV2 > 0 ? ufReal / metaV2 : 0;
-          var ritmo = info.elapsed > 0 ? ufReal/info.elapsed : 0;
-          var proyFin = ritmo * info.wdTotal;
+          var ritmo = info.calElapsed > 0 ? ufReal/info.calElapsed : 0;
+          var proyFin = ritmo * info.calTotal;
           var tendTxt = proyFin >= (v.metaUF||ufMeta) ? "↗️ ¡Vas en camino a tu meta!" : proyFin >= (v.metaUF||ufMeta)*0.7 ? "➡️ Ritmo ajustado — acelera esta semana" : "↘️ Hay que acelerar para alcanzar la meta";
           // Mensaje motivacional Card 2 según % logrado
           var motivCard2 = pct >= 1
@@ -12303,7 +12347,7 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
                 , React.createElement('div', { style:{fontSize:12,fontWeight:700,color:tendColor,marginBottom:4} }, tendTxt)
                 , React.createElement('div', { style:{fontSize:12,color:"rgba(255,255,255,.6)"} },
                   info.left > 0
-                    ? "Proyección al cierre: "+fmtUF2(proyFin)+" UF — quedan "+info.left+" días hábiles"
+                    ? "Ritmo actual al cierre: "+fmtUF2(proyFin)+" UF — quedan "+info.calLeft+" días"
                     : "¡Mes completado!"
                 )
               )
