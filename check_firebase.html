@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head><title>Firebase Inspector</title></head>
+<body>
+<h2>Firebase Inspector — Equipo 2400</h2>
+<pre id="out">Cargando...</pre>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const cfg = {
+  apiKey: "AIzaSyDQf7ItrnYsMK9ThyMr6DRB39XvnQCwiYc",
+  authDomain: "gestion-ventas-equipo-bm-2400.firebaseapp.com",
+  projectId: "gestion-ventas-equipo-bm-2400"
+};
+const app = initializeApp(cfg);
+const db = getFirestore(app);
+const out = document.getElementById('out');
+
+async function inspect() {
+  let result = "";
+  
+  // Verificar meses clave
+  const meses = ["2026-06","2026-05","2026-04","2026-03"];
+  for (const mes of meses) {
+    const snap = await getDoc(doc(db,"equipos",mes));
+    if (!snap.exists()) {
+      result += `\n❌ equipos/${mes} — NO EXISTE\n`;
+      continue;
+    }
+    const d = snap.data();
+    const eq = d.equipo || [];
+    result += `\n✅ equipos/${mes} — ${eq.length} ejecutivos\n`;
+    
+    // Verificar primer ejecutivo con datos completos
+    const conRut = eq.filter(v => v.rut && v.rut.trim());
+    const conEmail = eq.filter(v => v.email && v.email.trim());
+    const conFecha = eq.filter(v => v.fechaNac && v.fechaNac.trim());
+    const conUF = eq.filter(v => parseFloat(v.uf) > 0);
+    result += `   RUT: ${conRut.length}/${eq.length} | Email: ${conEmail.length}/${eq.length} | FechaNac: ${conFecha.length}/${eq.length} | UF>0: ${conUF.length}/${eq.length}\n`;
+    
+    // Muestra primer ejecutivo completo
+    if (eq[0]) {
+      const v = eq[0];
+      result += `   Ejemplo [0]: nombre="${v.nombre}" rut="${v.rut||''}" email="${v.email||''}" uf=${v.uf}\n`;
+    }
+  }
+  
+  // Verificar fotos
+  const snapFoto = await getDoc(doc(db,"fotos","1"));
+  result += `\n📷 fotos/1: ${snapFoto.exists() ? "EXISTE — " + JSON.stringify(Object.keys(snapFoto.data())) : "NO EXISTE"}\n`;
+  
+  out.textContent = result;
+}
+inspect().catch(e => { out.textContent = "ERROR: " + e.message; });
+</script>
+</body>
+</html>
