@@ -3248,10 +3248,11 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
           });
           if(!sinMatch.length) return null;
           return React.createElement('div',{style:{marginTop:14,background:"#FFFBEB",borderRadius:10,padding:"12px 16px",border:"1px solid #FCD34D"}}
-            ,React.createElement('div',{style:{fontSize:12,fontWeight:700,color:"#92400E",marginBottom:6}},"⚠️ "+sinMatch.length+" fila(s) del Excel no coinciden con ningún ejecutivo activo — serán ignoradas:")
+            ,React.createElement('div',{style:{fontSize:12,fontWeight:700,color:"#92400E",marginBottom:6}},"⚠️ "+sinMatch.length+" fila(s) del Excel no coinciden con ningún ejecutivo activo del equipo:")
             ,sinMatch.map(function(p,i){
-                return React.createElement('div',{key:i,style:{fontSize:11,color:"#92400E",padding:"2px 0"}},"• "+p.nombre);
+                return React.createElement('div',{key:i,style:{fontSize:11,color:"#92400E",padding:"2px 0"}},"• "+p.nombre+(p.uf>0?" — "+p.uf+" UF":"")+(p.dpsConVenta>0?", "+p.dpsConVenta+" DPS venta":""));
               })
+            ,React.createElement('div',{style:{fontSize:11,color:"#78350F",marginTop:8,fontStyle:"italic"}},"💡 Al confirmar, se preguntará si deseas guardar sus datos en el historial igualmente.")
           );
         })()
     )
@@ -7024,7 +7025,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
   // Exportar CSV — solo supervisor
   function exportarCSV() {
     var headers = ["Nombre","Meta UF","UF cerradas","% Meta","DPS","Contactos","Cotizaciones","Cierres","Conv. Contacto→Cierre","Conv. Cotizacion→Cierre","Hombres","Mujeres","Conecta"];
-    var filas = equipo.slice().sort(function(a,b){return b.uf-a.uf;}).map(function(v){
+    var filas = equipo.slice().sort(function(a,b){return b.uf-a.uf;}).map(function(v, _idx){
       var contactos = (v.rep||[]).reduce(function(s,r){return s+(r.contactos||0);},0);
       var cot       = (v.rep||[]).reduce(function(s,r){return s+(r.cot||0);},0);
       var cierres   = (v.rep||[]).reduce(function(s,r){return s+(r.cierres||0);},0);
@@ -8954,7 +8955,9 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                              const pctDPS=metaDPS>0?Math.round((dpsMes/metaDPS)*100):0,colD=colSem(pctDPS);
                             return (
                               React.createElement('tr', { key: v.id, style: {borderBottom:"1px solid #F5F7FB"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3792}}
-                                , React.createElement('td', { style: {padding:"11px 10px",fontWeight:700,color:RD}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3793}}, _nombreCorto(v.nombre))
+                                , React.createElement('td', { style: {padding:"11px 10px",fontWeight:700,color:RD}},
+                                  React.createElement('span',{style:{color:"#9CA3AF",fontSize:11,marginRight:6,fontWeight:600}},(_idx+1)+"."),
+                                  _nombreCorto(v.nombre))
                                 , React.createElement('td', { style: {padding:"11px 10px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3793}}
                                   , React.createElement('span', { style: {background:"#EFF6FF",color:"#1D4ED8",borderRadius:8,padding:"4px 10px",fontFamily:"monospace",fontSize:12,fontWeight:700,letterSpacing:"0.05em"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3793}}, v.rut||"—")
                                 )
@@ -11169,6 +11172,7 @@ function MetasIndividualesView({ equipo, setEquipo, setMetaEquipo, info }) {
             var difMeta = metaPropia > 0 && mes > 0 ? metaPropia - mes : null;
             return React.createElement('tr', { key: m.id, style: { background: bg, borderBottom: "1px solid #F0F4FA" } },
               React.createElement('td', { style: { padding: "10px 12px", fontWeight: 700, color: RD, whiteSpace: "nowrap", fontSize: 12 } },
+                React.createElement('span',{style:{color:"#9CA3AF",fontSize:11,marginRight:6,fontWeight:600}},(i+1)+"."),
                 m.nombre),
               React.createElement('td', { style: { padding: "6px 8px", textAlign: "center" } },
                 React.createElement('div', { style: { background: ufActualBg, border: ufActualBorder, borderRadius: 8, padding: "5px 8px", fontSize: 12, fontWeight: 900, color: ufActualColor, display: "inline-block", minWidth: 60 } },
