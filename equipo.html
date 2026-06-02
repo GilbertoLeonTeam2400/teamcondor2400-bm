@@ -1831,10 +1831,10 @@ const EJECUTIVOS_BASE = [
   { id:  4, nombre: "TRINCADO SALAS PAMELA", rut: "", pin: "179278", metaUF: 50, metaDPS: 0 },
   { id:  5, nombre: "DE LA CHINQUINQUI GOMEZ MATHISON KENIA", rut: "", pin: "237451", metaUF: 50, metaDPS: 0 },
   { id:  6, nombre: "OVALLOS ROMERO LUISANA", rut: "", pin: "929217", metaUF: 50, metaDPS: 0 },
-  { id:  7, nombre: "REYES REYES EDWIN", rut: "", pin: "303983", metaUF: 50, metaDPS: 0 },
+  { id:  7, nombre: "REYES REYES EDWIN", rut: "", pin: "303983", metaUF: 50, metaDPS: 0, activo: false },
   { id:  8, nombre: "RAMIREZ SAAVEDRA MARIANA", rut: "", pin: "399259", metaUF: 50, metaDPS: 0 },
   { id:  9, nombre: "UNDURRAGA DIEZ CRISTINA", rut: "", pin: "298689", metaUF: 50, metaDPS: 0 },
-  { id: 10, nombre: "LAGOS ACEVEDO ROSSANA", rut: "", pin: "820696", metaUF: 50, metaDPS: 0 },
+  { id: 10, nombre: "LAGOS ACEVEDO ROSSANA", rut: "", pin: "820696", metaUF: 50, metaDPS: 0, activo: false },
   { id: 11, nombre: "SANDOVAL CUEVAS LESLY", rut: "", pin: "914668", metaUF: 50, metaDPS: 0 },
   { id: 12, nombre: "URRUTIA GARCIA CAMILA", rut: "", pin: "727413", metaUF: 50, metaDPS: 0 },
   { id: 13, nombre: "NEIRA SEPULVEDA CRISTIAN", rut: "", pin: "713289", metaUF: 50, metaDPS: 0 },
@@ -6605,7 +6605,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
   }, [equipo]);
 
   //  Computed — todos los reduce usan (||0) para evitar NaN si Firebase trae datos corruptos
-  const equipoValido = equipo.filter(function(v){ return v && v.nombre && typeof v.nombre === 'string'; });
+  const equipoValido = equipo.filter(function(v){ return v && v.nombre && typeof v.nombre === 'string' && v.activo!==false; });
   const totUF   = equipoValido.reduce(function(s,v){return s+(parseFloat(v.uf)||0);},0);
   const totDPS  = equipoValido.reduce(function(s,v){return s+(parseInt(v.dps)||0);},0);
   // Benchmark proporcional: ajusta el total del mes benchmark al día actual del mes
@@ -7578,8 +7578,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                         if (!vOrdenado || !vOrdenado.nombre) return null; // guard
                         var cfgOrdenado = CONFIGS[ordenIdx];
                         var initialsO = getInitials(vOrdenado.nombre);
-                        var primerNombreO = vOrdenado.nombre.split(' ')[0];
-                        var apellidoO = vOrdenado.nombre.split(' ').slice(1).join(' ');
+                        var _pO = vOrdenado.nombre.trim().split(/\s+/); var primerNombreO = _pO.length>=3 ? _pO[_pO.length-1] : _pO[0]; var apellidoO = _pO[0];
                         var podiumHeight = ordenIdx===0 ? "clamp(80px,10vw,110px)" : ordenIdx===1 ? "clamp(60px,7vw,80px)" : "clamp(50px,6vw,68px)";
                         return React.createElement('div', { key: vOrdenado.id, style: {display:"flex",flexDirection:"column",alignItems:"center",flex:"0 0 auto",minWidth:"clamp(90px,20vw,200px)",maxWidth:200} }
                           , React.createElement('div', { style: {width:cfgOrdenado.fotoSize,height:cfgOrdenado.fotoSize,borderRadius:"50%",overflow:"hidden",border:"3px solid "+cfgOrdenado.color,background:vOrdenado.fotoUrl?"#000":"rgba(201,168,76,.15)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 0 4px "+cfgOrdenado.glow+", 0 0 28px "+cfgOrdenado.glow,marginBottom:10,flexShrink:0} }
@@ -7604,8 +7603,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                     , React.createElement('div', { className:"top10-fila3", style: {display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"8px 12px",marginBottom:10,maxWidth:860,margin:"0 auto 10px"} }
                       , resto.slice(0,3).map(function(v, i) {
                           var initials = getInitials(v.nombre);
-                          var primerNombre = v.nombre.split(' ')[0];
-                          var apellido = v.nombre.split(' ').slice(1,2).join(' ');
+                          var _pV = v.nombre.trim().split(/\s+/); var primerNombre = _pV.length>=3 ? _pV[_pV.length-1] : _pV[0]; var apellido = _pV[0];
                           return React.createElement('div', { key: v.id, style: {display:"flex",alignItems:"center",gap:10,background:"rgba(255,255,255,.05)",borderRadius:12,padding:"10px 14px",border:"1px solid rgba(201,168,76,.15)"} }
                             , React.createElement('div', { style: {fontSize:"clamp(14px,2vw,20px)",minWidth:26,textAlign:"center",flexShrink:0} }, restoEmojis[i])
                             , React.createElement('div', { style: {width:"clamp(36px,4vw,46px)",height:"clamp(36px,4vw,46px)",borderRadius:"50%",overflow:"hidden",flexShrink:0,border:"2px solid rgba(201,168,76,.4)",background:v.fotoUrl?"#000":"rgba(201,168,76,.12)",display:"flex",alignItems:"center",justifyContent:"center"} }
@@ -7624,8 +7622,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                     , React.createElement('div', { className:"top10-fila4", style: {display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"8px 12px",maxWidth:860,margin:"0 auto 10px"} }
                       , resto.slice(3,7).map(function(v, i) {
                           var initials = getInitials(v.nombre);
-                          var primerNombre = v.nombre.split(' ')[0];
-                          var apellido = v.nombre.split(' ').slice(1,2).join(' ');
+                          var _pV = v.nombre.trim().split(/\s+/); var primerNombre = _pV.length>=3 ? _pV[_pV.length-1] : _pV[0]; var apellido = _pV[0];
                           return React.createElement('div', { key: v.id, style: {display:"flex",alignItems:"center",gap:10,background:"rgba(255,255,255,.05)",borderRadius:12,padding:"10px 14px",border:"1px solid rgba(201,168,76,.15)"} }
                             , React.createElement('div', { style: {fontSize:"clamp(14px,2vw,20px)",minWidth:26,textAlign:"center",flexShrink:0} }, restoEmojis[i+3])
                             , React.createElement('div', { style: {width:"clamp(36px,4vw,46px)",height:"clamp(36px,4vw,46px)",borderRadius:"50%",overflow:"hidden",flexShrink:0,border:"2px solid rgba(201,168,76,.4)",background:v.fotoUrl?"#000":"rgba(201,168,76,.12)",display:"flex",alignItems:"center",justifyContent:"center"} }
@@ -7645,8 +7642,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                       , React.createElement('div', { className:"top10-fila6", style: {display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:"8px 10px"} }
                         , resto.slice(7).map(function(v, i) {
                             var initials = getInitials(v.nombre);
-                            var primerNombre = v.nombre.split(' ')[0];
-                            var apellido = v.nombre.split(' ').slice(1,2).join(' ');
+                            var _pV = v.nombre.trim().split(/\s+/); var primerNombre = _pV.length>=3 ? _pV[_pV.length-1] : _pV[0]; var apellido = _pV[0];
                             var pos = i + 11;
                             return React.createElement('div', { key: v.id, style: {display:"flex",alignItems:"center",gap:6,background:"rgba(255,255,255,.05)",borderRadius:12,padding:"8px 8px",border:"1px solid rgba(201,168,76,.15)",overflow:"hidden"} }
                               , React.createElement('div', { style: {fontSize:12,fontWeight:800,color:"rgba(201,168,76,.7)",minWidth:16,textAlign:"center",flexShrink:0} }, pos+"°")
@@ -8611,7 +8607,21 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                               , React.createElement('td', { style: {padding:"10px 12px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3705}}, React.createElement('button', { onClick: function(){if(window.confirm("Eliminar a "+v.nombre+"?"))eliminarEjecutivo(v.id);}, style: {background:"#FEE2E2",color:"#B91C1C",border:"none",borderRadius:8,padding:"4px 8px",fontSize:11,cursor:"pointer",fontFamily:"inherit",fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3705}}, "🗑️")
                               , React.createElement('button', { onClick: function(){const n=window.prompt("Nuevo nombre:",v.nombre);if(n)renombrarEjecutivo(v.id,n);}, style: {background:"#EFF6FF",color:"#1D4ED8",border:"none",borderRadius:8,padding:"4px 8px",fontSize:11,cursor:"pointer",fontFamily:"inherit",fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3706}}, "✏️")
                               , React.createElement('button', { onClick: function(){subirEjecutivo(v.id);}, style: {background:"#F0FDF4",color:"#15803D",border:"none",borderRadius:8,padding:"4px 8px",fontSize:11,cursor:"pointer",fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3707}}, "↑")
-                              , React.createElement('button', { onClick: function(){bajarEjecutivo(v.id);}, style: {background:"#F0FDF4",color:"#15803D",border:"none",borderRadius:8,padding:"4px 8px",fontSize:11,cursor:"pointer",fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3708}}, "↓"))
+                              , React.createElement('button', { onClick: function(){bajarEjecutivo(v.id);}, style: {background:"#F0FDF4",color:"#15803D",border:"none",borderRadius:8,padding:"4px 8px",fontSize:11,cursor:"pointer",fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3708}}, "↓")
+                              , React.createElement('button', {
+                                  title: v.activo===false?"Reactivar ejecutivo":"Marcar como inactivo (se oculta del equipo pero conserva historial)",
+                                  onClick: function(){
+                                    var nuevoEstado = v.activo===false ? true : false;
+                                    var confirmMsg = nuevoEstado
+                                      ? "¿Reactivar a "+_nombreCorto(v.nombre)+"? Volverá a aparecer en el equipo."
+                                      : "¿Marcar a "+_nombreCorto(v.nombre)+" como inactivo? Se ocultará del equipo pero su historial se conserva.";
+                                    if(!confirm(confirmMsg)) return;
+                                    var nuevoEq = equipo.map(function(eq){ return eq.id===v.id ? Object.assign({},eq,{activo:nuevoEstado}) : eq; });
+                                    setEquipo(nuevoEq);
+                                    if(window.__saveSeguro) window.__saveSeguro(info.mesKey,{equipo:nuevoEq,metaEquipo:metaEquipo});
+                                  },
+                                  style:{background:v.activo===false?"#FEF2F2":"#F3F4F6",color:v.activo===false?"#DC2626":"#6B7280",border:"none",borderRadius:8,padding:"4px 8px",fontSize:11,cursor:"pointer",fontWeight:700}
+                                }, v.activo===false?"🔴":"⚫"))
                             )
                           );})
                         )
@@ -8872,7 +8882,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                              const pctDPS=metaDPS>0?Math.round((dpsMes/metaDPS)*100):0,colD=colSem(pctDPS);
                             return (
                               React.createElement('tr', { key: v.id, onClick: function(){setSelId(v.id===selId?null:v.id);}, style: {borderBottom:"1px solid #F5F7FB",cursor:"pointer",background:selId===v.id?BG:"transparent"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3792}}
-                                , React.createElement('td', { style: {padding:"11px 10px",fontWeight:700,color:RD}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3793}}, v.nombre)
+                                , React.createElement('td', { style: {padding:"11px 10px",fontWeight:700,color:RD}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3793}}, _nombreCorto(v.nombre))
                                 , React.createElement('td', { style: {padding:"11px 10px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3793}}
                                   , React.createElement('span', { style: {background:"#EFF6FF",color:"#1D4ED8",borderRadius:8,padding:"4px 10px",fontFamily:"monospace",fontSize:12,fontWeight:700,letterSpacing:"0.05em"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3793}}, v.rut||"—")
                                 )
