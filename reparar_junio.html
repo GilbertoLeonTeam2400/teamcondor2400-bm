@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><title>Reparar Junio 2026</title>
+<style>
+  body{font-family:monospace;padding:20px;background:#1a1a1a;color:#0f0;}
+  h2{color:#fff;} .err{color:#f44;} .ok{color:#4f4;} .warn{color:#fa0;}
+  button{background:#C41230;color:#fff;border:none;padding:12px 24px;font-size:16px;
+         border-radius:8px;cursor:pointer;margin:10px 0;font-family:monospace;}
+  #log{white-space:pre-wrap;line-height:1.6;}
+</style>
+</head>
+<body>
+<h2>🔧 Reparador de Datos — Junio 2026</h2>
+<p style="color:#fa0">Este script copia los datos faltantes de Mayo a Junio (email, rut, fechaNac, fotoUrl, historial)</p>
+<button onclick="repararJunio()">▶ EJECUTAR REPARACIÓN</button>
+<div id="log">Esperando...</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const cfg = {
+  apiKey: "AIzaSyDQf7ItrnYsMK9ThyMr6DRB39XvnQCwiYc",
+  authDomain: "gestion-ventas-equipo-bm-2400.firebaseapp.com",
+  projectId: "gestion-ventas-equipo-bm-2400"
+};
+const app = initializeApp(cfg);
+const db  = getFirestore(app);
+const log = document.getElementById('log');
+
+function print(msg, cls='') {
+  const line = document.createElement('div');
+  line.className = cls;
+  line.textContent = new Date().toLocaleTimeString('es-CL') + ' — ' + msg;
+  log.appendChild(line);
+  console.log(msg);
+}
+
+window.repararJunio = async function() {
+  log.innerHTML = '';
+  print('Iniciando reparación...', 'warn');
+
+  try {
+    // 1. Leer Mayo (fuente de verdad)
+    print('Leyendo equipos/2026-05...');
+    const snapMayo = await getDoc(doc(db,'equipos','2026-05'));
+    if (!snapMayo.exists()) { print('❌ 2026-05 no existe!', 'err'); return; }
+    const mayo = snapMayo.data();
+    const eqMayo = mayo.equipo || [];
+    print(`✅ Mayo: ${eqMayo.length} ejecutivos`, 'ok');
+
+    // Indexar Mayo por id
+    const mayoIdx = {};
+    eqMayo.forEach(v => { mayoIdx[String(v.id)] = v; });
+
+    // Verificar campos en Mayo
+    const conRut   = eqMayo.filter(v => v.rut   && v.rut.trim()).length;
+    const conEmail = eqMayo.filter(v => v.email && v.email.trim()).length;
+    const conFoto  = eqMayo.filter(v => v.fotoUrl && v.fotoUrl.length > 10).length;
+    const conFecha = eqMayo.filter(v => v.fechaNac && v.fechaNac.trim()).length;
+    print(`   Mayo tiene: ${conRut} RUTs | ${conEmail} emails | ${conFoto} fotos | ${conFecha} fechas`, 'ok');
+
+    // 2. Leer Junio (destino)
+    print('Leyendo equipos/2026-06...');
+    const snapJunio = await getDoc(doc(db,'equipos','2026-06'));
+    if (!snapJunio.exists()) { print('❌ 2026-06 no existe!', 'err'); return; }
+    const junio = snapJunio.data();
+    const eqJunio = junio.equipo || [];
+    print(`✅ Junio: ${eqJunio.length} ejecutivos`, 'ok');
+
+    // 3. Campos faltantes en Junio
+    const conRutJ   = eqJunio.filter(v => v.rut   && v.rut.trim()).length;
+    const conEmailJ = eqJunio.filter(v => v.email && v.email.trim()).length;
+    const conFotoJ  = eqJunio.filter(v => v.fotoUrl && v.fotoUrl.length > 10).length;
+    print(`   Junio tiene: ${conRutJ} RUTs | ${conEmailJ} emails | ${conFotoJ} fotos`, 'warn');
+
+    // 4. Migrar campos faltantes de Mayo → Junio
+    print('Migrando campos de Mayo a Junio...');
+    const CAMPOS = ['rut','email','fechaNac','fechaIngreso','pin','fotoUrl',
+                    'metaUF','metaPropia','metaConecta','metaDPS','cargo'];
+
+    let reparados = 0;
+    const eqJunioReparado = eqJunio.map(v => {
+      const vMayo = mayoIdx[String(v.id)];
+      if (!vMayo) {
+        print(`   ⚠️ ${v.nombre} (id:${v.id}) no está en Mayo`, 'warn');
+        return v;
+      }
+      let cambios = {};
+      let necesitaReparo = false;
+      CAMPOS.forEach(campo => {
+        const valMayo = vMayo[campo];
+        const valJunio = v[campo];
+        // Si Junio no tiene el campo o está vacío, y Mayo sí lo tiene → copiar
+        if (valMayo && (!valJunio || valJunio === '' || valJunio === 0)) {
+          cambios[campo] = valMayo;
+          necesitaReparo = true;
+        }
+      });
+      // Migrar historial de Mayo → agregar a historial de Junio
+      const histMayo = vMayo.historial || {};
+      const histJunio = v.historial || {};
+      const histMerge = Object.assign({}, histMayo, histJunio); // Junio tiene prioridad
+      if (JSON.stringify(histMerge) !== JSON.stringify(histJunio)) {
+        cambios.historial = histMerge;
+        necesitaReparo = true;
+      }
+      if (necesitaReparo) {
+        reparados++;
+        const nombreCorto = (v.nombre||'').split(' ').slice(0,2).join(' ');
+        print(`   🔧 Reparando ${nombreCorto}: ${Object.keys(cambios).join(', ')}`);
+      }
+      return Object.assign({}, v, cambios);
+    });
+
+    print(`\nTotal a reparar: ${reparados}/${eqJunio.length} ejecutivos`, 'warn');
+
+    // 5. Guardar Junio reparado
+    print('Guardando en Firebase...');
+    await setDoc(
+      doc(db,'equipos','2026-06'),
+      { equipo: eqJunioReparado, metaEquipo: junio.metaEquipo || 550 },
+      { merge: true }
+    );
+
+    print('\n✅ REPARACIÓN COMPLETADA EXITOSAMENTE', 'ok');
+    print(`   ${reparados} ejecutivos reparados con datos de Mayo`, 'ok');
+    print('Recarga el dashboard para ver los cambios.', 'ok');
+
+  } catch(e) {
+    print('❌ ERROR: ' + e.message, 'err');
+    console.error(e);
+  }
+};
+</script>
+</body>
+</html>
