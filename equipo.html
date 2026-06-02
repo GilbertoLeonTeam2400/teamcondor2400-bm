@@ -2182,6 +2182,7 @@ function HistorialTresMeses({ vid, info }) {
     }
   }, [vid]);
 
+  if (!vid && vid !== 0) return null;
   if (meses.length === 0) return null;
   var RD = "#8B0418"; var R = "#e90729";
   return (
@@ -6636,7 +6637,9 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
   const totDpsRechazado   = equipoValido.reduce(function(s,v){var h=(v.historial||{})[info.mesKey];return s+(h?parseInt(h.dpsRechazado)||0:0);},0);
   const totDpsTotal       = totDpsConVenta + totDpsSinVenta + totDpsPendiente + totDpsRechazado;
   const tasaCierreDPS     = totDpsTotal > 0 ? Math.round((totDpsConVenta/totDpsTotal)*100) : 0;
-  const metaUFSafe = (isNaN(META_UF)||META_UF<=0) ? 550 : META_UF;
+  // metaEquipo (de Firebase equipos/mesKey) tiene prioridad sobre META_UF (de config)
+  const metaUFSafe = (metaEquipo && !isNaN(metaEquipo) && metaEquipo > 0) ? metaEquipo
+                   : (isNaN(META_UF)||META_UF<=0) ? 550 : META_UF;
   const falta   = Math.max(0, metaUFSafe - totUF);
   const faltaDisplay = parseFloat(falta.toFixed(2)); // solo para mostrar, no para cálculos internos
   const xCrack  = equipoValido.length > 0 ? fmtUF2(faltaDisplay/equipoValido.length) : "0";
@@ -7578,7 +7581,18 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                         if (!vOrdenado || !vOrdenado.nombre) return null; // guard
                         var cfgOrdenado = CONFIGS[ordenIdx];
                         var initialsO = getInitials(vOrdenado.nombre);
-                        var _pO = vOrdenado.nombre.trim().split(/\s+/); var primerNombreO = _pO.length>=3 ? _pO[_pO.length-1] : _pO[0]; var apellidoO = _pO[0];
+                        var _pO = vOrdenado.nombre.trim().split(/\s+/);
+                        var primerNombreO, apellidoO;
+                        if (_pO.length >= 3) {
+                          primerNombreO = _pO[_pO.length-1]; // última palabra = nombre de pila
+                          apellidoO = _pO[0]; // primera palabra = apellido paterno
+                        } else if (_pO.length === 2) {
+                          primerNombreO = _pO[0]; // ya está en orden correcto
+                          apellidoO = _pO[1];
+                        } else {
+                          primerNombreO = _pO[0];
+                          apellidoO = "";
+                        }
                         var podiumHeight = ordenIdx===0 ? "clamp(80px,10vw,110px)" : ordenIdx===1 ? "clamp(60px,7vw,80px)" : "clamp(50px,6vw,68px)";
                         return React.createElement('div', { key: vOrdenado.id, style: {display:"flex",flexDirection:"column",alignItems:"center",flex:"0 0 auto",minWidth:"clamp(90px,20vw,200px)",maxWidth:200} }
                           , React.createElement('div', { style: {width:cfgOrdenado.fotoSize,height:cfgOrdenado.fotoSize,borderRadius:"50%",overflow:"hidden",border:"3px solid "+cfgOrdenado.color,background:vOrdenado.fotoUrl?"#000":"rgba(201,168,76,.15)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 0 4px "+cfgOrdenado.glow+", 0 0 28px "+cfgOrdenado.glow,marginBottom:10,flexShrink:0} }
@@ -7997,7 +8011,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                   )
 
                   
-                  , React.createElement(HistorialTresMeses, { vid: Number(form.vid), info: info, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3434}} )
+                  
                 )
 
           )
