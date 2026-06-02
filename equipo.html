@@ -2084,7 +2084,7 @@ function TarjetaBadge({ entry, badge, equipo }) {
   const p = entry.nombre.split(" ");
   // Try to match with equipo to get the canonical name
   var vFotoMatch = equipo ? equipo.find(function(e){return nombreCoincide(e.nombre, entry.nombre);}) : null;
-  var displayName = vFotoMatch ? vFotoMatch.nombre.split(" ").slice(0,2).join(" ") : (p.length >= 2 ? p[p.length-2] + " " + p[p.length-1] : entry.nombre);
+  var displayName = vFotoMatch ? vFotoMatch.nombre.split(" ").slice(0,2).join(" ") : (p.length >= 2 ? p[0] + " " + p[1] : entry.nombre);
   var corto = displayName;
   // Find photo from equipo using word matching (names may be in different order)
   var vFoto = vFotoMatch || (equipo ? equipo.find(function(e){return nombreCoincide(e.nombre, entry.nombre);}) : null);
@@ -2466,7 +2466,7 @@ function PanelAlertas({ equipo, proyV }) {
           var proy = proyV(v);
           var pct  = Math.round((v.uf / proy) * 100);
           var p    = v.nombre.split(" ");
-          var corto = p.length >= 2 ? p[p.length-2]+" "+p[p.length-1] : v.nombre;
+          var corto = p.length >= 2 ? p[0]+" "+p[1] : v.nombre;
           return (
             React.createElement('div', { key: v.id, style: {background:"#fff",borderRadius:10,padding:"8px 14px",border:"1.5px solid #FCA5A5",display:"flex",alignItems:"center",gap:8}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2422}}
               , React.createElement('div', { style: {width:8,height:8,borderRadius:"50%",background:pct<30?"#DC2626":"#F97316",flexShrink:0}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2423}} )
@@ -5200,7 +5200,7 @@ function CorrelacionView({ equipo, info, R, RD }) {
   var _mck=(function(){var n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");})();
   function _gd(v){var h=(v.historial||{})[_mck]||{};var s=(parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0);return s>0?s:(parseInt(v.dps)||0);}
   var datos = equipo
-    .map(function(v){var d=_gd(v),u=parseFloat(v.uf)||0;return{nombre:v.nombre.split(" ").slice(-2).join(" "),uf:u,dps:d,tasa:d>0?parseFloat((u/d).toFixed(2)):0};})
+    .map(function(v){var d=_gd(v),u=parseFloat(v.uf)||0;return{nombre:v.nombre.split(" ").slice(0,2).join(" "),uf:u,dps:d,tasa:d>0?parseFloat((u/d).toFixed(2)):0};})
     .filter(function(v){return v.dps>0;})
     .sort(function(a,b){return b.tasa-a.tasa;});
 
@@ -5296,7 +5296,7 @@ function AlertasView({ equipo, info, R, RD }) {
           ,React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:6}}
             ,g.lista.map(function(v){
                 return React.createElement("div",{key:v.id,style:{background:"rgba(255,255,255,.7)",borderRadius:99,padding:"4px 12px",fontSize:11,fontWeight:700,color:g.color}}
-                  ,v.nombre.split(" ").slice(-2).join(" ")
+                  ,v.nombre.split(" ").slice(0,2).join(" ")
                 );
               })
           )
@@ -6105,8 +6105,9 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
           var fbKey = mk;
           var ref2 = window.__fbDoc(window.__fbDb, "equipos", fbKey);
           return window.__fbGetDoc(ref2).then(function(snap2) {
-            if (!snap2.exists) return;
-            var data2 = snap2.data();
+            var _ex2 = typeof snap2.exists === "function" ? snap2.exists() : snap2.exists;
+            if (!_ex2) return;
+            var data2 = snap2.data() || snap2.data;
             if (!data2 || !Array.isArray(data2.equipo)) return;
             // Guardar en global indexado por ejecutivo id
             data2.equipo.forEach(function(vMes) {
@@ -6122,8 +6123,20 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
         });
         Promise.all(promises).then(function(){
           localStorage.setItem("HIST_LAST_LOAD", String(Date.now()));
-        console.log("[HISTORIAL] Meses anteriores cargados OK");
-          // Forzar re-render de UFLinealesView sin tocar el estado del equipo
+          console.log("[HISTORIAL] Meses anteriores cargados OK");
+          // Inyectar en el estado del equipo para que DpsAnalisisView los vea
+          setEquipo(function(prev){
+            return prev.map(function(v){
+              var histAcum = Object.assign({}, v.historial||{});
+              var hMeses = window.__historialMeses[String(v.id)] || {};
+              Object.keys(hMeses).forEach(function(mk){
+                if (!histAcum[mk] || !(histAcum[mk].uf > 0)) {
+                  histAcum[mk] = Object.assign({}, histAcum[mk]||{}, hMeses[mk]);
+                }
+              });
+              return Object.assign({}, v, {historial: histAcum});
+            });
+          });
           setSincronizado(function(v){ return v; });
         });
       }
@@ -6139,7 +6152,14 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
               var excelHist = HISTORIAL_EXCEL[v.id] || HISTORIAL_EXCEL[String(v.id)] || {};
               var currentHist = v.historial || {};
               var mergedHist = Object.assign({}, excelHist, currentHist);
-              return Object.assign({}, v, { historial: mergedHist });
+              // Preservar campos críticos que no vienen del Excel diario
+              var camposCriticos = {};
+              ['rut','email','fechaNac','pin','metaUF','metaPropia','metaConecta','metaDPS','crmResumen'].forEach(function(campo){
+                if (v[campo] !== undefined && v[campo] !== null && v[campo] !== '') {
+                  camposCriticos[campo] = v[campo];
+                }
+              });
+              return Object.assign({}, v, { historial: mergedHist }, camposCriticos);
             });
             console.log("[LOAD] Firebase datos recibidos OK");
             merged = merged.map(function(x){
@@ -6163,14 +6183,17 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
               window.__fotosYaCargadas = true;
               merged.forEach(function(v) {
                 window.__fbGetDoc(window.__fbDoc(window.__fbDb,"fotos",String(v.id))).then(function(snap){
-                  if (snap.exists && snap.data && snap.data().fotoUrl) {
+                  var _ex = typeof snap.exists === "function" ? snap.exists() : snap.exists;
+                  if (_ex && snap.data && snap.data().fotoUrl) {
                     setEquipo(function(prev){ return prev.map(function(eq){ return eq.id===v.id ? Object.assign({},eq,{fotoUrl:snap.data().fotoUrl}) : eq; }); });
                   }
                 }).catch(function(){});
               });
             }
             var _lh=parseInt(localStorage.getItem("HIST_LAST_LOAD")||"0");
-            if(Date.now()-_lh>3600000){ setTimeout(cargarHistorialMesesAnteriores, 800); }
+            // Cargar historial si no se cargó en las últimas 2 horas o si hay meses sin datos
+            if(Date.now()-_lh>7200000){ setTimeout(cargarHistorialMesesAnteriores, 800); }
+            else { setTimeout(cargarHistorialMesesAnteriores, 800); } // Siempre recargar al iniciar
           }
           const m = snapData.metaEquipo;
           if (m && typeof m === "number" && !isNaN(m) && m > 0) {
@@ -6191,7 +6214,44 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
             try { localStorage.setItem("SUP_PIN_LOCAL", snapData.supPin); } catch(e) {}
           }
         } else {
-          console.log("[LOAD] Firebase: documento no existe todavia");
+          console.log("[LOAD] Firebase: documento no existe todavia — inicializando nuevo mes desde mes anterior");
+          // ── NUEVO MES: copiar equipo del mes anterior ──
+          var mesAnterior = (function(){
+            var d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-1);
+            return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+          })();
+          window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos",mesAnterior))
+            .then(function(snapAnt){
+              var _exAnt = typeof snapAnt.exists==="function" ? snapAnt.exists() : snapAnt.exists;
+              if(!_exAnt) { console.warn("[NUEVO MES] No hay doc del mes anterior tampoco"); return; }
+              var dataAnt = snapAnt.data();
+              if(!dataAnt || !Array.isArray(dataAnt.equipo)) return;
+              // Limpiar datos del mes anterior — conservar solo campos fijos
+              var equipoNuevo = dataAnt.equipo.map(function(v){
+                return {
+                  id: v.id, nombre: v.nombre, cargo: v.cargo||"Asesor Comercial",
+                  pin: v.pin, rut: v.rut||"", email: v.email||"", fechaNac: v.fechaNac||"",
+                  metaUF: v.metaUF||25, metaPropia: v.metaPropia||0,
+                  metaDPS: v.metaDPS||0, metaConecta: v.metaConecta||0,
+                  historial: v.historial||{},
+                  uf: 0, dps: 0, rep: [], crmResumen: v.crmResumen||{}
+                };
+              });
+              var metaSave = dataAnt.metaEquipo || 550;
+              console.log("[NUEVO MES] Inicializando",key,"con",equipoNuevo.length,"ejecutivos desde",mesAnterior);
+              // Guardar en Firebase el nuevo mes
+              window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",key),
+                {equipo: equipoNuevo, metaEquipo: metaSave},
+                {merge: false}
+              ).then(function(){
+                console.log("[NUEVO MES] ✅ Mes inicializado en Firebase");
+                setEquipo(equipoNuevo.map(function(v){
+                  var excelHist = HISTORIAL_EXCEL[v.id]||HISTORIAL_EXCEL[String(v.id)]||{};
+                  return Object.assign({},v,{historial:Object.assign({},excelHist,v.historial||{})});
+                }));
+                if(metaSave) setMetaEquipo(metaSave);
+              }).catch(function(e){ console.error("[NUEVO MES] Error al inicializar:",e); });
+            }).catch(function(e){ console.warn("[NUEVO MES] Error al leer mes anterior:",e); });
         }
         setFbError(false);
         setLoaded(true);
@@ -9230,7 +9290,7 @@ function ReconocidosEspeciales({ equipo, info, RD, R }) {
     var overlap = ganadores.length===1 ? 0 : -12;
     var fotosEl = React.createElement("div",{style:{display:"flex",justifyContent:"center",alignItems:"center",marginBottom:8,minHeight:fotoSize,flexWrap:"nowrap",overflow:"visible"}}
       ,ganadores.map(function(g,gi){
-        var ini=(g.nombre||"").split(" ").filter(Boolean).slice(-2).map(function(w){return (w||"")[0]||"";}).join("");
+        var ini=(g.nombre||"").split(" ").filter(Boolean).slice(0,2).map(function(w){return (w||"")[0]||"";}).join("");
         return React.createElement("div",{key:gi,style:{
           width:fotoSize,height:fotoSize,borderRadius:"50%",overflow:"hidden",
           border:"2.5px solid "+cat.brd,marginLeft:gi===0?0:overlap,
@@ -11202,7 +11262,7 @@ function AgentesEnCeroView({ equipo, info }) {
   function NombreRut(props) {
     var v = props.v;
     var p = v.nombre.split(" ");
-    var corto = p.length >= 2 ? p[p.length-2] + " " + p[p.length-1] : v.nombre;
+    var corto = p.length >= 2 ? p[0] + " " + p[1] : v.nombre;
     return React.createElement('div', { key: v.id, style: {background:"#fff",borderRadius:10,padding:"10px 16px",border:"1.5px solid #FECACA",display:"flex",flexDirection:"column",gap:2} },
       React.createElement('span', { style: {fontWeight:800,color:"#7F1D1D",fontSize:13} }, v.nombre),
       React.createElement('span', { style: {fontFamily:"monospace",fontSize:11,color:"#6B7280",fontWeight:600} }, "RUT: " + (v.rut || "Sin RUT"))
