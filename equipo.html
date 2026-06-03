@@ -5481,18 +5481,18 @@ function GestPremiosView({ premiosImgs, setPremiosImgs, info, R, RD, tablaPremio
     var todas = premiosImgs.concat(pendientes);
     setPremiosImgs(todas);
     setPendientes([]);
-    try{ localStorage.setItem("PREMIOS_"+mesKey, JSON.stringify(todas)); }catch(e){}
+    try{ localStorage.setItem("PREMIOS_config", JSON.stringify(todas)); }catch(e){}
     if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
       // Guardar cada imagen en doc separado para no superar 1MB por doc
       var saves = todas.map(function(img, i){
         return window.__fbSetDoc(
-          window.__fbDoc(window.__fbDb,"equipos","premios_"+mesKey+"_img"+i),
+          window.__fbDoc(window.__fbDb,"equipos","premios_config_img"+i),
           {img:img, orden:i, mes:mesKey, ts:Date.now()}
         );
       });
       // Guardar índice (sin data de imagen, solo referencia)
       saves.push(window.__fbSetDoc(
-        window.__fbDoc(window.__fbDb,"equipos","premios_"+mesKey),
+        window.__fbDoc(window.__fbDb,"equipos","premios_config"),
         {indice:todas.map(function(img,i){return {id:img.id,nombre:img.nombre,orden:i};}), total:todas.length, mes:mesKey, ts:Date.now()}
       ));
       Promise.all(saves)
@@ -5524,18 +5524,18 @@ function GestPremiosView({ premiosImgs, setPremiosImgs, info, R, RD, tablaPremio
     if(target < 0 || target >= newImgs.length) return;
     var tmp = newImgs[idx]; newImgs[idx] = newImgs[target]; newImgs[target] = tmp;
     setPremiosImgs(newImgs);
-    try{ localStorage.setItem("PREMIOS_"+mesKey, JSON.stringify(newImgs)); }catch(e){}
+    try{ localStorage.setItem("PREMIOS_config", JSON.stringify(newImgs)); }catch(e){}
     if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_"+mesKey),{imgs:newImgs,mes:mesKey,ts:Date.now()}).catch(function(){});
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_config"),{imgs:newImgs,mes:mesKey,ts:Date.now()}).catch(function(){});
   }
 
   function eliminar(id) {
     if(!window.confirm("¿Eliminar esta imagen?")) return;
     var nuevas = premiosImgs.filter(function(x){return x.id!==id;});
     setPremiosImgs(nuevas);
-    try{ localStorage.setItem("PREMIOS_"+mesKey, JSON.stringify(nuevas)); }catch(e){}
+    try{ localStorage.setItem("PREMIOS_config", JSON.stringify(nuevas)); }catch(e){}
     if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_"+mesKey),{imgs:nuevas,mes:mesKey,ts:Date.now()}).catch(function(){});
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_config"),{imgs:nuevas,mes:mesKey,ts:Date.now()}).catch(function(){});
   }
 
   var todasLasImgs = premiosImgs.concat(pendientes);
@@ -5649,7 +5649,58 @@ function GestPremiosView({ premiosImgs, setPremiosImgs, info, R, RD, tablaPremio
               })
             )
           ),
-          filasTabs,
+          (function(){
+            var grupos = [
+              {key:"novato",    label:"\u{1F7E3} Novato (0-12 meses)"},
+              {key:"desarrollo",label:"\u{1F535} Desarrollo (13-35 meses)"},
+              {key:"veterano",  label:"\u{1F396}\uFE0F Veterano (36+ meses)"},
+            ];
+            var condCfg = window.__condHombre || {novato:{activa:false,pct:60},desarrollo:{activa:false,pct:60},veterano:{activa:false,pct:60}};
+            function saveCondHombre(nueva) {
+              window.__condHombre = nueva;
+              if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
+                window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","config_premios"),{condHombre:nueva,ts:Date.now()},{merge:true}).catch(function(){});
+            }
+            return React.createElement("div",{style:{background:"#FFF8E7",borderRadius:12,padding:"14px 18px",marginBottom:16,border:"1px solid #FCD34D"}},
+              React.createElement("div",{style:{fontWeight:800,color:"#92400E",marginBottom:4,fontSize:14}},"\u{1F468} Condici\xF3n % Titulares Hombre por Antig\xFCedad"),
+              React.createElement("div",{style:{fontSize:11,color:"#78350F",marginBottom:12}},"Si est\xE1 activa, el AGV solo gana el premio si el % de titulares hombre del mes es igual o mayor al m\xEDnimo indicado."),
+              grupos.map(function(g){
+                var cfg = condCfg[g.key]||{activa:false,pct:60};
+                return React.createElement("div",{key:g.key,style:{display:"flex",alignItems:"center",gap:12,marginBottom:10,padding:"10px 12px",background:cfg.activa?"#FEF3C7":"#fff",borderRadius:10,border:"1px solid "+(cfg.activa?"#FCD34D":"#E5E7EB")}},
+                  React.createElement("div",{style:{flex:1,fontSize:13,fontWeight:700,color:"#374151"}},g.label),
+                  React.createElement("select",{
+                    value: cfg.activa?"si":"no",
+                    onChange:function(e){
+                      var nueva = Object.assign({},condCfg);
+                      nueva[g.key] = Object.assign({},cfg,{activa:e.target.value==="si"});
+                      saveCondHombre(nueva);
+                    },
+                    style:{padding:"5px 8px",borderRadius:8,border:"1.5px solid #D1D5DB",fontSize:13,fontWeight:700,fontFamily:"inherit",background:"#fff",cursor:"pointer"}
+                  },
+                    React.createElement("option",{value:"no"},"No aplica"),
+                    React.createElement("option",{value:"si"},"S\xED aplica")
+                  ),
+                  cfg.activa && React.createElement(React.Fragment,null,
+                    React.createElement("span",{style:{fontSize:12,color:"#92400E"}},"\u2265"),
+                    React.createElement("input",{type:"number",min:"0",max:"100",step:"1",
+                      defaultValue:cfg.pct,
+                      onFocus:function(e){e.target.select();},
+                      onBlur:function(e){
+                        var val=Math.min(100,Math.max(0,parseInt(e.target.value)||0));
+                        e.target.value=val;
+                        var nueva=Object.assign({},condCfg);
+                        nueva[g.key]=Object.assign({},cfg,{pct:val});
+                        saveCondHombre(nueva);
+                      },
+                      style:{width:55,padding:"5px 8px",borderRadius:8,border:"1.5px solid #FCD34D",fontSize:14,fontWeight:900,fontFamily:"inherit",textAlign:"center"}
+                    }),
+                    React.createElement("span",{style:{fontSize:12,color:"#92400E"}},"%")
+                  )
+                );
+              })
+            );
+          })(),
+                    filasTabs,
           React.createElement("button",{
             onClick:function(){if(window.confirm("¿Restaurar valores originales?"))saveTablaPremios(TABLA_DEFAULT);},
             style:{background:"#F3F4F6",color:"#6B7280",border:"none",borderRadius:10,padding:"8px 16px",fontSize:12,cursor:"pointer",fontWeight:700,fontFamily:"inherit",marginTop:8}
@@ -5805,23 +5856,23 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
     if(!window.__fbDb||!window.__fbDoc||!window.__fbGetDoc) return;
     if(premiosImgs.length===0){
       // Cargar índice primero, luego cada imagen individual
-      window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_"+mesKey))
+      window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_config"))
         .then(function(snap){
           if(snap.exists&&snap.data()&&snap.data().indice){
             var indice = snap.data().indice;
             var imgPromises = indice.map(function(ref,i){
-              return window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_"+mesKey+"_img"+i))
+              return window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_config_img"+i))
                 .then(function(s){ return s.exists&&s.data()&&s.data().img ? s.data().img : null; })
                 .catch(function(){ return null; });
             });
             Promise.all(imgPromises).then(function(imgs){
               var validas = imgs.filter(function(x){return x!==null;});
-              if(validas.length>0){ setPremiosImgs(validas); try{localStorage.setItem("PREMIOS_"+mesKey,JSON.stringify(validas));}catch(e){} }
+              if(validas.length>0){ setPremiosImgs(validas); try{localStorage.setItem("PREMIOS_config",JSON.stringify(validas));}catch(e){} }
             });
           } else if(snap.exists&&snap.data()&&snap.data().imgs){
             // Fallback: formato antiguo con todas las imgs en un doc
             setPremiosImgs(snap.data().imgs);
-            try{localStorage.setItem("PREMIOS_"+mesKey,JSON.stringify(snap.data().imgs));}catch(e){}
+            try{localStorage.setItem("PREMIOS_config",JSON.stringify(snap.data().imgs));}catch(e){}
           }
         }).catch(function(){});
     }
@@ -6399,17 +6450,17 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
           var mesKey2 = new Date().getFullYear()+"-"+String(new Date().getMonth()+1).padStart(2,"0");
           // Intentar localStorage primero
           try {
-            var cached = JSON.parse(localStorage.getItem("PREMIOS_"+mesKey2)||"[]");
+            var cached = JSON.parse(localStorage.getItem("PREMIOS_config")||"[]");
             if (cached.length > 0) { setPremiosImgs(cached); return; }
           } catch(e) {}
           // Si no hay cache, cargar desde Firebase
           if (!window.__fbGetDoc || !window.__fbDoc || !window.__fbDb) return;
-          window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_"+mesKey2))
+          window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_config"))
             .then(function(snap){
               if (!snap.exists || !snap.data() || !snap.data().indice) return;
               var indice = snap.data().indice;
               var imgPromises = indice.map(function(ref,i){
-                return window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_"+mesKey2+"_img"+i))
+                return window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_config_img"+i))
                   .then(function(s){ return s.exists&&s.data()&&s.data().img ? s.data().img : null; })
                   .catch(function(){ return null; });
               });
@@ -6417,7 +6468,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                 var validas = imgs.filter(function(x){return x!==null;});
                 if (validas.length > 0) {
                   setPremiosImgs(validas);
-                  try{ localStorage.setItem("PREMIOS_"+mesKey2, JSON.stringify(validas)); }catch(e){}
+                  try{ localStorage.setItem("PREMIOS_config", JSON.stringify(validas)); }catch(e){}
                 }
               });
             }).catch(function(){});
@@ -6592,6 +6643,20 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
   const [cierresHoy,    setCierresHoy]    = useState([]);
   const [recoNombre,    setRecoNombre]    = useState("");
   const [premioConecta, setPremioConecta] = useState(100000); // Monto por plan Conecta (editable en supervisor)
+
+  // Cargar config_premios desde Firebase al iniciar
+  React.useEffect(function(){
+    if (!window.__fbDb || !window.__fbDoc || !window.__fbGetDoc) return;
+    window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","config_premios")).then(function(snap){
+      var ex = typeof snap.exists==="function" ? snap.exists() : snap.exists;
+      if (!ex) return;
+      var d = snap.data ? (typeof snap.data==="function" ? snap.data() : snap.data) : null;
+      if (!d) return;
+      if (d.premioConecta && !isNaN(d.premioConecta)) setPremioConecta(d.premioConecta);
+      if (d.condHombre) window.__condHombre = d.condHombre;
+      else if (d.minPctHombreVet !== undefined) window.__condHombre = {novato:{activa:false,pct:60},desarrollo:{activa:false,pct:60},veterano:{activa:true,pct:parseInt(d.minPctHombreVet)||60}};
+    }).catch(function(){});
+  },[]);
   const [benchmark, setBenchmark] = useState(null); // Mes de referencia elegido por supervisor
 
   // Tablas de premios por antigüedad (editables desde Supervisor → Gestionar Premios)
@@ -6653,7 +6718,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
   const [crmAcc,   setCrmAcc]   = useState(false);
   const [crmErr,   setCrmErr]   = useState(false);
   const [crmData,  setCrmData]  = useState([]); // contactos del ejecutivo logueado
-  const EMPTY_CRM_FORM = { nombre:"", email:"", tel:"", plan:"", planUF:"", proxAct:"", proxFecha:"", nota:"", canal:"", canalDetalle:"", temperatura:"tibio", oportunidad:"cotizando", fechaCierre:"", motivoNoConcretar:"" };
+  const EMPTY_CRM_FORM = { nombre:"", email:"", tel:"", plan:"", planUF:"", prevision:"fonasa", proxAct:"", proxFecha:"", nota:"", canal:"", canalDetalle:"", temperatura:"tibio", oportunidad:"cotizando", fechaCierre:"", motivoNoConcretar:"" };
   const [crmForm,  setCrmForm]  = useState(EMPTY_CRM_FORM);
   const [crmModal, setCrmModal] = useState(false);
   const [crmEdit,  setCrmEdit]  = useState(null);
@@ -6753,7 +6818,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
   const xCrack  = equipoValido.length > 0 ? fmtUF2(faltaDisplay/equipoValido.length) : "0";
   const totHombres = equipoValido.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.hombres)||0);},0);},0);
   const totMujeres = equipoValido.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.mujeres)||0);},0);},0);
-  const totConecta = equipoValido.reduce(function(s,v){return s+(parseInt(((v.historial||{})[info.mesKey]||{}).conecta)||0);},0);
+  const totConecta = equipoValido.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(r.conecta?1:0);},0);},0);
   const totTitulares = totHombres + totMujeres;
   const pctH = totTitulares > 0 ? Math.round((totHombres/totTitulares)*100) : 0;
   const pctM = totTitulares > 0 ? Math.round((totMujeres/totTitulares)*100) : 0;
@@ -7156,7 +7221,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
     setCrmEdit(null);
     setCrmModal(true);
   }
-  function abrirEditContacto(c){setCrmForm({nombre:c.nombre||"",email:c.email||"",tel:c.tel||"",plan:c.plan||"",planUF:c.planUF||"",proxAct:c.proxAct||"",proxFecha:c.proxFecha||"",nota:c.nota||"",canal:c.canal||"",canalDetalle:c.canalDetalle||"",temperatura:c.temperatura||"tibio",oportunidad:c.oportunidad||"cotizando",fechaCierre:c.fechaCierre||"",motivoNoConcretar:c.motivoNoConcretar||""});setCrmEdit(c.id);setCrmModal(true);}
+  function abrirEditContacto(c){setCrmForm({nombre:c.nombre||"",email:c.email||"",tel:c.tel||"",plan:c.plan||"",planUF:c.planUF||"",prevision:c.prevision||"fonasa",proxAct:c.proxAct||"",proxFecha:c.proxFecha||"",nota:c.nota||"",canal:c.canal||"",canalDetalle:c.canalDetalle||"",temperatura:c.temperatura||"tibio",oportunidad:c.oportunidad||"cotizando",fechaCierre:c.fechaCierre||"",motivoNoConcretar:c.motivoNoConcretar||""});setCrmEdit(c.id);setCrmModal(true);}
   function guardarContacto(){
     if(!crmForm.nombre)return;
     var anteriorCerrado = false;
@@ -7201,10 +7266,14 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
 
   //  CRM computed 
   const crmV = equipo.find(function(v){return v.id===Number(crmVid);});
-  const ufPotencial = crmData.filter(function(c){return c.proxAct!=="cerrado"&&c.proxAct!=="perdido";}).reduce(function(s,c){return s+(parseFloat(c.planUF)||0);},0);
-  const cerrados    = crmData.filter(function(c){return c.proxAct==="cerrado";}).length;
-  const perdidos    = crmData.filter(function(c){return c.proxAct==="perdido";}).length;
-  const pendientes  = crmData.filter(function(c){return c.proxAct!=="cerrado"&&c.proxAct!=="perdido";}).length;
+  const ufPotencial     = crmData.filter(function(c){return c.proxAct!=="cerrado"&&c.proxAct!=="perdido";}).reduce(function(s,c){return s+(parseFloat(c.planUF)||0);},0);
+  const cerradosMes     = crmData.filter(function(c){return c.proxAct==="cerrado"&&(c.fechaCierre||"").startsWith(info.mesKey);});
+  const cerradosHist    = crmData.filter(function(c){return c.proxAct==="cerrado"&&!(c.fechaCierre||"").startsWith(info.mesKey);});
+  const cerrados        = cerradosMes.length;
+  const cerradosTotal   = crmData.filter(function(c){return c.proxAct==="cerrado";}).length;
+  const ufCerradasMes   = cerradosMes.reduce(function(s,c){return s+(parseFloat(c.planUF)||0);},0);
+  const perdidos        = crmData.filter(function(c){return c.proxAct==="perdido";}).length;
+  const pendientes      = crmData.filter(function(c){return c.proxAct!=="cerrado"&&c.proxAct!=="perdido";}).length;
 
   return (
     React.createElement('div', { style: {minHeight:"100vh",background:BG,fontFamily:"system-ui,-apple-system,sans-serif",paddingBottom:60}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2969}}
@@ -8123,7 +8192,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
             , !histAcc?(
               React.createElement(PinGate, {
                 equipo:equipo, R:R, RD:RD,
-                textoBoton:"Ver mi historial",
+                textoBoton:"Ingresar",
                 subtitulo:"Tu información es personal y confidencial",
                 onSuccess:function(v){setHistVid(String(v.id));histLogin(v);}
               })
@@ -8138,7 +8207,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                           ,vH&&vH.fotoUrl?React.createElement('img',{src:vH.fotoUrl,style:{width:"100%",height:"100%",objectFit:"cover"}}):React.createElement('span',{style:{fontSize:13,fontWeight:900,color:RD}},ini)
                         );
                       })()
-                    , React.createElement('div', { style: {fontSize:20,fontWeight:900,color:RD} }, tab==="desempeno"?"Mi Productividad":"Mi Plan de Éxito" )
+                    , React.createElement('div', { style: {fontSize:20,fontWeight:900,color:RD} }, tab==="desempeno"?"Mi Desempeño":"Mi Plan de Éxito" )
                   )
                   , React.createElement('button', { onClick: histLogout, style: {background:"#FEE2E2",color:R,border:"none",borderRadius:10,padding:"8px 16px",fontSize:13,cursor:"pointer",fontWeight:700} }, "Cerrar sesion" )
                 )
@@ -8216,12 +8285,11 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                 ),
                 React.createElement('div', {style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:18}},
                   (function(){
-                    var ufCerrados = crmData.filter(function(c){return c.proxAct==="cerrado";}).reduce(function(s,c){return s+(parseFloat(c.planUF)||0);},0);
                     var kpis = [
-                      {key:"activos",  label:"Activos",          val:pendientes,                    sub:ufPotencial.toFixed(2)+" UF potencial", color:"#1D4ED8",bg:"#EFF6FF"},
-                      {key:"cerrados", label:"Cerrados",          val:cerrados,                      sub:ufCerrados.toFixed(2)+" UF cerradas",   color:"#16A34A",bg:"#F0FDF4"},
-                      {key:"perdidos", label:"No concretados",    val:perdidos,                      sub:"click para ver detalle",               color:"#DC2626",bg:"#FEF2F2"},
-                      {key:"ufpot",    label:"UF potencial",      val:ufPotencial.toFixed(2)+" UF",  sub:"clientes activos",                    color:"#D97706",bg:"#FFFBEB"},
+                      {key:"activos",  label:"Activos",                val:pendientes,                          sub:ufPotencial.toFixed(2)+" UF potencial",                              color:"#1D4ED8",bg:"#EFF6FF"},
+                      {key:"cerrados", label:"Cerrados este mes",      val:cerrados,                            sub:ufCerradasMes.toFixed(2)+" UF · hist: "+cerradosTotal,               color:"#16A34A",bg:"#F0FDF4"},
+                      {key:"perdidos", label:"No concretados",         val:perdidos,                            sub:"click para ver detalle",                                            color:"#DC2626",bg:"#FEF2F2"},
+                      {key:"ufpot",    label:"UF potencial",           val:ufPotencial.toFixed(2)+" UF",        sub:"clientes activos",                                                  color:"#D97706",bg:"#FFFBEB"},
                     ];
                     return kpis.map(function(k,i){
                       return React.createElement('div',{key:i,onClick:function(){setCrmFiltro(crmFiltro===k.key?"":k.key);},
@@ -8393,6 +8461,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                               React.createElement('div',{style:{fontSize:12,color:"#6B7280",display:"flex",gap:14,flexWrap:"wrap"}},
                                 c.tel&&React.createElement('span',null,"📞 "+c.tel),
                                 c.plan&&React.createElement('span',null,"📋 "+c.plan+(c.planUF?" · "+c.planUF+" UF":"")),
+                                c.prevision&&React.createElement('span',null,c.prevision==="fonasa"?"🏛️ Fonasa":c.prevision==="isapre"?"🏥 Isapre":"❓ Sin previsión"),
                                 c.canal&&React.createElement('span',null,"📌 "+(c.canal==="terreno"?"Terreno":c.canal==="referido"?"Referido":c.canal==="redes"?"Redes":c.canal==="leads"?"Leads":c.canal==="llamada"?"Llamada en frío":c.canal))
                               ),
                               c.proxFecha&&esActivo&&React.createElement('div',{style:{fontSize:12,marginTop:6,display:"flex",alignItems:"center",gap:6}},React.createElement('span',{style:{width:8,height:8,borderRadius:"50%",background:semColor,display:"inline-block",flexShrink:0}}),React.createElement('span',{style:{color:"#374151",fontWeight:600}},"Próx: "+c.proxFecha+(c.proxAct?" — "+c.proxAct:""))),
@@ -9138,6 +9207,15 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
               /* Plan + UF */
               React.createElement('div', null, React.createElement('label',{style:LBL},"Plan"), React.createElement('input',{value:crmForm.plan,onChange:function(e){setCrmForm(Object.assign({},crmForm,{plan:e.target.value}));},style:INP,placeholder:"Ej: Plan Familiar"})),
               React.createElement('div', null, React.createElement('label',{style:LBL},"UF del plan"), React.createElement('input',{type:"number",step:"0.01",min:"0",value:crmForm.planUF,onChange:function(e){setCrmForm(Object.assign({},crmForm,{planUF:e.target.value}));},style:INP,placeholder:"0.00"})),
+              /* Previsión */
+              React.createElement('div', null,
+                React.createElement('label',{style:LBL},"Previsión del cliente"),
+                React.createElement('select',{value:crmForm.prevision,onChange:function(e){setCrmForm(Object.assign({},crmForm,{prevision:e.target.value}));},style:INP},
+                  React.createElement('option',{value:"fonasa"},"🏛️ Fonasa"),
+                  React.createElement('option',{value:"isapre"},"🏥 Isapre"),
+                  React.createElement('option',{value:"desconocido"},"❓ No sé aún")
+                )
+              ),
               /* Canal de origen */
               React.createElement('div', null,
                 React.createElement('label',{style:LBL},"Canal de origen"),
@@ -12040,12 +12118,12 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
       // Cargar imágenes de premios desde Firebase si no están cargadas
       if ((!premiosImgs || premiosImgs.length === 0) && window.__fbDb && window.__fbDoc && window.__fbGetDoc) {
         var mesKey = new Date().getFullYear()+"-"+String(new Date().getMonth()+1).padStart(2,"0");
-        window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_"+mesKey))
+        window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_config"))
           .then(function(snap){
             if (snap.exists && snap.data() && snap.data().indice) {
               var indice = snap.data().indice;
               var imgPromises = indice.map(function(ref,i){
-                return window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_"+mesKey+"_img"+i))
+                return window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_config_img"+i))
                   .then(function(s){ return s.exists&&s.data()&&s.data().img ? s.data().img : null; })
                   .catch(function(){ return null; });
               });
@@ -12053,7 +12131,7 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
                 var validas = imgs.filter(function(x){return x!==null;});
                 if (validas.length > 0) {
                   setPremiosImgs(validas);
-                  try{ localStorage.setItem("PREMIOS_"+mesKey, JSON.stringify(validas)); }catch(e){}
+                  try{ localStorage.setItem("PREMIOS_config", JSON.stringify(validas)); }catch(e){}
                 }
               });
             }
@@ -12128,7 +12206,7 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
       /* ── LOGIN ── */
       , !pinOk && React.createElement(PinGate, {
           equipo:equipo, R:R, RD:RD,
-          textoBoton:"Entrar →",
+          textoBoton:"Ingresar",
           subtitulo:"Tu información es personal y confidencial",
           onSuccess:function(vOk){
             setSelId(String(vOk.id));
@@ -12153,8 +12231,15 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
           }
           var grupo = mesesAnt===null ? null : mesesAnt<=12 ? "novato" : mesesAnt<=35 ? "desarrollo" : "veterano";
           var tabla = grupo && tablaPremios && tablaPremios[grupo] ? tablaPremios[grupo] : null;
-          function calcPremio(uf) {
-            if (!tabla) return 0;
+          // Condición % hombre por antigüedad (configurable desde Supervisor → Gestionar Premios)
+          var _condCfgPremio = window.__condHombre || {novato:{activa:false,pct:60},desarrollo:{activa:false,pct:60},veterano:{activa:false,pct:60}};
+          function calcPremio(uf, homPct) {
+            if (!tabla || !grupo) return 0;
+            var cond = _condCfgPremio[grupo] || {activa:false,pct:60};
+            if (cond.activa) {
+              var pct = (homPct !== undefined) ? homPct : 100;
+              if (pct < (cond.pct||60)) return 0;
+            }
             for (var i=tabla.length-1;i>=0;i--) { if (uf>=tabla[i].desde) return tabla[i].monto; }
             return 0;
           }
@@ -12173,7 +12258,7 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
               // Try localStorage
               try {
                 var mesKey2 = new Date().getFullYear()+"-"+String(new Date().getMonth()+1).padStart(2,"0");
-                var cached = JSON.parse(localStorage.getItem("PREMIOS_"+mesKey2)||"[]");
+                var cached = JSON.parse(localStorage.getItem("PREMIOS_config")||"[]");
                 if (cached[imgIdx]) imgPremio = cached[imgIdx];
                 else if (cached.length > 0) imgPremio = cached[Math.min(imgIdx, cached.length-1)];
               } catch(e) {}
@@ -12183,14 +12268,18 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
           // ── Datos reales ──
           var ufReal = v.uf || 0;
           var comReal = calcComision(ufReal);
-          var premioReal = calcPremio(ufReal);
+          var homReal = (v.rep||[]).reduce(function(s,r){return s+(parseInt(r.hombres)||0);},0);
+          var mujReal = (v.rep||[]).reduce(function(s,r){return s+(parseInt(r.mujeres)||0);},0);
+          var totTitReal = homReal + mujReal;
+          var pctHomReal = totTitReal > 0 ? Math.round((homReal/totTitReal)*100) : 0;
+          var premioReal = calcPremio(ufReal, pctHomReal);
           var conectaReal = (v.rep||[]).reduce(function(s,r){return s+(r.conecta||0);},0);
           var totalReal = comReal + premioReal + (conectaReal * montoConUnitario);
 
-          // ── Simulación ──
+          // ── Simulación ── (para simulación asumimos que cumple condición hombre si es veterano)
           var ufSim2 = ufSim || ufMeta || v.metaUF || 0;
           var comSim = calcComision(ufSim2);
-          var premioSim = calcPremio(ufSim2);
+          var premioSim = calcPremio(ufSim2, pctHomReal);
           var totalSim = comSim + premioSim + (cantConecta * montoConUnitario);
 
           // ── Siguiente tramo ──
@@ -12238,7 +12327,7 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
                   , React.createElement('div', { style:{fontSize:11,color:"rgba(255,255,255,.5)",textTransform:"uppercase",marginBottom:8} }, "🎯 Mi meta en UF")
                   , React.createElement('div', { style:{display:"flex",alignItems:"center",gap:8} }
                     , React.createElement('input', { type:"number", min:"0", max:"200", step:"0.5", value:ufMeta,
-                        onFocus:function(e){e.target.select();},onChange:function(e){var v2=parseFloat(e.target.value)||0;setUfMeta(v2);setUfSim(v2);},
+                        onFocus:function(e){e.target.select();if(parseFloat(e.target.value)===0){setUfMeta("");setUfSim("");}},onChange:function(e){var v2=parseFloat(e.target.value)||0;setUfMeta(v2);setUfSim(v2);},onBlur:function(e){if(e.target.value===""||isNaN(parseFloat(e.target.value))){setUfMeta(0);setUfSim(0);}},
                         style:{width:"80px",padding:"8px",borderRadius:8,border:"1.5px solid rgba(255,150,150,.4)",background:"rgba(255,255,255,.1)",color:"#fff",fontSize:18,fontWeight:900,textAlign:"center",fontFamily:"inherit"} })
                     , React.createElement('span', { style:{color:"rgba(255,255,255,.5)",fontSize:13} }, "UF")
                   )
@@ -12249,7 +12338,7 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
                   , React.createElement('div', { style:{fontSize:11,color:"rgba(110,231,183,.7)",textTransform:"uppercase",marginBottom:8} }, "💚 Plan Conecta")
                   , React.createElement('div', { style:{display:"flex",alignItems:"center",gap:8} }
                     , React.createElement('input', { type:"number", min:"0", max:"50", step:"1", value:cantConecta,
-                        onFocus:function(e){e.target.select();},onChange:function(e){var cant=parseInt(e.target.value)||0;setPremios([{id:1,nombre:nombrePremio||"Plan Conecta",valorUnitario:montoConUnitario,cantidad:cant}]);},
+                        onFocus:function(e){e.target.select();if(parseInt(e.target.value)===0){setPremios([{id:1,nombre:nombrePremio||"Plan Conecta",valorUnitario:montoConUnitario,cantidad:""}]);}},onChange:function(e){var cant=parseInt(e.target.value)||0;setPremios([{id:1,nombre:nombrePremio||"Plan Conecta",valorUnitario:montoConUnitario,cantidad:cant}]);},onBlur:function(e){if(e.target.value===""||isNaN(parseInt(e.target.value))){setPremios([{id:1,nombre:nombrePremio||"Plan Conecta",valorUnitario:montoConUnitario,cantidad:0}]);}},
                         style:{width:"60px",padding:"8px",borderRadius:8,border:"1.5px solid rgba(110,231,183,.4)",background:"rgba(255,255,255,.1)",color:"#6EE7B7",fontSize:18,fontWeight:900,textAlign:"center",fontFamily:"inherit"} })
                     , React.createElement('span', { style:{color:"rgba(110,231,183,.6)",fontSize:12} }, "contratos")
                   )
