@@ -6256,7 +6256,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
   const [equipo,     setEquipo]     = useState(EJECUTIVOS_BASE.map(function(v) {
     var d = DATOS_PRUEBA[v.id] || {uf:0,dps:0,rep:[]};
     var hist = HISTORIAL_EXCEL[v.id] || {};
-    return Object.assign({}, v, { uf: parseFloat(d.uf)||0, dps: parseInt(d.dps)||0, rep: d.rep||[], historial: hist, metaUF: parseFloat(v.metaUF)||25 });
+    return Object.assign({}, v, { uf: parseFloat(d.uf)||0, dps: parseInt(d.dps)||0, rep: d.rep||[], historial: hist, metaUF: parseFloat(v.metaUF)||0 });
   }));
   const [loaded,     setLoaded]     = useState(false);
 
@@ -6354,7 +6354,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
               return Object.assign({rep:[]}, x, {
                 uf:  reps.length > 0 ? ufDesdeReps : (parseFloat(x.uf)||0),
                 dps: dpsFinal,
-                metaUF: parseFloat(x.metaUF) || 25,
+                metaUF: parseFloat(x.metaUF) || 0,
                 metaDPS: (parseInt(x.metaDPS)||0)===30 ? 0 : (x.metaDPS !== undefined ? parseInt(x.metaDPS)||0 : 0)
               });
             }).filter(function(x){ return x && x.nombre && typeof x.nombre === 'string' && x.nombre.trim() !== ''; });
@@ -6412,7 +6412,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                 return {
                   id: v.id, nombre: v.nombre, cargo: v.cargo||"Asesor Comercial",
                   pin: v.pin, rut: v.rut||"", email: v.email||"", fechaNac: v.fechaNac||"",
-                  metaUF: v.metaUF||25, metaPropia: v.metaPropia||0,
+                  metaUF: v.metaUF||0, metaPropia: v.metaPropia||0,
                   metaDPS: v.metaDPS||0, metaConecta: v.metaConecta||0,
                   historial: v.historial||{},
                   uf: 0, dps: 0, rep: [], crmResumen: v.crmResumen||{}
@@ -6480,7 +6480,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
         setSincronizado(false);
         storageGet(storageKey).then(function(d){
           if(d && Array.isArray(d)) {
-            var fallback = d.map(function(x){ return Object.assign({rep:[]}, x, {uf:parseFloat(x.uf)||0, dps:parseInt(x.dps)||0, metaUF:parseFloat(x.metaUF)||25}); });
+            var fallback = d.map(function(x){ return Object.assign({rep:[]}, x, {uf:parseFloat(x.uf)||0, dps:parseInt(x.dps)||0, metaUF:parseFloat(x.metaUF)||0}); });
             setEquipo(fallback);
           }
           setLoaded(true);
@@ -6500,7 +6500,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
           var merged2 = d.map(function(v){
             var eh = HISTORIAL_EXCEL[v.id] || HISTORIAL_EXCEL[String(v.id)] || {};
             var ch = v.historial || {};
-            return Object.assign({},v,{historial:Object.assign({},eh,ch), uf:parseFloat(v.uf)||0, dps:parseInt(v.dps)||0, metaUF:parseFloat(v.metaUF)||25});
+            return Object.assign({},v,{historial:Object.assign({},eh,ch), uf:parseFloat(v.uf)||0, dps:parseInt(v.dps)||0, metaUF:parseFloat(v.metaUF)||0});
           });
           merged2 = merged2.map(function(x){ return Object.assign({rep:[]}, x); });
         setEquipo(merged2);
@@ -11210,11 +11210,20 @@ function MetasIndividualesView({ equipo, setEquipo, setMetaEquipo, info }) {
   var totMes = metas.reduce(function(s,m){ return s+metaMes(m); },0);
 
   function guardar() {
-    setEquipo(equipo.map(function(v) {
+    var nuevoEquipo = equipo.map(function(v) {
       var m = metas.find(function(x) { return x.id === v.id; });
       if (!m) return v;
       return Object.assign({}, v, { metaUF: metaMes(m), metasSemanas: m.semanas });
-    }));
+    });
+    setEquipo(nuevoEquipo);
+    // Persistir metaUF de TODOS los ejecutivos en Firebase (sobreescribe valores viejos)
+    if (window.__fbDb && window.__fbDoc && window.__fbSetDoc && window.__saveSeguro) {
+      var mesKey = new Date().getFullYear()+"-"+String(new Date().getMonth()+1).padStart(2,"0");
+      var equipoParaGuardar = nuevoEquipo.map(function(v){
+        return Object.assign({}, v, { metaUF: parseFloat(v.metaUF)||0 });
+      });
+      window.__saveSeguro(mesKey, { equipo: equipoParaGuardar }, { fuente: "metas_individuales" });
+    }
     // Actualizar meta global del equipo = suma de todas las metas mes
     if (typeof setMetaEquipo === "function") { var tm = parseFloat(totMes)||0; if(tm>0) setMetaEquipo(tm); }
     setSaved(true);
