@@ -3299,97 +3299,31 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
 }
 
 // ── Análisis DPS (supervisor) ─────────────────────────────────────────────────
-function BenchmarkComparativa({ benchmark, equipo, totUF, totConVenta, totSinVenta, totPendiente, totRechazado, totBenef, totCttos, tasaCierre }) {
-  var [benchEjecOpen, setBenchEjecOpen] = React.useState(false);
-  var hoy = new Date();
-  var diaHoy = hoy.getDate();
-  var diasMes = new Date(hoy.getFullYear(), hoy.getMonth()+1, 0).getDate();
-  var diasHabiles = diasMes;
-  var diasHabilesHoy = Math.max(1, diaHoy);
-  var ritmoUFBench = benchmark.uf / diasHabiles;
-  var proyBenchHoy = parseFloat((ritmoUFBench * diasHabilesHoy).toFixed(2));
-  var pctVsBench = proyBenchHoy > 0 ? Math.round((totUF / proyBenchHoy) * 100) : 0;
-  var colorPct = function(p){ return p>=90?"#16A34A":p>=70?"#D97706":"#DC2626"; };
-  var bgPct    = function(p){ return p>=90?"#F0FDF4":p>=70?"#FFFBEB":"#FFF1F2"; };
-  var arrow    = function(p){ return p>=100?"▲":p>=80?"→":"▼"; };
-  var deltas = [
-    {l:"UF Total",        actual:totUF.toFixed(2)+" UF", bench:benchmark.uf+" UF",  pct:proyBenchHoy>0?Math.round((totUF/proyBenchHoy)*100):0},
-    {l:"DPS Con Venta",   actual:totConVenta,             bench:benchmark.dpsCV,     pct:benchmark.dpsCV>0?Math.round((totConVenta/benchmark.dpsCV)*100):0},
-    {l:"DPS Sin Venta",   actual:totSinVenta,             bench:benchmark.dpsSV,     pct:benchmark.dpsSV>0?Math.round((totSinVenta/benchmark.dpsSV)*100):0},
-    {l:"DPS Pendientes",  actual:totPendiente,            bench:benchmark.dpsP,      pct:benchmark.dpsP>0?Math.round((totPendiente/benchmark.dpsP)*100):0},
-    {l:"DPS Rechazadas",  actual:totRechazado,            bench:benchmark.dpsR,      pct:benchmark.dpsR>0?Math.round((totRechazado/benchmark.dpsR)*100):0},
-    {l:"N° Benef.",       actual:totBenef,                bench:benchmark.nBenef,    pct:benchmark.nBenef>0?Math.round((totBenef/benchmark.nBenef)*100):0},
-    {l:"Contratos",       actual:totCttos,                bench:benchmark.cttosDig,  pct:benchmark.cttosDig>0?Math.round((totCttos/benchmark.cttosDig)*100):0},
-    {l:"Tasa Cierre",     actual:tasaCierre+"%",          bench:benchmark.tasa+"%",  pct:benchmark.tasa>0?Math.round((tasaCierre/benchmark.tasa)*100):0},
-  ];
-  return React.createElement("div",{style:{marginTop:24,background:"linear-gradient(135deg,#1E3A5F,#1D4ED8)",borderRadius:18,padding:"20px 22px",color:"#fff"}}
-    ,React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:8}}
-      ,React.createElement("div",null
-        ,React.createElement("div",{style:{fontSize:16,fontWeight:900}},"📌 Comparativa vs Benchmark: "+benchmark.mesLabel)
-        ,React.createElement("div",{style:{fontSize:11,color:"rgba(255,255,255,.6)",marginTop:2}},"Día "+diaHoy+" de "+diasMes+" · Ritmo benchmark: "+ritmoUFBench.toFixed(2)+" UF/día · Proyección al hoy: "+proyBenchHoy+" UF")
-      )
-      ,React.createElement("div",{style:{background:bgPct(pctVsBench),borderRadius:12,padding:"10px 18px",textAlign:"center"}}
-        ,React.createElement("div",{style:{fontSize:28,fontWeight:900,color:colorPct(pctVsBench)}},
-          pctVsBench===100?"✓ En ritmo":
-          pctVsBench>100?("+")+(pctVsBench-100)+"%":
-          (pctVsBench-100)+"%"
+
+function CondicionHombreEditor() {
+  var DEFAULT={novato:{activa:false,pct:60},desarrollo:{activa:false,pct:60},veterano:{activa:false,pct:60}};
+  var st=React.useState(window.__condHombre||DEFAULT);
+  var condCfg=st[0],setCondCfg=st[1];
+  var grupos=[{key:"novato",label:"Novato (0-12 meses)"},{key:"desarrollo",label:"Desarrollo (13-35 meses)"},{key:"veterano",label:"Veterano (36+ meses)"}];
+  function save(n){window.__condHombre=n;setCondCfg(Object.assign({},n));if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","config_premios"),{condHombre:n,ts:Date.now()},{merge:true}).catch(function(){});}
+  return React.createElement("div",{style:{background:"#FFF8E7",borderRadius:12,padding:"14px 18px",marginBottom:16,border:"1px solid #FCD34D"}}
+    ,React.createElement("div",{style:{fontWeight:800,color:"#92400E",marginBottom:4,fontSize:14}},"Condicion % Titulares Hombre por Antiguedad")
+    ,React.createElement("div",{style:{fontSize:11,color:"#78350F",marginBottom:12}},"Si activa, el AGV solo gana el premio si el % de titulares hombre es igual o mayor al minimo.")
+    ,grupos.map(function(g){
+      var cfg=condCfg[g.key]||{activa:false,pct:60};
+      return React.createElement("div",{key:g.key,style:{display:"flex",alignItems:"center",gap:12,marginBottom:10,padding:"10px 12px",background:cfg.activa?"#FEF3C7":"#fff",borderRadius:10,border:"1px solid "+(cfg.activa?"#FCD34D":"#E5E7EB")}}
+        ,React.createElement("div",{style:{flex:1,fontSize:13,fontWeight:700,color:"#374151"}},g.label)
+        ,React.createElement("select",{value:cfg.activa?"si":"no",onChange:function(e){var n=Object.assign({},condCfg);n[g.key]=Object.assign({},cfg,{activa:e.target.value==="si"});save(n);},style:{padding:"5px 8px",borderRadius:8,border:"1.5px solid #D1D5DB",fontSize:13,fontWeight:700,fontFamily:"inherit",background:"#fff",cursor:"pointer"}}
+          ,React.createElement("option",{value:"no"},"No aplica")
+          ,React.createElement("option",{value:"si"},"Si aplica")
         )
-        ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:2}},
-          pctVsBench>=100?"adelante del benchmark":"vs ritmo benchmark hoy"
+        ,cfg.activa&&React.createElement(React.Fragment,null
+          ,React.createElement("span",{style:{fontSize:12,color:"#92400E"}},">=")
+          ,React.createElement("input",{type:"number",min:"0",max:"100",step:"1",value:cfg.pct,onFocus:function(e){e.target.select();},onChange:function(e){var val=Math.min(100,Math.max(0,parseInt(e.target.value)||0));var n=Object.assign({},condCfg);n[g.key]=Object.assign({},cfg,{pct:val});save(n);},style:{width:55,padding:"5px 8px",borderRadius:8,border:"1.5px solid #FCD34D",fontSize:14,fontWeight:900,fontFamily:"inherit",textAlign:"center"}})
+          ,React.createElement("span",{style:{fontSize:12,color:"#92400E"}},"%")
         )
-      )
-    )
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:16}}
-      ,deltas.map(function(d){
-        return React.createElement("div",{key:d.l,style:{background:"rgba(255,255,255,.1)",borderRadius:10,padding:"10px",textAlign:"center",border:"1px solid rgba(255,255,255,.15)"}}
-          ,React.createElement("div",{style:{fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:4}},d.l)
-          ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:"#fff"}},d.actual)
-          ,React.createElement("div",{style:{fontSize:10,color:"rgba(255,255,255,.5)",margin:"2px 0"}},"bench: "+d.bench)
-          ,React.createElement("div",{style:{fontSize:12,fontWeight:900,color:colorPct(d.pct),background:"rgba(255,255,255,.15)",borderRadius:99,padding:"1px 8px",display:"inline-block"}},arrow(d.pct)+" "+d.pct+"%")
-        );
-      })
-    )
-    ,React.createElement("div",{style:{borderTop:"1px solid rgba(255,255,255,.15)",paddingTop:12}}
-      ,React.createElement("button",{onClick:function(){setBenchEjecOpen(!benchEjecOpen);},
-        style:{background:"rgba(255,255,255,.12)",border:"1px solid rgba(255,255,255,.2)",borderRadius:10,padding:"8px 16px",color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700,width:"100%",textAlign:"left"}}
-        ,(benchEjecOpen?"▲":"▼")+" Ver comparativa por ejecutivo vs "+benchmark.mesLabel)
-      ,benchEjecOpen && React.createElement("div",{style:{marginTop:12,overflowX:"auto"}}
-        ,React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:11}}
-          ,React.createElement("thead",null
-            ,React.createElement("tr",{style:{borderBottom:"1px solid rgba(255,255,255,.2)"}}
-              ,["Ejecutivo","UF Actual","UF Bench","% vs Bench","Estado"].map(function(h){
-                return React.createElement("th",{key:h,style:{padding:"8px 10px",textAlign:h==="Ejecutivo"?"left":"center",color:"rgba(255,255,255,.6)",fontWeight:700,fontSize:10,textTransform:"uppercase"}},h);
-              })
-            )
-          )
-          ,React.createElement("tbody",null
-            ,equipo.filter(function(v){return v&&v.nombre;}).map(function(v){
-              var ufActual = parseFloat(v.uf)||0;
-              var benchKey = Object.keys(v.historial||{}).find(function(k){
-                var d=new Date(k+"-01");
-                var lbl=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][d.getMonth()]+" "+d.getFullYear();
-                return lbl.toLowerCase()===benchmark.mesLabel.toLowerCase();
-              });
-              var ufBench = benchKey ? (parseFloat((v.historial[benchKey]||{}).ufDig)||0) : null;
-              var ritmoE = ufBench!==null ? parseFloat((ufBench/diasHabiles*diasHabilesHoy).toFixed(2)) : null;
-              var pctE = ritmoE!==null&&ritmoE>0 ? Math.round((ufActual/ritmoE)*100) : null;
-              return React.createElement("tr",{key:v.id,style:{borderBottom:"1px solid rgba(255,255,255,.08)"}}
-                ,React.createElement("td",{style:{padding:"8px 10px",fontWeight:700,color:"#fff"}},v.nombre.split(" ")[0]+" "+(v.nombre.split(" ").slice(-1)[0]||""))
-                ,React.createElement("td",{style:{padding:"8px 10px",textAlign:"center",color:"#C9A84C",fontWeight:700}},ufActual.toFixed(2)+" UF")
-                ,React.createElement("td",{style:{padding:"8px 10px",textAlign:"center",color:"rgba(255,255,255,.6)"}},ufBench!==null?(ufBench.toFixed(2)+" UF"):React.createElement("span",{style:{color:"rgba(255,255,255,.3)"}},"No estaba"))
-                ,React.createElement("td",{style:{padding:"8px 10px",textAlign:"center"}},pctE!==null?React.createElement("span",{style:{background:bgPct(pctE),color:colorPct(pctE),borderRadius:99,padding:"2px 10px",fontWeight:900}},arrow(pctE)+" "+pctE+"%"):React.createElement("span",{style:{color:"rgba(255,255,255,.3)"}},"—"))
-                ,React.createElement("td",{style:{padding:"8px 10px",textAlign:"center",fontSize:10}},
-                  ufActual===0?React.createElement("span",{style:{background:"#FEE2E2",color:"#DC2626",borderRadius:99,padding:"2px 8px",fontWeight:700}},"En 0"):
-                  pctE!==null&&pctE>=90?React.createElement("span",{style:{background:"#DCFCE7",color:"#16A34A",borderRadius:99,padding:"2px 8px",fontWeight:700}},"Al ritmo"):
-                  pctE!==null?React.createElement("span",{style:{background:"#FEF9C3",color:"#92400E",borderRadius:99,padding:"2px 8px",fontWeight:700}},"Rezagado"):
-                  React.createElement("span",{style:{color:"rgba(255,255,255,.3)"}},"—")
-                )
-              );
-            })
-          )
-        )
-      )
-    )
+      );
+    })
   );
 }
 
@@ -3579,6 +3513,15 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
   }
 
   function renderDetalleF2() {
+    if (kpiDetalle==="agvCero") {
+      var enCero=datos.filter(function(p){return (parseFloat(p.uf)||0)===0;});
+      return React.createElement("div",{style:{background:"#FFF1F2",borderRadius:12,padding:"16px 20px",marginBottom:12,border:"1px solid #FCA5A5"}}
+        ,React.createElement("div",{style:{fontWeight:900,color:"#DC2626",fontSize:14,marginBottom:10}},"AGV en 0 UF este mes ("+enCero.length+")")
+        ,React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:8}}
+          ,enCero.map(function(p){return React.createElement("div",{key:p.id,style:{background:"#FEE2E2",borderRadius:99,padding:"5px 14px",fontSize:12,fontWeight:700,color:"#DC2626"}},p.nombre);})
+        )
+      );
+    }
     return renderDetalleKpi({
       totUF:      {l:"Total UF",           c:"#C9A84C", fn:function(v){return parseFloat(v.uf||0).toFixed(2)+" UF";}},
       totBenef:   {l:"N° Beneficiarios",   c:"#0891B2", fn:function(v){return v.nBenef||0;}},
@@ -3613,7 +3556,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
             ,tieneData&&setBenchmark&&React.createElement("div",{
                 onClick:function(e){
                   e.stopPropagation();
-                  var bm={mesLabel:m.nom.split(" de ")[0],uf:m.totUF,dps:m.totT,dpsCV:m.totC,dpsSV:m.totS,dpsP:m.totP,dpsR:m.totR,nBenef:m.totB,cttosDig:m.totCt,tasa:m.tasa};
+                  var bm={mesLabel:m.nom.split(" de ")[0],mesKey:m.key,uf:m.totUF,dps:m.totT,dpsCV:m.totC,dpsSV:m.totS,dpsP:m.totP,dpsR:m.totR,nBenef:m.totB,cttosDig:m.totCt,tasa:m.tasa};
                   setBenchmark(bm);
                   if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
                     window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","benchmark"),bm);
@@ -3668,7 +3611,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
         {k:"totBenef",  l:"N° Beneficiarios",    v:totBenef,                c:"#0891B2", bg:"#F0FDFA", brd:"#A7F3D0"},
         {k:"totCttos",  l:"Contratos Digitados", v:totCttos,                c:"#059669", bg:"#F0FDF4", brd:"#86EFAC"},
         {k:"totConecta",l:"💚 Planes Conecta",   v:totConectaMes,           c:"#059669", bg:"#ECFDF5", brd:"#6EE7B7"},
-        {k:"agvCero",   l:"🔴 AGV en 0",         v:agvEnCero,  c:agvEnCero>0?"#DC2626":"#16A34A", bg:agvEnCero>0?"#FFF1F2":"#F0FDF4", brd:agvEnCero>0?"#FCA5A5":"#86EFAC"}
+        {k:"agvCero",l:"AGV en 0",v:agvEnCero,c:agvEnCero>0?"#DC2626":"#16A34A",bg:agvEnCero>0?"#FFF1F2":"#F0FDF4",brd:agvEnCero>0?"#FCA5A5":"#86EFAC"}
       ].map(function(k){
         var isOpen = kpiDetalle===k.k;
         return React.createElement("div",{key:k.l,onClick:function(){setKpiDetalle(isOpen?null:k.k);},
@@ -3744,9 +3687,79 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
       )
     )
     ,React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",marginTop:8,textAlign:"right"}},"💡 Haz click en cualquier celda de datos para editar el valor directamente")
+  );
+}
 
-    // ── COMPARATIVA BENCHMARK ──────────────────────────────────────────────────
-    ,benchmark && React.createElement(BenchmarkComparativa,{benchmark:benchmark,equipo:equipo,totUF:totUF,totConVenta:totConVenta,totSinVenta:totSinVenta,totPendiente:totPendiente,totRechazado:totRechazado,totBenef:totBenef,totCttos:totCttos,tasaCierre:tasaCierre})
+
+function BenchmarkComparativa(props) {
+  var benchmark=props.benchmark,equipo=props.equipo,totUF=props.totUF,totConVenta=props.totConVenta,totSinVenta=props.totSinVenta,totPendiente=props.totPendiente,totRechazado=props.totRechazado,totBenef=props.totBenef,totCttos=props.totCttos,tasaCierre=props.tasaCierre;
+  var st=React.useState(false); var benchEjecOpen=st[0],setBenchEjecOpen=st[1];
+  var hoy=new Date(),diaHoy=hoy.getDate(),diasMes=new Date(hoy.getFullYear(),hoy.getMonth()+1,0).getDate();
+  var ritmo=benchmark.uf/diasMes, proy=parseFloat((ritmo*diaHoy).toFixed(2));
+  var pct=proy>0?Math.round((totUF/proy)*100):0, diff=pct-100;
+  var cP=function(p){return p>=90?"#16A34A":p>=70?"#D97706":"#DC2626";};
+  var bP=function(p){return p>=90?"#F0FDF4":p>=70?"#FFFBEB":"#FFF1F2";};
+  var fD=function(d){return d===0?"En ritmo":d>0?("+"+d+"%"):(d+"%");};
+  var deltas=[
+    {l:"UF Total",     a:totUF.toFixed(2)+" UF",b:benchmark.uf+" UF",   p:proy>0?Math.round((totUF/proy)*100):0},
+    {l:"DPS c/Venta",  a:totConVenta,            b:benchmark.dpsCV,      p:benchmark.dpsCV>0?Math.round((totConVenta/benchmark.dpsCV)*100):0},
+    {l:"DPS s/Venta",  a:totSinVenta,            b:benchmark.dpsSV,      p:benchmark.dpsSV>0?Math.round((totSinVenta/benchmark.dpsSV)*100):0},
+    {l:"Pendientes",   a:totPendiente,            b:benchmark.dpsP,       p:benchmark.dpsP>0?Math.round((totPendiente/benchmark.dpsP)*100):0},
+    {l:"Rechazadas",   a:totRechazado,            b:benchmark.dpsR,       p:benchmark.dpsR>0?Math.round((totRechazado/benchmark.dpsR)*100):0},
+    {l:"Beneficiarios",a:totBenef,                b:benchmark.nBenef,     p:benchmark.nBenef>0?Math.round((totBenef/benchmark.nBenef)*100):0},
+    {l:"Contratos",    a:totCttos,                b:benchmark.cttosDig,   p:benchmark.cttosDig>0?Math.round((totCttos/benchmark.cttosDig)*100):0},
+    {l:"Tasa Cierre",  a:tasaCierre+"%",          b:benchmark.tasa+"%",   p:benchmark.tasa>0?Math.round((tasaCierre/benchmark.tasa)*100):0},
+  ];
+  return React.createElement("div",{style:{marginTop:24,background:"linear-gradient(135deg,#1E3A5F,#1D4ED8)",borderRadius:18,padding:"20px 22px",color:"#fff"}}
+    ,React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:8}}
+      ,React.createElement("div",null
+        ,React.createElement("div",{style:{fontSize:16,fontWeight:900}},"Comparativa vs Benchmark: "+benchmark.mesLabel)
+        ,React.createElement("div",{style:{fontSize:11,color:"rgba(255,255,255,.6)",marginTop:2}},"Dia "+diaHoy+" de "+diasMes+" - Ritmo: "+ritmo.toFixed(2)+" UF/dia - Proyeccion: "+proy+" UF")
+      )
+      ,React.createElement("div",{style:{background:bP(pct),borderRadius:12,padding:"10px 18px",textAlign:"center"}}
+        ,React.createElement("div",{style:{fontSize:28,fontWeight:900,color:cP(pct)}},fD(diff))
+        ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:2}},diff>=0?"Adelante del benchmark":"vs ritmo benchmark")
+      )
+    )
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:16}}
+      ,deltas.map(function(d){var dd=d.p-100; return React.createElement("div",{key:d.l,style:{background:"rgba(255,255,255,.1)",borderRadius:10,padding:"10px",textAlign:"center",border:"1px solid rgba(255,255,255,.15)"}}
+        ,React.createElement("div",{style:{fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",marginBottom:4}},d.l)
+        ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:"#fff"}},d.a)
+        ,React.createElement("div",{style:{fontSize:10,color:"rgba(255,255,255,.5)",margin:"2px 0"}},"bench: "+d.b)
+        ,React.createElement("div",{style:{fontSize:12,fontWeight:900,color:cP(d.p),background:"rgba(255,255,255,.15)",borderRadius:99,padding:"1px 8px",display:"inline-block"}},fD(dd))
+      );})
+    )
+    ,React.createElement("div",{style:{borderTop:"1px solid rgba(255,255,255,.15)",paddingTop:12}}
+      ,React.createElement("button",{onClick:function(){setBenchEjecOpen(!benchEjecOpen);},style:{background:"rgba(255,255,255,.12)",border:"1px solid rgba(255,255,255,.2)",borderRadius:10,padding:"8px 16px",color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700,width:"100%",textAlign:"left"}}
+        ,(benchEjecOpen?"(-)":"(+)")+" Ver comparativa por ejecutivo vs "+benchmark.mesLabel)
+      ,benchEjecOpen&&React.createElement("div",{style:{marginTop:12,overflowX:"auto"}}
+        ,React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:11}}
+          ,React.createElement("thead",null,React.createElement("tr",{style:{borderBottom:"1px solid rgba(255,255,255,.2)"}}
+            ,["Ejecutivo","UF Actual","UF Bench","Diferencia","Estado"].map(function(h){return React.createElement("th",{key:h,style:{padding:"8px 10px",textAlign:h==="Ejecutivo"?"left":"center",color:"rgba(255,255,255,.6)",fontWeight:700,fontSize:10,textTransform:"uppercase"}},h);})
+          ))
+          ,React.createElement("tbody",null,equipo.filter(function(v){return v&&v.nombre;}).map(function(v){
+            var uA=parseFloat(v.uf)||0;
+            var uB=benchmark.mesKey&&(v.historial||{})[benchmark.mesKey]?(parseFloat(((v.historial||{})[benchmark.mesKey]||{}).ufDig)||0):null;
+            var rE=uB!==null?parseFloat((uB/diasMes*diaHoy).toFixed(2)):null;
+            var pE=rE!==null&&rE>0?Math.round((uA/rE)*100):null;
+            var dE=pE!==null?pE-100:null;
+            return React.createElement("tr",{key:v.id,style:{borderBottom:"1px solid rgba(255,255,255,.08)"}}
+              ,React.createElement("td",{style:{padding:"8px 10px",fontWeight:700,color:"#fff"}},v.nombre.split(" ")[0]+" "+(v.nombre.split(" ").slice(-1)[0]||""))
+              ,React.createElement("td",{style:{padding:"8px 10px",textAlign:"center",color:"#C9A84C",fontWeight:700}},uA.toFixed(2)+" UF")
+              ,React.createElement("td",{style:{padding:"8px 10px",textAlign:"center",color:"rgba(255,255,255,.6)"}},uB!==null?(uB.toFixed(2)+" UF"):React.createElement("span",{style:{color:"rgba(255,255,255,.3)"}},"No estaba"))
+              ,React.createElement("td",{style:{padding:"8px 10px",textAlign:"center"}},dE!==null?React.createElement("span",{style:{background:bP(pE),color:cP(pE),borderRadius:99,padding:"2px 10px",fontWeight:900}},fD(dE)):React.createElement("span",{style:{color:"rgba(255,255,255,.3)"}},"--"))
+              ,React.createElement("td",{style:{padding:"8px 10px",textAlign:"center",fontSize:10}},
+                uA===0?React.createElement("span",{style:{background:"#FEE2E2",color:"#DC2626",borderRadius:99,padding:"2px 8px",fontWeight:700}},"En 0"):
+                pE!==null&&pE>=90?React.createElement("span",{style:{background:"#DCFCE7",color:"#16A34A",borderRadius:99,padding:"2px 8px",fontWeight:700}},"Al ritmo"):
+                pE!==null?React.createElement("span",{style:{background:"#FEF9C3",color:"#92400E",borderRadius:99,padding:"2px 8px",fontWeight:700}},"Rezagado"):
+                React.createElement("span",{style:{color:"rgba(255,255,255,.3)"}},"--")
+              )
+            );
+          }))
+        )
+      )
+    )
+    ,benchmark&&React.createElement(BenchmarkComparativa,{benchmark:benchmark,equipo:equipo,totUF:totUF,totConVenta:totConVenta,totSinVenta:totSinVenta,totPendiente:totPendiente,totRechazado:totRechazado,totBenef:totBenef,totCttos:totCttos,tasaCierre:tasaCierre})
   );
 }
 
@@ -5748,58 +5761,7 @@ function GestPremiosView({ premiosImgs, setPremiosImgs, info, R, RD, tablaPremio
               })
             )
           ),
-          (function(){
-            var grupos = [
-              {key:"novato",    label:"\u{1F7E3} Novato (0-12 meses)"},
-              {key:"desarrollo",label:"\u{1F535} Desarrollo (13-35 meses)"},
-              {key:"veterano",  label:"\u{1F396}\uFE0F Veterano (36+ meses)"},
-            ];
-            var condCfg = window.__condHombre || {novato:{activa:false,pct:60},desarrollo:{activa:false,pct:60},veterano:{activa:false,pct:60}};
-            function saveCondHombre(nueva) {
-              window.__condHombre = nueva;
-              if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
-                window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","config_premios"),{condHombre:nueva,ts:Date.now()},{merge:true}).catch(function(){});
-            }
-            return React.createElement("div",{style:{background:"#FFF8E7",borderRadius:12,padding:"14px 18px",marginBottom:16,border:"1px solid #FCD34D"}},
-              React.createElement("div",{style:{fontWeight:800,color:"#92400E",marginBottom:4,fontSize:14}},"\u{1F468} Condici\xF3n % Titulares Hombre por Antig\xFCedad"),
-              React.createElement("div",{style:{fontSize:11,color:"#78350F",marginBottom:12}},"Si est\xE1 activa, el AGV solo gana el premio si el % de titulares hombre del mes es igual o mayor al m\xEDnimo indicado."),
-              grupos.map(function(g){
-                var cfg = condCfg[g.key]||{activa:false,pct:60};
-                return React.createElement("div",{key:g.key,style:{display:"flex",alignItems:"center",gap:12,marginBottom:10,padding:"10px 12px",background:cfg.activa?"#FEF3C7":"#fff",borderRadius:10,border:"1px solid "+(cfg.activa?"#FCD34D":"#E5E7EB")}},
-                  React.createElement("div",{style:{flex:1,fontSize:13,fontWeight:700,color:"#374151"}},g.label),
-                  React.createElement("select",{
-                    value: cfg.activa?"si":"no",
-                    onChange:function(e){
-                      var nueva = Object.assign({},condCfg);
-                      nueva[g.key] = Object.assign({},cfg,{activa:e.target.value==="si"});
-                      saveCondHombre(nueva);
-                    },
-                    style:{padding:"5px 8px",borderRadius:8,border:"1.5px solid #D1D5DB",fontSize:13,fontWeight:700,fontFamily:"inherit",background:"#fff",cursor:"pointer"}
-                  },
-                    React.createElement("option",{value:"no"},"No aplica"),
-                    React.createElement("option",{value:"si"},"S\xED aplica")
-                  ),
-                  cfg.activa && React.createElement(React.Fragment,null,
-                    React.createElement("span",{style:{fontSize:12,color:"#92400E"}},"\u2265"),
-                    React.createElement("input",{type:"number",min:"0",max:"100",step:"1",
-                      defaultValue:cfg.pct,
-                      onFocus:function(e){e.target.select();},
-                      onBlur:function(e){
-                        var val=Math.min(100,Math.max(0,parseInt(e.target.value)||0));
-                        e.target.value=val;
-                        var nueva=Object.assign({},condCfg);
-                        nueva[g.key]=Object.assign({},cfg,{pct:val});
-                        saveCondHombre(nueva);
-                      },
-                      style:{width:55,padding:"5px 8px",borderRadius:8,border:"1.5px solid #FCD34D",fontSize:14,fontWeight:900,fontFamily:"inherit",textAlign:"center"}
-                    }),
-                    React.createElement("span",{style:{fontSize:12,color:"#92400E"}},"%")
-                  )
-                );
-              })
-            );
-          })(),
-                    filasTabs,
+          React.createElement(CondicionHombreEditor,{key:"condHombreEditor"}),                    filasTabs,
           React.createElement("button",{
             onClick:function(){if(window.confirm("¿Restaurar valores originales?"))saveTablaPremios(TABLA_DEFAULT);},
             style:{background:"#F3F4F6",color:"#6B7280",border:"none",borderRadius:10,padding:"8px 16px",fontSize:12,cursor:"pointer",fontWeight:700,fontFamily:"inherit",marginTop:8}
@@ -7550,7 +7512,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                       var d=bmDiff(totUF,bmProp.uf);
                       // Solo mostrar si hay benchmark activo con datos reales
                       if(!bmProp||!bmProp.mesLabel||bmProp.mesLabel==="Benchmark"||!bmProp.uf) return null;
-                      return React.createElement('div',{style:{fontSize:11,fontWeight:700,marginTop:5,color:d?d.color:"#9CA3AF"}},
+                      return React.createElement('div',{style:{fontSize:11,fontWeight:700,marginTop:5,color:"#93C5FD"}},
                         d?d.txt:"=","  vs benchmark ",bmProp.mesLabel," · esperado ",bmProp.uf," UF (día ",new Date().getDate(),"/",new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate(),")"
                       );
                     })()
