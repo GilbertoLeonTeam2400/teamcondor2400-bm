@@ -3327,6 +3327,78 @@ function CondicionHombreEditor() {
   );
 }
 
+function BenchmarkComparativa(props) {
+  var benchmark=props.benchmark,equipo=props.equipo,totUF=props.totUF,totConVenta=props.totConVenta,totSinVenta=props.totSinVenta,totPendiente=props.totPendiente,totRechazado=props.totRechazado,totBenef=props.totBenef,totCttos=props.totCttos,tasaCierre=props.tasaCierre;
+  var st=React.useState(false); var benchEjecOpen=st[0],setBenchEjecOpen=st[1];
+  var hoy=new Date(),diaHoy=hoy.getDate(),diasMes=new Date(hoy.getFullYear(),hoy.getMonth()+1,0).getDate();
+  var ritmo=benchmark.uf/diasMes, proy=parseFloat((ritmo*diaHoy).toFixed(2));
+  var pct=proy>0?Math.round((totUF/proy)*100):0, diff=pct-100;
+  var cP=function(p){return p>=90?"#16A34A":p>=70?"#D97706":"#DC2626";};
+  var bP=function(p){return p>=90?"#F0FDF4":p>=70?"#FFFBEB":"#FFF1F2";};
+  var fD=function(d){return d===0?"En ritmo":d>0?("+"+d+"%"):(d+"%");};
+  var deltas=[
+    {l:"UF Total",     a:totUF.toFixed(2)+" UF",b:benchmark.uf+" UF",   p:proy>0?Math.round((totUF/proy)*100):0},
+    {l:"DPS c/Venta",  a:totConVenta,            b:benchmark.dpsCV,      p:benchmark.dpsCV>0?Math.round((totConVenta/benchmark.dpsCV)*100):0},
+    {l:"DPS s/Venta",  a:totSinVenta,            b:benchmark.dpsSV,      p:benchmark.dpsSV>0?Math.round((totSinVenta/benchmark.dpsSV)*100):0},
+    {l:"Pendientes",   a:totPendiente,            b:benchmark.dpsP,       p:benchmark.dpsP>0?Math.round((totPendiente/benchmark.dpsP)*100):0},
+    {l:"Rechazadas",   a:totRechazado,            b:benchmark.dpsR,       p:benchmark.dpsR>0?Math.round((totRechazado/benchmark.dpsR)*100):0},
+    {l:"Beneficiarios",a:totBenef,                b:benchmark.nBenef,     p:benchmark.nBenef>0?Math.round((totBenef/benchmark.nBenef)*100):0},
+    {l:"Contratos",    a:totCttos,                b:benchmark.cttosDig,   p:benchmark.cttosDig>0?Math.round((totCttos/benchmark.cttosDig)*100):0},
+    {l:"Tasa Cierre",  a:tasaCierre+"%",          b:benchmark.tasa+"%",   p:benchmark.tasa>0?Math.round((tasaCierre/benchmark.tasa)*100):0},
+  ];
+  return React.createElement("div",{style:{marginTop:24,background:"linear-gradient(135deg,#1E3A5F,#1D4ED8)",borderRadius:18,padding:"20px 22px",color:"#fff"}}
+    ,React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:8}}
+      ,React.createElement("div",null
+        ,React.createElement("div",{style:{fontSize:16,fontWeight:900}},"Comparativa vs Benchmark: "+benchmark.mesLabel)
+        ,React.createElement("div",{style:{fontSize:11,color:"rgba(255,255,255,.6)",marginTop:2}},"Dia "+diaHoy+" de "+diasMes+" - Ritmo: "+ritmo.toFixed(2)+" UF/dia - Proyeccion: "+proy+" UF")
+      )
+      ,React.createElement("div",{style:{background:bP(pct),borderRadius:12,padding:"10px 18px",textAlign:"center"}}
+        ,React.createElement("div",{style:{fontSize:28,fontWeight:900,color:cP(pct)}},fD(diff))
+        ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:2}},diff>=0?"Adelante del benchmark":"vs ritmo benchmark")
+      )
+    )
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:16}}
+      ,deltas.map(function(d){var dd=d.p-100; return React.createElement("div",{key:d.l,style:{background:"rgba(255,255,255,.1)",borderRadius:10,padding:"10px",textAlign:"center",border:"1px solid rgba(255,255,255,.15)"}}
+        ,React.createElement("div",{style:{fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",marginBottom:4}},d.l)
+        ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:"#fff"}},d.a)
+        ,React.createElement("div",{style:{fontSize:10,color:"rgba(255,255,255,.5)",margin:"2px 0"}},"bench: "+d.b)
+        ,React.createElement("div",{style:{fontSize:12,fontWeight:900,color:cP(d.p),background:"rgba(255,255,255,.15)",borderRadius:99,padding:"1px 8px",display:"inline-block"}},fD(dd))
+      );})
+    )
+    ,React.createElement("div",{style:{borderTop:"1px solid rgba(255,255,255,.15)",paddingTop:12}}
+      ,React.createElement("button",{onClick:function(){setBenchEjecOpen(!benchEjecOpen);},style:{background:"rgba(255,255,255,.12)",border:"1px solid rgba(255,255,255,.2)",borderRadius:10,padding:"8px 16px",color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700,width:"100%",textAlign:"left"}}
+        ,(benchEjecOpen?"(-)":"(+)")+" Ver comparativa por ejecutivo vs "+benchmark.mesLabel)
+      ,benchEjecOpen&&React.createElement("div",{style:{marginTop:12,overflowX:"auto"}}
+        ,React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:11}}
+          ,React.createElement("thead",null,React.createElement("tr",{style:{borderBottom:"1px solid rgba(255,255,255,.2)"}}
+            ,["Ejecutivo","UF Actual","UF Bench","Diferencia","Estado"].map(function(h){return React.createElement("th",{key:h,style:{padding:"8px 10px",textAlign:h==="Ejecutivo"?"left":"center",color:"rgba(255,255,255,.6)",fontWeight:700,fontSize:10,textTransform:"uppercase"}},h);})
+          ))
+          ,React.createElement("tbody",null,equipo.filter(function(v){return v&&v.nombre;}).map(function(v){
+            var uA=parseFloat(v.uf)||0;
+            var uB=benchmark.mesKey&&(v.historial||{})[benchmark.mesKey]?(parseFloat(((v.historial||{})[benchmark.mesKey]||{}).ufDig)||0):null;
+            var rE=uB!==null?parseFloat((uB/diasMes*diaHoy).toFixed(2)):null;
+            var pE=rE!==null&&rE>0?Math.round((uA/rE)*100):null;
+            var dE=pE!==null?pE-100:null;
+            return React.createElement("tr",{key:v.id,style:{borderBottom:"1px solid rgba(255,255,255,.08)"}}
+              ,React.createElement("td",{style:{padding:"8px 10px",fontWeight:700,color:"#fff"}},v.nombre.split(" ")[0]+" "+(v.nombre.split(" ").slice(-1)[0]||""))
+              ,React.createElement("td",{style:{padding:"8px 10px",textAlign:"center",color:"#C9A84C",fontWeight:700}},uA.toFixed(2)+" UF")
+              ,React.createElement("td",{style:{padding:"8px 10px",textAlign:"center",color:"rgba(255,255,255,.6)"}},uB!==null?(uB.toFixed(2)+" UF"):React.createElement("span",{style:{color:"rgba(255,255,255,.3)"}},"No estaba"))
+              ,React.createElement("td",{style:{padding:"8px 10px",textAlign:"center"}},dE!==null?React.createElement("span",{style:{background:bP(pE),color:cP(pE),borderRadius:99,padding:"2px 10px",fontWeight:900}},fD(dE)):React.createElement("span",{style:{color:"rgba(255,255,255,.3)"}},"--"))
+              ,React.createElement("td",{style:{padding:"8px 10px",textAlign:"center",fontSize:10}},
+                uA===0?React.createElement("span",{style:{background:"#FEE2E2",color:"#DC2626",borderRadius:99,padding:"2px 8px",fontWeight:700}},"En 0"):
+                pE!==null&&pE>=90?React.createElement("span",{style:{background:"#DCFCE7",color:"#16A34A",borderRadius:99,padding:"2px 8px",fontWeight:700}},"Al ritmo"):
+                pE!==null?React.createElement("span",{style:{background:"#FEF9C3",color:"#92400E",borderRadius:99,padding:"2px 8px",fontWeight:700}},"Rezagado"):
+                React.createElement("span",{style:{color:"rgba(255,255,255,.3)"}},"--")
+              )
+            );
+          }))
+        )
+      )
+    )
+    ,benchmark&&benchmark.mesLabel&&React.createElement(BenchmarkComparativa,{benchmark:benchmark,equipo:equipo,totUF:totUF,totConVenta:totConVenta,totSinVenta:totSinVenta,totPendiente:totPendiente,totRechazado:totRechazado,totBenef:totBenef,totCttos:totCttos,tasaCierre:tasaCierre})
+  );
+}
+
 function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchmark, setSupVista }) {
   var [mesSeleccionado, setMesSeleccionado] = React.useState(info.mesKey);
   var [sortCol, setSortCol] = React.useState("dpsConVenta");
@@ -3700,77 +3772,6 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
 }
 
 
-function BenchmarkComparativa(props) {
-  var benchmark=props.benchmark,equipo=props.equipo,totUF=props.totUF,totConVenta=props.totConVenta,totSinVenta=props.totSinVenta,totPendiente=props.totPendiente,totRechazado=props.totRechazado,totBenef=props.totBenef,totCttos=props.totCttos,tasaCierre=props.tasaCierre;
-  var st=React.useState(false); var benchEjecOpen=st[0],setBenchEjecOpen=st[1];
-  var hoy=new Date(),diaHoy=hoy.getDate(),diasMes=new Date(hoy.getFullYear(),hoy.getMonth()+1,0).getDate();
-  var ritmo=benchmark.uf/diasMes, proy=parseFloat((ritmo*diaHoy).toFixed(2));
-  var pct=proy>0?Math.round((totUF/proy)*100):0, diff=pct-100;
-  var cP=function(p){return p>=90?"#16A34A":p>=70?"#D97706":"#DC2626";};
-  var bP=function(p){return p>=90?"#F0FDF4":p>=70?"#FFFBEB":"#FFF1F2";};
-  var fD=function(d){return d===0?"En ritmo":d>0?("+"+d+"%"):(d+"%");};
-  var deltas=[
-    {l:"UF Total",     a:totUF.toFixed(2)+" UF",b:benchmark.uf+" UF",   p:proy>0?Math.round((totUF/proy)*100):0},
-    {l:"DPS c/Venta",  a:totConVenta,            b:benchmark.dpsCV,      p:benchmark.dpsCV>0?Math.round((totConVenta/benchmark.dpsCV)*100):0},
-    {l:"DPS s/Venta",  a:totSinVenta,            b:benchmark.dpsSV,      p:benchmark.dpsSV>0?Math.round((totSinVenta/benchmark.dpsSV)*100):0},
-    {l:"Pendientes",   a:totPendiente,            b:benchmark.dpsP,       p:benchmark.dpsP>0?Math.round((totPendiente/benchmark.dpsP)*100):0},
-    {l:"Rechazadas",   a:totRechazado,            b:benchmark.dpsR,       p:benchmark.dpsR>0?Math.round((totRechazado/benchmark.dpsR)*100):0},
-    {l:"Beneficiarios",a:totBenef,                b:benchmark.nBenef,     p:benchmark.nBenef>0?Math.round((totBenef/benchmark.nBenef)*100):0},
-    {l:"Contratos",    a:totCttos,                b:benchmark.cttosDig,   p:benchmark.cttosDig>0?Math.round((totCttos/benchmark.cttosDig)*100):0},
-    {l:"Tasa Cierre",  a:tasaCierre+"%",          b:benchmark.tasa+"%",   p:benchmark.tasa>0?Math.round((tasaCierre/benchmark.tasa)*100):0},
-  ];
-  return React.createElement("div",{style:{marginTop:24,background:"linear-gradient(135deg,#1E3A5F,#1D4ED8)",borderRadius:18,padding:"20px 22px",color:"#fff"}}
-    ,React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:8}}
-      ,React.createElement("div",null
-        ,React.createElement("div",{style:{fontSize:16,fontWeight:900}},"Comparativa vs Benchmark: "+benchmark.mesLabel)
-        ,React.createElement("div",{style:{fontSize:11,color:"rgba(255,255,255,.6)",marginTop:2}},"Dia "+diaHoy+" de "+diasMes+" - Ritmo: "+ritmo.toFixed(2)+" UF/dia - Proyeccion: "+proy+" UF")
-      )
-      ,React.createElement("div",{style:{background:bP(pct),borderRadius:12,padding:"10px 18px",textAlign:"center"}}
-        ,React.createElement("div",{style:{fontSize:28,fontWeight:900,color:cP(pct)}},fD(diff))
-        ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:2}},diff>=0?"Adelante del benchmark":"vs ritmo benchmark")
-      )
-    )
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:16}}
-      ,deltas.map(function(d){var dd=d.p-100; return React.createElement("div",{key:d.l,style:{background:"rgba(255,255,255,.1)",borderRadius:10,padding:"10px",textAlign:"center",border:"1px solid rgba(255,255,255,.15)"}}
-        ,React.createElement("div",{style:{fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",marginBottom:4}},d.l)
-        ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:"#fff"}},d.a)
-        ,React.createElement("div",{style:{fontSize:10,color:"rgba(255,255,255,.5)",margin:"2px 0"}},"bench: "+d.b)
-        ,React.createElement("div",{style:{fontSize:12,fontWeight:900,color:cP(d.p),background:"rgba(255,255,255,.15)",borderRadius:99,padding:"1px 8px",display:"inline-block"}},fD(dd))
-      );})
-    )
-    ,React.createElement("div",{style:{borderTop:"1px solid rgba(255,255,255,.15)",paddingTop:12}}
-      ,React.createElement("button",{onClick:function(){setBenchEjecOpen(!benchEjecOpen);},style:{background:"rgba(255,255,255,.12)",border:"1px solid rgba(255,255,255,.2)",borderRadius:10,padding:"8px 16px",color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700,width:"100%",textAlign:"left"}}
-        ,(benchEjecOpen?"(-)":"(+)")+" Ver comparativa por ejecutivo vs "+benchmark.mesLabel)
-      ,benchEjecOpen&&React.createElement("div",{style:{marginTop:12,overflowX:"auto"}}
-        ,React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:11}}
-          ,React.createElement("thead",null,React.createElement("tr",{style:{borderBottom:"1px solid rgba(255,255,255,.2)"}}
-            ,["Ejecutivo","UF Actual","UF Bench","Diferencia","Estado"].map(function(h){return React.createElement("th",{key:h,style:{padding:"8px 10px",textAlign:h==="Ejecutivo"?"left":"center",color:"rgba(255,255,255,.6)",fontWeight:700,fontSize:10,textTransform:"uppercase"}},h);})
-          ))
-          ,React.createElement("tbody",null,equipo.filter(function(v){return v&&v.nombre;}).map(function(v){
-            var uA=parseFloat(v.uf)||0;
-            var uB=benchmark.mesKey&&(v.historial||{})[benchmark.mesKey]?(parseFloat(((v.historial||{})[benchmark.mesKey]||{}).ufDig)||0):null;
-            var rE=uB!==null?parseFloat((uB/diasMes*diaHoy).toFixed(2)):null;
-            var pE=rE!==null&&rE>0?Math.round((uA/rE)*100):null;
-            var dE=pE!==null?pE-100:null;
-            return React.createElement("tr",{key:v.id,style:{borderBottom:"1px solid rgba(255,255,255,.08)"}}
-              ,React.createElement("td",{style:{padding:"8px 10px",fontWeight:700,color:"#fff"}},v.nombre.split(" ")[0]+" "+(v.nombre.split(" ").slice(-1)[0]||""))
-              ,React.createElement("td",{style:{padding:"8px 10px",textAlign:"center",color:"#C9A84C",fontWeight:700}},uA.toFixed(2)+" UF")
-              ,React.createElement("td",{style:{padding:"8px 10px",textAlign:"center",color:"rgba(255,255,255,.6)"}},uB!==null?(uB.toFixed(2)+" UF"):React.createElement("span",{style:{color:"rgba(255,255,255,.3)"}},"No estaba"))
-              ,React.createElement("td",{style:{padding:"8px 10px",textAlign:"center"}},dE!==null?React.createElement("span",{style:{background:bP(pE),color:cP(pE),borderRadius:99,padding:"2px 10px",fontWeight:900}},fD(dE)):React.createElement("span",{style:{color:"rgba(255,255,255,.3)"}},"--"))
-              ,React.createElement("td",{style:{padding:"8px 10px",textAlign:"center",fontSize:10}},
-                uA===0?React.createElement("span",{style:{background:"#FEE2E2",color:"#DC2626",borderRadius:99,padding:"2px 8px",fontWeight:700}},"En 0"):
-                pE!==null&&pE>=90?React.createElement("span",{style:{background:"#DCFCE7",color:"#16A34A",borderRadius:99,padding:"2px 8px",fontWeight:700}},"Al ritmo"):
-                pE!==null?React.createElement("span",{style:{background:"#FEF9C3",color:"#92400E",borderRadius:99,padding:"2px 8px",fontWeight:700}},"Rezagado"):
-                React.createElement("span",{style:{color:"rgba(255,255,255,.3)"}},"--")
-              )
-            );
-          }))
-        )
-      )
-    )
-    ,benchmark&&React.createElement(BenchmarkComparativa,{benchmark:benchmark,equipo:equipo,totUF:totUF,totConVenta:totConVenta,totSinVenta:totSinVenta,totPendiente:totPendiente,totRechazado:totRechazado,totBenef:totBenef,totCttos:totCttos,tasaCierre:tasaCierre})
-  );
-}
 
 // Acciones base para todos los agentes de venta
 var ACCIONES_BASE_DEFAULT = [
@@ -6512,7 +6513,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
         // Cargar benchmark
         if(window.__fbDb&&window.__fbDoc&&window.__fbGetDoc){
           window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","benchmark"))
-            .then(function(snap){ var ex=typeof snap.exists==="function"?snap.exists():snap.exists; var d=typeof snap.data==="function"?snap.data():snap.data; if(ex&&d&&d.uf) setBenchmark(d); })
+            .then(function(snap){ var ex=typeof snap.exists==="function"?snap.exists():snap.exists; var d=typeof snap.data==="function"?snap.data():snap.data; console.log("[Bench] snap ex=",ex,"data=",JSON.stringify(d)); if(ex&&d) setBenchmark(d); })
             .catch(function(){});
         }
         // ── Cargar imágenes de premios al iniciar la app ──
@@ -12514,7 +12515,12 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
                     , React.createElement('span', { style:{fontSize:13,color:"rgba(255,255,255,.6)"} }, "Premio antigüedad")
                     , noCumpleCondHombre
                         ? React.createElement('span', { style:{fontSize:12,fontWeight:700,color:"#D97706"} }, "\uD83D\uDCAA \u00A1Puedes lograrlo! Necesitas "+condGrupo.pct+"% en titulares hombre \u2014 llevas "+pctHomReal+"%. \u00A1Cada contrato cuenta!")
-                        : React.createElement('span', { style:{fontSize:14,fontWeight:800,color:"#C9A84C"} }, premioReal>0 ? fmt(premioReal) : "Sin tramo aún")
+                        : premioReal>0
+                          ? React.createElement('div', null
+                              ,React.createElement('span', { style:{fontSize:14,fontWeight:800,color:"#C9A84C"} }, fmt(premioReal))
+                              ,condGrupo.activa&&React.createElement('div', { style:{fontSize:11,color:"#4ADE80",marginTop:3,fontWeight:700} }, "\uD83C\uDF1F \u00A1Sigue as\xED! Vas por excelente camino para llevarte el premio")
+                            )
+                          : React.createElement('span', { style:{fontSize:14,fontWeight:800,color:"#C9A84C"} }, "Sin tramo aún")
                   )
                   , React.createElement('div', { style:{display:"flex",justifyContent:"space-between",alignItems:"center"} }
                     , React.createElement('span', { style:{fontSize:13,color:"rgba(255,255,255,.6)"} }, "Plan Conecta ("+conectaReal+" logrados)")
