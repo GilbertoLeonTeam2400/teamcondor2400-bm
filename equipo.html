@@ -2493,26 +2493,41 @@ function PanelAlertas({ equipo, proyV }) {
   }).sort(function(a,b) { return (a.uf/proyV(a)) - (b.uf/proyV(b)); });
 
   if (enRiesgo.length === 0) return null;
+  // Calcular proyección del día actual para referencia general
+  var hoy = new Date();
+  var diaHoy = hoy.getDate();
+  var diasMes = new Date(hoy.getFullYear(), hoy.getMonth()+1, 0).getDate();
   return (
-    React.createElement('div', { style: {background:"linear-gradient(135deg,#FEF2F2,#FEE2E2)",border:"2px solid #FECACA",borderRadius:16,padding:"16px 20px",marginBottom:18,animation:"fadeIn .5s ease"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2407}}
-      , React.createElement('div', { style: {display:"flex",alignItems:"center",gap:10,marginBottom:12}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2408}}
-        , React.createElement('span', { style: {fontSize:22}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2409}}, "⚠️")
-        , React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 2410}}
-          , React.createElement('div', { style: {fontWeight:900,color:"#991B1B",fontSize:15}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2411}}, "Ejecutivos que necesitan apoyo"   )
-          , React.createElement('div', { style: {fontSize:12,color:"#DC2626",marginTop:1}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2412}}, enRiesgo.length, " persona(s) con menos del 60% de la proyeccion diaria"         )
+    React.createElement('div', { style: {background:"linear-gradient(135deg,#FEF2F2,#FEE2E2)",border:"2px solid #FECACA",borderRadius:16,padding:"16px 20px",marginBottom:18,animation:"fadeIn .5s ease"}}
+      , React.createElement('div', { style: {display:"flex",alignItems:"center",gap:10,marginBottom:8}}
+        , React.createElement('span', { style: {fontSize:22}}, "⚠️")
+        , React.createElement('div', null
+          , React.createElement('div', { style: {fontWeight:900,color:"#991B1B",fontSize:15}}, "Ejecutivos que necesitan apoyo")
+          , React.createElement('div', { style: {fontSize:12,color:"#DC2626",marginTop:1}}, enRiesgo.length, " persona(s) con menos del 60% de la proyeccion diaria")
         )
       )
-      , React.createElement('div', { style: {display:"flex",flexWrap:"wrap",gap:8}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2415}}
+      , React.createElement('div', { style: {background:"rgba(220,38,38,.08)",borderRadius:10,padding:"7px 12px",marginBottom:12,fontSize:12,color:"#7F1D1D"}}
+        , "📍 Proyeccion basada en la meta individual de cada ejecutivo · Dia "
+        , diaHoy, "/", diasMes
+      )
+      , React.createElement('div', { style: {display:"flex",flexWrap:"wrap",gap:8}}
         , enRiesgo.map(function(v) {
+          var metaV = parseFloat(v.metaUF)||0;
+          var proyHoy = metaV>0 ? parseFloat((metaV/diasMes*diaHoy).toFixed(2)) : 0;
           var proy = proyV(v);
           var pct  = Math.round((v.uf / proy) * 100);
-          var p    = v.nombre.split(" ");
           var corto = _nombreCorto(v.nombre);
           return (
-            React.createElement('div', { key: v.id, style: {background:"#fff",borderRadius:10,padding:"8px 14px",border:"1.5px solid #FCA5A5",display:"flex",alignItems:"center",gap:8}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2422}}
-              , React.createElement('div', { style: {width:8,height:8,borderRadius:"50%",background:pct<30?"#DC2626":"#F97316",flexShrink:0}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2423}} )
-              , React.createElement('span', { style: {fontWeight:700,color:"#7F1D1D",fontSize:13}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2424}}, corto)
-              , React.createElement('span', { style: {background:"#FEE2E2",color:"#DC2626",borderRadius:99,padding:"2px 8px",fontSize:11,fontWeight:800}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 2425}}, pct, "%")
+            React.createElement('div', { key: v.id, style: {background:"#fff",borderRadius:10,padding:"8px 14px",border:"1.5px solid #FCA5A5",display:"flex",alignItems:"center",gap:8}}
+              , React.createElement('div', { style: {width:8,height:8,borderRadius:"50%",background:pct<30?"#DC2626":"#F97316",flexShrink:0}})
+              , React.createElement('div', null
+                , React.createElement('span', { style: {fontWeight:700,color:"#7F1D1D",fontSize:13}}, corto)
+                , React.createElement('div', { style: {fontSize:10,color:"#9B1C1C",marginTop:2}},
+                  "Deberia llevar ", React.createElement('strong', null, proyHoy, " UF"),
+                  " de su meta de ", metaV, " UF"
+                )
+              )
+              , React.createElement('span', { style: {background:"#FEE2E2",color:"#DC2626",borderRadius:99,padding:"2px 8px",fontSize:11,fontWeight:800}}, pct, "%")
             )
           );
         })
