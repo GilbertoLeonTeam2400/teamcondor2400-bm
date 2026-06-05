@@ -3185,6 +3185,21 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
       return Object.assign({}, v, {historial:hist}, extra);
     });
 
+    // PASO 3b: Para meses históricos, limpiar ejecutivos que NO están en el Excel
+    // (ej: ejecutivos que se agregaron después de ese mes)
+    if (!esMesActual) {
+      nuevoEquipo = nuevoEquipo.map(function(v) {
+        var estaEnExcel = resultados.find(function(x){return x.equipo&&x.equipo.id===v.id;});
+        if (estaEnExcel) return v; // ya fue procesado en PASO 3
+        // Este ejecutivo NO estaba en el Excel — limpiar su historial de ese mes
+        var hist = Object.assign({}, v.historial||{});
+        if (hist[mesKey]) {
+          hist[mesKey] = {uf:0,dps:0,dpsVenta:0,dpsSinVenta:0,dpsPendiente:0,dpsRechazado:0,nBenef:0,cttosDig:0,pctF:0,pctM:0,ufDig:0,conecta:0};
+        }
+        return Object.assign({}, v, {historial:hist});
+      });
+    }
+
     // PASO 4: Guardar sin match como referencia (no se pierden)
     var sinMatchData = sinMatch.map(function(r){
       var p = r.excel;
