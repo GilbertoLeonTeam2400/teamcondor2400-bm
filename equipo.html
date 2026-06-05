@@ -3656,7 +3656,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
     // Panel desplegable FILA 1
     ,kpiDetalle&&["totTotal","conVenta","sinVenta","pendiente","rechazado","tasaCierre"].indexOf(kpiDetalle)>=0&&renderDetalleF1()
     // KPIs FILA 2 (clickeables)
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:12,marginBottom:4}})
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:12,marginBottom:4}}
       ,[
         {k:"totUF",     l:"Total UF",           v:totUF.toFixed(2)+" UF",  c:"#C9A84C", bg:"#FFF8E7", brd:"#FCD34D"},
         {k:"totBenef",  l:"N° Beneficiarios",    v:totBenef,                c:"#0891B2", bg:"#F0FDFA", brd:"#A7F3D0"},
