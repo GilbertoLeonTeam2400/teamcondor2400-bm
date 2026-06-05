@@ -3610,6 +3610,17 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
     });
   }
 
+  // Totales del mes ACTUAL para BenchmarkComparativa
+  var datosActBench=equipo.map(function(v){var h=(v.historial||{})[info.mesKey]||{};var reps=v.rep||[];var hom=reps.reduce(function(s,r){return s+(parseInt(r.hombres)||0);},0);var muj=reps.reduce(function(s,r){return s+(parseInt(r.mujeres)||0);},0);return {uf:parseFloat(v.uf)||0,dpsConVenta:parseInt(h.dpsVenta)||0,dpsSinVenta:parseInt(h.dpsSinVenta)||0,dpsPendiente:parseInt(h.dpsPendiente)||0,dpsRechazado:parseInt(h.dpsRechazado)||0,nBenef:parseInt(h.nBenef)||0,cttosDig:parseInt(h.cttosDig)||0,hombres:hom,mujeres:muj};});
+  var totUFMesAct=datosActBench.reduce(function(s,d){return s+d.uf;},0);
+  var totCVMesAct=datosActBench.reduce(function(s,d){return s+d.dpsConVenta;},0);
+  var totSVMesAct=datosActBench.reduce(function(s,d){return s+d.dpsSinVenta;},0);
+  var totPMesAct=datosActBench.reduce(function(s,d){return s+d.dpsPendiente;},0);
+  var totRMesAct=datosActBench.reduce(function(s,d){return s+d.dpsRechazado;},0);
+  var totBMesAct=datosActBench.reduce(function(s,d){return s+d.nBenef;},0);
+  var totCtMesAct=datosActBench.reduce(function(s,d){return s+d.cttosDig;},0);
+  var totDPSMesAct=totCVMesAct+totSVMesAct+totPMesAct+totRMesAct;
+  var tasaMesAct=totDPSMesAct>0?Math.round((totCVMesAct/totDPSMesAct)*100):0;
   return React.createElement("div",{style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(233,7,41,.09)"}}
     ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:RD,marginBottom:4}},"🔵 Análisis de Métricas por Mes")
     ,React.createElement("div",{style:{fontSize:12,color:"#6B7280",marginBottom:4}},"Selecciona un mes · Click en cualquier celda para editar · Enter o click fuera para guardar")
@@ -3685,7 +3696,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
     )
     // Panel desplegable FILA 1
     ,kpiDetalle&&["totTotal","conVenta","sinVenta","pendiente","rechazado","tasaCierre"].indexOf(kpiDetalle)>=0&&renderDetalleF1()
-    // KPIs FILA 2 (clickeables)
+  // KPIs FILA 2 (clickeables)
     ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:12,marginBottom:4}}
       ,[
         {k:"totUF",     l:"Total UF",           v:totUF.toFixed(2)+" UF",  c:"#C9A84C", bg:"#FFF8E7", brd:"#FCD34D"},
@@ -3768,20 +3779,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
       )
     )
     ,React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",marginTop:8,textAlign:"right"}},"💡 Haz click en cualquier celda de datos para editar el valor directamente")
-    ,benchmark&&benchmark.mesLabel&&(function(){
-      // Siempre comparar contra el mes actual, no el seleccionado
-      var datosAct=equipo.map(function(v){var h=(v.historial||{})[info.mesKey]||{};var esMesAct=true;var reps=v.rep||[];var hom=reps.reduce(function(s,r){return s+(parseInt(r.hombres)||0);},0);var muj=reps.reduce(function(s,r){return s+(parseInt(r.mujeres)||0);},0);return {uf:parseFloat(v.uf)||0,dpsConVenta:parseInt(h.dpsVenta)||0,dpsSinVenta:parseInt(h.dpsSinVenta)||0,dpsPendiente:parseInt(h.dpsPendiente)||0,dpsRechazado:parseInt(h.dpsRechazado)||0,nBenef:parseInt(h.nBenef)||0,cttosDig:parseInt(h.cttosDig)||0,hombres:hom,mujeres:muj};});
-      var totUFAct=datosAct.reduce(function(s,d){return s+d.uf;},0);
-      var totCVAct=datosAct.reduce(function(s,d){return s+d.dpsConVenta;},0);
-      var totSVAct=datosAct.reduce(function(s,d){return s+d.dpsSinVenta;},0);
-      var totPAct=datosAct.reduce(function(s,d){return s+d.dpsPendiente;},0);
-      var totRAct=datosAct.reduce(function(s,d){return s+d.dpsRechazado;},0);
-      var totBAct=datosAct.reduce(function(s,d){return s+d.nBenef;},0);
-      var totCtAct=datosAct.reduce(function(s,d){return s+d.cttosDig;},0);
-      var totDPSAct=totCVAct+totSVAct+totPAct+totRAct;
-      var tasaAct=totDPSAct>0?Math.round((totCVAct/totDPSAct)*100):0;
-      return React.createElement(BenchmarkComparativa,{benchmark:benchmark,equipo:equipo,totUF:totUFAct,totConVenta:totCVAct,totSinVenta:totSVAct,totPendiente:totPAct,totRechazado:totRAct,totBenef:totBAct,totCttos:totCtAct,tasaCierre:tasaAct});
-    })()
+    ,benchmark&&benchmark.mesLabel&&React.createElement(BenchmarkComparativa,{benchmark:benchmark,equipo:equipo,totUF:totUFMesAct,totConVenta:totCVMesAct,totSinVenta:totSVMesAct,totPendiente:totPMesAct,totRechazado:totRMesAct,totBenef:totBMesAct,totCttos:totCtMesAct,tasaCierre:tasaMesAct})
   );
 }
 
