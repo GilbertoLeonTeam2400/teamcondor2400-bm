@@ -2984,6 +2984,8 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
           var nombre = String(
             f["NOMBRE EJECUTIVO"]||f["Nombre Ejecutivo"]||f.nombre||f.NOMBRE||""
           ).trim().toUpperCase();
+          // Extraer RUT del Excel para matching prioritario
+          var rutExcel = String(f["RUT"]||f["Rut"]||f["rut"]||"").trim().replace(/[^0-9kK]/g,"").toLowerCase();
 
           // Nombres EXACTOS del reporte de administración (Resumen Agentes, fila 4)
           // Col X=Total DPS mes actual, Col Y=DPS con venta, Z=sin venta, AA=pendientes, AB=rechazadas
@@ -3025,7 +3027,7 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
             return conectaVal;
           })();
 
-          return { nombre:nombre, dpsConVenta:dpsConVenta, dpsSinVenta:dpsSinVenta, dpsPendiente:dpsPendiente, dpsRechazado:dpsRechazado, dpsTotal:dpsTotal, uf:uf, nBenef:nBenef, cttosDig:cttosDig, pctF:pctF, pctM:pctM, conecta:conecta };
+          return { nombre:nombre, rut:rutExcel, dpsConVenta:dpsConVenta, dpsSinVenta:dpsSinVenta, dpsPendiente:dpsPendiente, dpsRechazado:dpsRechazado, dpsTotal:dpsTotal, uf:uf, nBenef:nBenef, cttosDig:cttosDig, pctF:pctF, pctM:pctM, conecta:conecta };
         }).filter(function(f){ return f.nombre.length > 0; });
 
         setPreview(mapeados);
@@ -3089,12 +3091,25 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
     }
     // ─────────────────────────────────────────────────────────────────────────
 
-    // PASO 1: Matching fuzzy entre Excel y equipo
+    // PASO 1: Matching por RUT (prioritario) luego fuzzy por nombre
     var resultados = preview.map(function(p) {
       var nombreP = (p.nombre||"").toUpperCase().trim().replace(/\s+/g," ");
-      var match = equipo.find(function(v) {
-        return v.nombre.toUpperCase().trim() === nombreP;
-      });
+      var rutP = (p.rut||"").trim().replace(/[^0-9kK]/g,"").toLowerCase();
+      var match = null;
+      // 1a. Matching por RUT (más confiable - evita errores de tipeo)
+      if (rutP.length >= 7) {
+        match = equipo.find(function(v) {
+          var rutV = String(v.rut||"").trim().replace(/[^0-9kK]/g,"").toLowerCase();
+          return rutV.length >= 7 && rutV === rutP;
+        });
+      }
+      // 1b. Matching exacto por nombre
+      if (!match) {
+        match = equipo.find(function(v) {
+          return v.nombre.toUpperCase().trim() === nombreP;
+        });
+      }
+      // 1c. Matching fuzzy por nombre
       if (!match) {
         match = equipo.find(function(v) {
           var palabrasV = v.nombre.toUpperCase().split(/\s+/).filter(function(w){return w.length>2;});
