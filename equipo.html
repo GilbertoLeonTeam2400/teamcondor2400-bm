@@ -3299,6 +3299,94 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
 }
 
 // ── Análisis DPS (supervisor) ─────────────────────────────────────────────────
+function BenchmarkComparativa({ benchmark, equipo, totUF, totConVenta, totSinVenta, totPendiente, totRechazado, totBenef, totCttos, tasaCierre }) {
+  var [benchEjecOpen, setBenchEjecOpen] = React.useState(false);
+  var hoy = new Date();
+  var diaHoy = hoy.getDate();
+  var diasMes = new Date(hoy.getFullYear(), hoy.getMonth()+1, 0).getDate();
+  var diasHabiles = Math.max(1, Math.round(diasMes * 22/30));
+  var diasHabilesHoy = Math.max(1, Math.round(diaHoy * 22/30));
+  var ritmoUFBench = benchmark.uf / diasHabiles;
+  var proyBenchHoy = parseFloat((ritmoUFBench * diasHabilesHoy).toFixed(2));
+  var pctVsBench = proyBenchHoy > 0 ? Math.round((totUF / proyBenchHoy) * 100) : 0;
+  var colorPct = function(p){ return p>=90?"#16A34A":p>=70?"#D97706":"#DC2626"; };
+  var bgPct    = function(p){ return p>=90?"#F0FDF4":p>=70?"#FFFBEB":"#FFF1F2"; };
+  var arrow    = function(p){ return p>=100?"▲":p>=80?"→":"▼"; };
+  var deltas = [
+    {l:"UF Total",        actual:totUF.toFixed(2)+" UF", bench:benchmark.uf+" UF",  pct:proyBenchHoy>0?Math.round((totUF/proyBenchHoy)*100):0},
+    {l:"DPS Con Venta",   actual:totConVenta,             bench:benchmark.dpsCV,     pct:benchmark.dpsCV>0?Math.round((totConVenta/benchmark.dpsCV)*100):0},
+    {l:"DPS Sin Venta",   actual:totSinVenta,             bench:benchmark.dpsSV,     pct:benchmark.dpsSV>0?Math.round((totSinVenta/benchmark.dpsSV)*100):0},
+    {l:"DPS Pendientes",  actual:totPendiente,            bench:benchmark.dpsP,      pct:benchmark.dpsP>0?Math.round((totPendiente/benchmark.dpsP)*100):0},
+    {l:"DPS Rechazadas",  actual:totRechazado,            bench:benchmark.dpsR,      pct:benchmark.dpsR>0?Math.round((totRechazado/benchmark.dpsR)*100):0},
+    {l:"N° Benef.",       actual:totBenef,                bench:benchmark.nBenef,    pct:benchmark.nBenef>0?Math.round((totBenef/benchmark.nBenef)*100):0},
+    {l:"Contratos",       actual:totCttos,                bench:benchmark.cttosDig,  pct:benchmark.cttosDig>0?Math.round((totCttos/benchmark.cttosDig)*100):0},
+    {l:"Tasa Cierre",     actual:tasaCierre+"%",          bench:benchmark.tasa+"%",  pct:benchmark.tasa>0?Math.round((tasaCierre/benchmark.tasa)*100):0},
+  ];
+  return React.createElement("div",{style:{marginTop:24,background:"linear-gradient(135deg,#1E3A5F,#1D4ED8)",borderRadius:18,padding:"20px 22px",color:"#fff"}}
+    ,React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:8}}
+      ,React.createElement("div",null
+        ,React.createElement("div",{style:{fontSize:16,fontWeight:900}},"📌 Comparativa vs Benchmark: "+benchmark.mesLabel)
+        ,React.createElement("div",{style:{fontSize:11,color:"rgba(255,255,255,.6)",marginTop:2}},"Día "+diaHoy+" de "+diasMes+" · Ritmo benchmark: "+ritmoUFBench.toFixed(2)+" UF/día · Proyección al hoy: "+proyBenchHoy+" UF")
+      )
+      ,React.createElement("div",{style:{background:bgPct(pctVsBench),borderRadius:12,padding:"10px 18px",textAlign:"center"}}
+        ,React.createElement("div",{style:{fontSize:28,fontWeight:900,color:colorPct(pctVsBench)}},arrow(pctVsBench)+" "+pctVsBench+"%")
+        ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:2}},"vs ritmo benchmark hoy")
+      )
+    )
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:16}}
+      ,deltas.map(function(d){
+        return React.createElement("div",{key:d.l,style:{background:"rgba(255,255,255,.1)",borderRadius:10,padding:"10px",textAlign:"center",border:"1px solid rgba(255,255,255,.15)"}}
+          ,React.createElement("div",{style:{fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:4}},d.l)
+          ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:"#fff"}},d.actual)
+          ,React.createElement("div",{style:{fontSize:10,color:"rgba(255,255,255,.5)",margin:"2px 0"}},"bench: "+d.bench)
+          ,React.createElement("div",{style:{fontSize:12,fontWeight:900,color:colorPct(d.pct),background:"rgba(255,255,255,.15)",borderRadius:99,padding:"1px 8px",display:"inline-block"}},arrow(d.pct)+" "+d.pct+"%")
+        );
+      })
+    )
+    ,React.createElement("div",{style:{borderTop:"1px solid rgba(255,255,255,.15)",paddingTop:12}}
+      ,React.createElement("button",{onClick:function(){setBenchEjecOpen(!benchEjecOpen);},
+        style:{background:"rgba(255,255,255,.12)",border:"1px solid rgba(255,255,255,.2)",borderRadius:10,padding:"8px 16px",color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700,width:"100%",textAlign:"left"}}
+        ,(benchEjecOpen?"▲":"▼")+" Ver comparativa por ejecutivo vs "+benchmark.mesLabel)
+      ,benchEjecOpen && React.createElement("div",{style:{marginTop:12,overflowX:"auto"}}
+        ,React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:11}}
+          ,React.createElement("thead",null
+            ,React.createElement("tr",{style:{borderBottom:"1px solid rgba(255,255,255,.2)"}}
+              ,["Ejecutivo","UF Actual","UF Bench","% vs Bench","Estado"].map(function(h){
+                return React.createElement("th",{key:h,style:{padding:"8px 10px",textAlign:h==="Ejecutivo"?"left":"center",color:"rgba(255,255,255,.6)",fontWeight:700,fontSize:10,textTransform:"uppercase"}},h);
+              })
+            )
+          )
+          ,React.createElement("tbody",null
+            ,equipo.filter(function(v){return v&&v.nombre;}).map(function(v){
+              var ufActual = parseFloat(v.uf)||0;
+              var benchKey = Object.keys(v.historial||{}).find(function(k){
+                var d=new Date(k+"-01");
+                var lbl=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][d.getMonth()]+" "+d.getFullYear();
+                return lbl.toLowerCase()===benchmark.mesLabel.toLowerCase();
+              });
+              var ufBench = benchKey ? (parseFloat((v.historial[benchKey]||{}).ufDig)||0) : null;
+              var ritmoE = ufBench!==null ? parseFloat((ufBench/diasHabiles*diasHabilesHoy).toFixed(2)) : null;
+              var pctE = ritmoE!==null&&ritmoE>0 ? Math.round((ufActual/ritmoE)*100) : null;
+              return React.createElement("tr",{key:v.id,style:{borderBottom:"1px solid rgba(255,255,255,.08)"}}
+                ,React.createElement("td",{style:{padding:"8px 10px",fontWeight:700,color:"#fff"}},v.nombre.split(" ")[0]+" "+(v.nombre.split(" ").slice(-1)[0]||""))
+                ,React.createElement("td",{style:{padding:"8px 10px",textAlign:"center",color:"#C9A84C",fontWeight:700}},ufActual.toFixed(2)+" UF")
+                ,React.createElement("td",{style:{padding:"8px 10px",textAlign:"center",color:"rgba(255,255,255,.6)"}},ufBench!==null?(ufBench.toFixed(2)+" UF"):React.createElement("span",{style:{color:"rgba(255,255,255,.3)"}},"No estaba"))
+                ,React.createElement("td",{style:{padding:"8px 10px",textAlign:"center"}},pctE!==null?React.createElement("span",{style:{background:bgPct(pctE),color:colorPct(pctE),borderRadius:99,padding:"2px 10px",fontWeight:900}},arrow(pctE)+" "+pctE+"%"):React.createElement("span",{style:{color:"rgba(255,255,255,.3)"}},"—"))
+                ,React.createElement("td",{style:{padding:"8px 10px",textAlign:"center",fontSize:10}},
+                  ufActual===0?React.createElement("span",{style:{background:"#FEE2E2",color:"#DC2626",borderRadius:99,padding:"2px 8px",fontWeight:700}},"En 0"):
+                  pctE!==null&&pctE>=90?React.createElement("span",{style:{background:"#DCFCE7",color:"#16A34A",borderRadius:99,padding:"2px 8px",fontWeight:700}},"Al ritmo"):
+                  pctE!==null?React.createElement("span",{style:{background:"#FEF9C3",color:"#92400E",borderRadius:99,padding:"2px 8px",fontWeight:700}},"Rezagado"):
+                  React.createElement("span",{style:{color:"rgba(255,255,255,.3)"}},"—")
+                )
+              );
+            })
+          )
+        )
+      )
+    )
+  );
+}
+
 function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchmark, setSupVista }) {
   var [mesSeleccionado, setMesSeleccionado] = React.useState(info.mesKey);
   var [sortCol, setSortCol] = React.useState("dpsConVenta");
@@ -3387,6 +3475,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
   // Usar _sexBase como denominador (rep[] para mes actual, cttosDig para histórico)
   var totSexBase=datos.reduce(function(s,d){return s+(d._sexBase||0);},0);
   var totPctF=totSexBase>0?Math.round(datos.reduce(function(s,d){return s+(d.pctF*(d._sexBase||0));},0)/totSexBase):0;
+  var agvEnCero=datos.filter(function(p){return (parseFloat(p.uf)||0)===0;}).length;
   var totPctM=totSexBase>0?Math.round(datos.reduce(function(s,d){return s+(d.pctM*(d._sexBase||0));},0)/totSexBase):0;
   var totUF=datos.reduce(function(s,d){return s+d.uf;},0);
 
@@ -3567,12 +3656,13 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
     // Panel desplegable FILA 1
     ,kpiDetalle&&["totTotal","conVenta","sinVenta","pendiente","rechazado","tasaCierre"].indexOf(kpiDetalle)>=0&&renderDetalleF1()
     // KPIs FILA 2 (clickeables)
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:4}}
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:12,marginBottom:4}})
       ,[
         {k:"totUF",     l:"Total UF",           v:totUF.toFixed(2)+" UF",  c:"#C9A84C", bg:"#FFF8E7", brd:"#FCD34D"},
         {k:"totBenef",  l:"N° Beneficiarios",    v:totBenef,                c:"#0891B2", bg:"#F0FDFA", brd:"#A7F3D0"},
         {k:"totCttos",  l:"Contratos Digitados", v:totCttos,                c:"#059669", bg:"#F0FDF4", brd:"#86EFAC"},
-        {k:"totConecta",l:"💚 Planes Conecta",   v:totConectaMes,           c:"#059669", bg:"#ECFDF5", brd:"#6EE7B7"}
+        {k:"totConecta",l:"💚 Planes Conecta",   v:totConectaMes,           c:"#059669", bg:"#ECFDF5", brd:"#6EE7B7"},
+        {k:"agvCero",   l:"🔴 AGV en 0",         v:agvEnCero,  c:agvEnCero>0?"#DC2626":"#16A34A", bg:agvEnCero>0?"#FFF1F2":"#F0FDF4", brd:agvEnCero>0?"#FCA5A5":"#86EFAC"}
       ].map(function(k){
         var isOpen = kpiDetalle===k.k;
         return React.createElement("div",{key:k.l,onClick:function(){setKpiDetalle(isOpen?null:k.k);},
@@ -3586,7 +3676,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
       })
     )
     // Panel desplegable FILA 2
-    ,kpiDetalle&&["totUF","totBenef","totCttos","totConecta"].indexOf(kpiDetalle)>=0&&renderDetalleF2()
+    ,kpiDetalle&&["totUF","totBenef","totCttos","totConecta","agvCero"].indexOf(kpiDetalle)>=0&&renderDetalleF2()
 
     // Tabla editable
     ,React.createElement("div",{style:{overflowX:"auto"}}
@@ -3648,6 +3738,9 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
       )
     )
     ,React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",marginTop:8,textAlign:"right"}},"💡 Haz click en cualquier celda de datos para editar el valor directamente")
+
+    // ── COMPARATIVA BENCHMARK ──────────────────────────────────────────────────
+    ,benchmark && React.createElement(BenchmarkComparativa,{benchmark:benchmark,equipo:equipo,totUF:totUF,totConVenta:totConVenta,totSinVenta:totSinVenta,totPendiente:totPendiente,totRechazado:totRechazado,totBenef:totBenef,totCttos:totCttos,tasaCierre:tasaCierre})
   );
 }
 
