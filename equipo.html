@@ -3127,13 +3127,13 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
     var sinMatch = resultados.filter(function(r){return r.estado==="sinMatch";});
     if (sinMatch.length > 0) {
       var nombres = sinMatch.map(function(r){return "• "+r.excel.nombre+" ("+r.excel.uf+" UF, "+r.excel.dpsConVenta+" DPS venta)";}).join("\n");
-      var ok = confirm(
+      var okSinMatch = confirm(
         "⚠️ "+sinMatch.length+" ejecutivo(s) del Excel no encontrados en el equipo actual:\n\n"+nombres+
         "\n\nPuede ser un nombre diferente (ej: ROMA vs ROMINA) o un ejecutivo ya retirado."+
         "\n\n✅ OK = Guardar sus datos en el historial del mes igualmente"+
         "\n❌ Cancelar = Volver para revisar"
       );
-      if (!ok) {
+      if (!okSinMatch) {
         setMsg("⚠️ Carga cancelada. Revisa los nombres en el Excel e intenta nuevamente.");
         return;
       }
