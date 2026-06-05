@@ -3353,7 +3353,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
       totUF2 += esMesActual2 ? (parseFloat(v.uf)||0) : (parseFloat(h.uf)||0);
     });
     var totT2=totC2+totS2+totP2+totR2;
-    mesesDisp.push({mk:mk2,nom:nom2,totC:totC2,totS:totS2,totP:totP2,totR:totR2,totT:totT2,totB:totB2,totCt:totCt2,totUF:parseFloat(totUF2.toFixed(2)),tasa:totT2>0?Math.round((totC2/totT2)*100):0});
+    mesesDisp.push({mk:mk2,key:mk2,nom:nom2,totC:totC2,totS:totS2,totP:totP2,totR:totR2,totT:totT2,totB:totB2,totCt:totCt2,totUF:parseFloat(totUF2.toFixed(2)),tasa:totT2>0?Math.round((totC2/totT2)*100):0});
   }
 
   var mesKey = mesSeleccionado;
@@ -12343,13 +12343,15 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
           var totTitReal = homReal + mujReal;
           var pctHomReal = totTitReal > 0 ? Math.round((homReal/totTitReal)*100) : 0;
           var premioReal = calcPremio(ufReal, pctHomReal);
+          var condGrupo = _condCfgPremio[grupo]||{activa:false,pct:60};
+          var noCumpleCondHombre = condGrupo.activa && pctHomReal < (condGrupo.pct||60);
           var conectaReal = (v.rep||[]).reduce(function(s,r){return s+(r.conecta||0);},0);
           var totalReal = comReal + premioReal + (conectaReal * montoConUnitario);
 
           // ── Simulación ── (para simulación asumimos que cumple condición hombre si es veterano)
           var ufSim2 = ufSim || ufMeta || v.metaUF || 0;
           var comSim = calcComision(ufSim2);
-          var premioSim = calcPremio(ufSim2, pctHomReal);
+          var premioSim = calcPremio(ufSim2, 100); // Simulación: asume que cumplirá condición hombre
           var totalSim = comSim + premioSim + (cantConecta * montoConUnitario);
 
           // ── Siguiente tramo ──
@@ -12499,7 +12501,9 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
                   )
                   , React.createElement('div', { style:{display:"flex",justifyContent:"space-between",alignItems:"center"} }
                     , React.createElement('span', { style:{fontSize:13,color:"rgba(255,255,255,.6)"} }, "Premio antigüedad")
-                    , React.createElement('span', { style:{fontSize:14,fontWeight:800,color:"#C9A84C"} }, premioReal>0 ? fmt(premioReal) : "Sin tramo aún")
+                    , noCumpleCondHombre
+                        ? React.createElement('span', { style:{fontSize:12,fontWeight:700,color:"#D97706"} }, "\uD83D\uDCAA \u00A1Puedes lograrlo! Necesitas "+condGrupo.pct+"% en titulares hombre \u2014 llevas "+pctHomReal+"%. \u00A1Cada contrato cuenta!")
+                        : React.createElement('span', { style:{fontSize:14,fontWeight:800,color:"#C9A84C"} }, premioReal>0 ? fmt(premioReal) : "Sin tramo aún")
                   )
                   , React.createElement('div', { style:{display:"flex",justifyContent:"space-between",alignItems:"center"} }
                     , React.createElement('span', { style:{fontSize:13,color:"rgba(255,255,255,.6)"} }, "Plan Conecta ("+conectaReal+" logrados)")
