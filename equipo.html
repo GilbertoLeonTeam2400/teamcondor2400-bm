@@ -3522,6 +3522,15 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
         )
       );
     }
+    if (kpiDetalle==="agvCero") {
+      var enCero=datos.filter(function(p){return (parseFloat(p.uf)||0)===0;});
+      return React.createElement("div",{style:{background:"#FFF1F2",borderRadius:12,padding:"16px 20px",marginBottom:12,border:"1px solid #FCA5A5"}}
+        ,React.createElement("div",{style:{fontWeight:900,color:"#DC2626",fontSize:14,marginBottom:10}},"AGV en 0 UF este mes ("+enCero.length+")")
+        ,React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:8}}
+          ,enCero.map(function(p){return React.createElement("div",{key:p.id,style:{background:"#FEE2E2",borderRadius:99,padding:"5px 14px",fontSize:12,fontWeight:700,color:"#DC2626"}},p.nombre);})
+        )
+      );
+    }
     return renderDetalleKpi({
       totUF:      {l:"Total UF",           c:"#C9A84C", fn:function(v){return parseFloat(v.uf||0).toFixed(2)+" UF";}},
       totBenef:   {l:"N° Beneficiarios",   c:"#0891B2", fn:function(v){return v.nBenef||0;}},
@@ -12234,14 +12243,16 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
   function updatePremio(id,campo,val) { setPremios(premios.map(function(p){return p.id===id?Object.assign({},p,{[campo]:val}):p;})); }
 
   function guardarMeta() {
-    if (!v || ufMeta<=0) return;
+    if (!v) return;
     var cantConecta = premios[0]?premios[0].cantidad||0:0;
     var newEquipo = equipo.map(function(eq){
       return eq.id===v.id ? Object.assign({},eq,{metaPropia:ufMeta, metaConecta:cantConecta}) : eq;
     });
     setEquipo(newEquipo);
-    if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc) {
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",info.mesKey),{equipo:newEquipo})
+    if (window.__saveSeguro) {
+      window.__saveSeguro(info.mesKey, {equipo:newEquipo}, {fuente:"meta_ejecutivo"});
+    } else if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc) {
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",info.mesKey),{equipo:newEquipo},{merge:true})
         .then(function(){ console.log("[Meta] OK"); })
         .catch(function(e){ console.error("[Meta] Error:", e); });
     }
