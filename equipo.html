@@ -3568,7 +3568,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
                   var bm={mesLabel:m.nom.split(" de ")[0],mesKey:m.key,uf:m.totUF,dps:m.totT,dpsCV:m.totC,dpsSV:m.totS,dpsP:m.totP,dpsR:m.totR,nBenef:m.totB,cttosDig:m.totCt,tasa:m.tasa};
                   setBenchmark(bm);
                   if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
-                    window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","benchmark"),bm);
+                    window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","benchmark"),bm,{merge:true});
                 },
                 style:{marginTop:8,background:esBenchmark?"#1D4ED8":"rgba(29,78,216,.1)",color:esBenchmark?"#fff":"#1D4ED8",borderRadius:8,padding:"4px 8px",fontSize:9,fontWeight:700,textAlign:"center",cursor:"pointer"}
               }, esBenchmark?"📌 Benchmark activo":"📌 Usar como Benchmark")
@@ -6512,7 +6512,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
         // Cargar benchmark
         if(window.__fbDb&&window.__fbDoc&&window.__fbGetDoc){
           window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","benchmark"))
-            .then(function(snap){ if(snap.exists&&snap.data()) setBenchmark(snap.data()); })
+            .then(function(snap){ var ex=typeof snap.exists==="function"?snap.exists():snap.exists; var d=typeof snap.data==="function"?snap.data():snap.data; if(ex&&d&&d.uf) setBenchmark(d); })
             .catch(function(){});
         }
         // ── Cargar imágenes de premios al iniciar la app ──
@@ -12191,7 +12191,7 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
   function loginCal() {
     if (v && pinCal===v.pin) {
       setPinOk(true); setPinErr(false);
-      setUfSim(v.metaUF); setUfMeta(v.metaPropia||v.metaUF);
+      setUfMeta(v.metaPropia||v.metaUF); setUfSim(v.metaPropia||v.metaUF);
       var cantConectaGuardada = v.metaConecta||0;
       setPremios([{id:1, nombre: nombrePremio||"Premio Plan Conecta", valorUnitario:premioConecta||100000, cantidad:cantConectaGuardada}]);
       // Cargar imágenes de premios desde Firebase si no están cargadas
@@ -12292,7 +12292,7 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
           onSuccess:function(vOk){
             setSelId(String(vOk.id));
             setPinOk(true); setPinErr(false);
-            setUfSim(vOk.metaUF); setUfMeta(vOk.metaPropia||vOk.metaUF);
+            setUfMeta(vOk.metaPropia||vOk.metaUF); setUfSim(vOk.metaPropia||vOk.metaUF);
             var cantConectaGuardada = vOk.metaConecta||0;
             setPremios([{id:1, nombre: nombrePremio||"Premio Plan Conecta", valorUnitario:premioConecta||100000, cantidad:cantConectaGuardada}]);
           }
@@ -12410,7 +12410,7 @@ function CalculadoraGanancias({ equipo, setEquipo, info, premioConecta, nombrePr
                   , React.createElement('div', { style:{fontSize:11,color:"rgba(255,255,255,.5)",textTransform:"uppercase",marginBottom:8} }, "🎯 Mi meta en UF")
                   , React.createElement('div', { style:{display:"flex",alignItems:"center",gap:8} }
                     , React.createElement('input', { type:"number", min:"0", max:"200", step:"0.5", value:ufMeta,
-                        onFocus:function(e){e.target.select();if(parseFloat(e.target.value)===0){setUfMeta("");setUfSim("");}},onChange:function(e){var v2=parseFloat(e.target.value)||0;setUfMeta(v2);setUfSim(v2);},onBlur:function(e){if(e.target.value===""||isNaN(parseFloat(e.target.value))){setUfMeta(0);setUfSim(0);}},
+                        onFocus:function(e){e.target.select();},onTouchStart:function(e){e.target.select();if(parseFloat(e.target.value)===0){setUfMeta("");setUfSim("");}},onChange:function(e){var v2=parseFloat(e.target.value)||0;setUfMeta(v2);setUfSim(v2);},onBlur:function(e){if(e.target.value===""||isNaN(parseFloat(e.target.value))){setUfMeta(0);setUfSim(0);}},
                         style:{width:"80px",padding:"8px",borderRadius:8,border:"1.5px solid rgba(255,150,150,.4)",background:"rgba(255,255,255,.1)",color:"#fff",fontSize:18,fontWeight:900,textAlign:"center",fontFamily:"inherit"} })
                     , React.createElement('span', { style:{color:"rgba(255,255,255,.5)",fontSize:13} }, "UF")
                   )
