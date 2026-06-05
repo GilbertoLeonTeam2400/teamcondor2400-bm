@@ -2997,7 +2997,18 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
           var dpsRechazado = (function(){var v=_fv("Rechazadas.1"); return v!==null?v:(_fv("Rechazadas")||_fv("Rechazada")||0);})();
           var dpsTotal     = (function(){var v=_fv("Total DPS "); return v!==null?v:(_fv("Total DPS")||0);})();
           var uf = parseFloat(parseFloat(String(f["UF  DIG."]||f["UF DIG."]||f["UF Dif"]||f["UF"]||"0").replace(",",".")).toFixed(2)) || 0;
-          var nBenef       = parseInt(String(f["N° Benef"]||f["N° Benef."]||f["N°Benef"]||"0")) || 0;
+          // nBenef: col 31 = N° Benef (mes actual), col 28 = N° Benef. (mes anterior)
+          var nBenef = (function(){
+            // Intentar por nombre primero
+            var v = f["N° Benef"]||f["N° Benef."]||f["N°Benef"]||null;
+            if(v!==null && v!==undefined && v!=="") return parseInt(String(v))||0;
+            // Fallback: leer por índice rawArr col 31
+            if(rawArr && typeof rowIdx !== "undefined"){
+              var rr = rawArr[rowIdx];
+              if(rr && rr[31]!==null && rr[31]!==undefined) return parseInt(rr[31])||0;
+            }
+            return 0;
+          })();
           var cttosDig     = parseInt(String(f["Cttos Dig"]||f["Cttos  Dig"]||f["CttoDig"]||"0")) || 0;
           // Sexo % contratos
           var pctF = parseFloat(String(f["Sexo % Cttos F"]||f["% F"]||f["F"]||f["Fem"]||"0").replace(",",".").replace("%","")) || 0;
@@ -3154,6 +3165,8 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
       // UF: si viene 0 en un mes anterior, sí sobreescribir (es el total final)
       // En mes actual: solo actualizar si > 0 (el daily no siempre trae UF)
       var ufNueva = (!esMesActual) ? p.uf : (p.uf > 0 ? p.uf : (mesExistente.uf||0));
+      // Para meses históricos: sobreescribir completamente con datos del Excel
+      // Para mes actual: conservar conecta de cierres diarios, mezclar resto
       hist[mesKey] = {
         uf:          ufNueva,
         dps:         dpsTotal,
@@ -3161,12 +3174,12 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
         dpsSinVenta: dpsSV,
         dpsPendiente:dpsPen,
         dpsRechazado:dpsRec,
-        nBenef:      p.nBenef>0  ? p.nBenef  : (mesExistente.nBenef||0),
-        cttosDig:    p.cttosDig>0? p.cttosDig: (mesExistente.cttosDig||0),
-        pctF:        p.pctF>0    ? p.pctF     : (mesExistente.pctF||0),
-        pctM:        p.pctM>0    ? p.pctM     : (mesExistente.pctM||0),
-        ufDig:       p.uf>0      ? p.uf       : (mesExistente.ufDig||0),
-        conecta:     p.conecta>0 ? p.conecta  : (mesExistente.conecta||0),
+        nBenef:      p.nBenef !== null ? p.nBenef   : (mesExistente.nBenef||0),
+        cttosDig:    p.cttosDig !== null ? p.cttosDig : (mesExistente.cttosDig||0),
+        pctF:        p.pctF !== null ? p.pctF      : (mesExistente.pctF||0),
+        pctM:        p.pctM !== null ? p.pctM      : (mesExistente.pctM||0),
+        ufDig:       p.uf !== null ? p.uf         : (mesExistente.ufDig||0),
+        conecta:     esMesActual ? (mesExistente.conecta||0) : (p.conecta||0),
       };
       var extra = esMesActual ? {dps:dpsTotal, uf:ufNueva} : {};
       return Object.assign({}, v, {historial:hist}, extra);
