@@ -3304,8 +3304,8 @@ function BenchmarkComparativa({ benchmark, equipo, totUF, totConVenta, totSinVen
   var hoy = new Date();
   var diaHoy = hoy.getDate();
   var diasMes = new Date(hoy.getFullYear(), hoy.getMonth()+1, 0).getDate();
-  var diasHabiles = Math.max(1, Math.round(diasMes * 22/30));
-  var diasHabilesHoy = Math.max(1, Math.round(diaHoy * 22/30));
+  var diasHabiles = diasMes;
+  var diasHabilesHoy = Math.max(1, diaHoy);
   var ritmoUFBench = benchmark.uf / diasHabiles;
   var proyBenchHoy = parseFloat((ritmoUFBench * diasHabilesHoy).toFixed(2));
   var pctVsBench = proyBenchHoy > 0 ? Math.round((totUF / proyBenchHoy) * 100) : 0;
@@ -3329,8 +3329,14 @@ function BenchmarkComparativa({ benchmark, equipo, totUF, totConVenta, totSinVen
         ,React.createElement("div",{style:{fontSize:11,color:"rgba(255,255,255,.6)",marginTop:2}},"Día "+diaHoy+" de "+diasMes+" · Ritmo benchmark: "+ritmoUFBench.toFixed(2)+" UF/día · Proyección al hoy: "+proyBenchHoy+" UF")
       )
       ,React.createElement("div",{style:{background:bgPct(pctVsBench),borderRadius:12,padding:"10px 18px",textAlign:"center"}}
-        ,React.createElement("div",{style:{fontSize:28,fontWeight:900,color:colorPct(pctVsBench)}},arrow(pctVsBench)+" "+pctVsBench+"%")
-        ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:2}},"vs ritmo benchmark hoy")
+        ,React.createElement("div",{style:{fontSize:28,fontWeight:900,color:colorPct(pctVsBench)}},
+          pctVsBench===100?"✓ En ritmo":
+          pctVsBench>100?("+")+(pctVsBench-100)+"%":
+          (pctVsBench-100)+"%"
+        )
+        ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:2}},
+          pctVsBench>=100?"adelante del benchmark":"vs ritmo benchmark hoy"
+        )
       )
     )
     ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:16}}
