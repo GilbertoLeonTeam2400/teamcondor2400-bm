@@ -3395,7 +3395,6 @@ function BenchmarkComparativa(props) {
         )
       )
     )
-    ,benchmark&&benchmark.mesLabel&&React.createElement(BenchmarkComparativa,{benchmark:benchmark,equipo:equipo,totUF:totUF,totConVenta:totConVenta,totSinVenta:totSinVenta,totPendiente:totPendiente,totRechazado:totRechazado,totBenef:totBenef,totCttos:totCttos,tasaCierre:tasaCierre})
   );
 }
 
@@ -3768,10 +3767,9 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
       )
     )
     ,React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",marginTop:8,textAlign:"right"}},"💡 Haz click en cualquier celda de datos para editar el valor directamente")
+    ,benchmark&&benchmark.mesLabel&&React.createElement(BenchmarkComparativa,{benchmark:benchmark,equipo:equipo,totUF:totUF,totConVenta:totConVenta,totSinVenta:totSinVenta,totPendiente:totPendiente,totRechazado:totRechazado,totBenef:totBenef,totCttos:totCttos,tasaCierre:tasaCierre})
   );
 }
-
-
 
 // Acciones base para todos los agentes de venta
 var ACCIONES_BASE_DEFAULT = [
