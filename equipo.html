@@ -3531,23 +3531,82 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
   var [kpiDetalle, setKpiDetalle] = React.useState(null); // key de la card abierta
 
   // Generar últimos 6 meses con totales
+  // Estado para datos de mini cards de meses históricos
+  var [datosMinicards, setDatosMinicards] = React.useState({});
+
+  // Cargar totales de todos los meses históricos desde Firebase al montar
+  React.useEffect(function(){
+    if (!window.__fbDb||!window.__fbDoc||!window.__fbGetDoc) return;
+    var hoy = new Date();
+    for (var i=1; i<=5; i++) {
+      (function(offset){
+        var d = new Date(hoy.getFullYear(), hoy.getMonth()-offset, 1);
+        var mk = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+        window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos",mk)).then(function(snap){
+          var ex = typeof snap.exists==="function" ? snap.exists() : snap.exists;
+          if (!ex) return;
+          var data = typeof snap.data==="function" ? snap.data() : snap.data;
+          if (!data || !Array.isArray(data.equipo)) return;
+          var totC=0,totS=0,totP=0,totR=0,totB=0,totCt=0,totUF=0;
+          data.equipo.forEach(function(v){
+            var h=(v.historial||{})[mk]||{};
+            totC+=parseInt(h.dpsVenta)||0; totS+=parseInt(h.dpsSinVenta)||0;
+            totP+=parseInt(h.dpsPendiente)||0; totR+=parseInt(h.dpsRechazado)||0;
+            totB+=parseInt(h.nBenef)||0; totCt+=parseInt(h.cttosDig)||0;
+            totUF+=parseFloat(h.ufDig||h.uf)||0;
+          });
+          // Sumar sinMatch si existe
+          if (data._sinMatch) {
+            data._sinMatch.forEach(function(s){
+              totC+=parseInt(s.dpsVenta)||0; totS+=parseInt(s.dpsSinVenta)||0;
+              totP+=parseInt(s.dpsPendiente)||0; totR+=parseInt(s.dpsRechazado)||0;
+              totB+=parseInt(s.nBenef)||0; totCt+=parseInt(s.cttosDig)||0;
+              totUF+=parseFloat(s.uf)||0;
+            });
+          }
+          var totT=totC+totS+totP+totR;
+          setDatosMinicards(function(prev){
+            var n=Object.assign({},prev);
+            n[mk]={totC:totC,totS:totS,totP:totP,totR:totR,totT:totT,totB:totB,totCt:totCt,totUF:parseFloat(totUF.toFixed(2)),tasa:totT>0?Math.round((totC/totT)*100):0};
+            return n;
+          });
+        }).catch(function(){});
+      })(i);
+    }
+  }, []);
+
   var mesesDisp = [];
   for (var i=0; i<=5; i++) {
     var d2 = new Date(new Date().getFullYear(), new Date().getMonth()-i, 1);
     var mk2 = d2.getFullYear()+"-"+String(d2.getMonth()+1).padStart(2,"0");
     var nom2 = d2.toLocaleString("es-CL",{month:"long",year:"numeric"}).replace(/^./,function(c){return c.toUpperCase();});
-    var totC2=0,totS2=0,totP2=0,totR2=0,totB2=0,totCt2=0,totUF2=0;
     var esMesActual2 = (mk2 === info.mesKey);
-    equipo.forEach(function(v){
-      var h=(v.historial||{})[mk2]||{};
-      totC2+=parseInt(h.dpsVenta)||0; totS2+=parseInt(h.dpsSinVenta)||0;
-      totP2+=parseInt(h.dpsPendiente)||0; totR2+=parseInt(h.dpsRechazado)||0;
-      totB2+=parseInt(h.nBenef)||0; totCt2+=parseInt(h.cttosDig)||0;
-      // Mes actual: usar v.uf (estado live). Meses anteriores: usar h.uf del historial
-      totUF2 += esMesActual2 ? (parseFloat(v.uf)||0) : (parseFloat(h.uf)||0);
-    });
-    var totT2=totC2+totS2+totP2+totR2;
-    mesesDisp.push({mk:mk2,key:mk2,nom:nom2,totC:totC2,totS:totS2,totP:totP2,totR:totR2,totT:totT2,totB:totB2,totCt:totCt2,totUF:parseFloat(totUF2.toFixed(2)),tasa:totT2>0?Math.round((totC2/totT2)*100):0});
+    var totC2=0,totS2=0,totP2=0,totR2=0,totB2=0,totCt2=0,totUF2=0,totT2=0,tasa2=0;
+    if (esMesActual2) {
+      // Mes actual: leer del estado equipo en vivo
+      equipo.forEach(function(v){
+        totC2+=parseInt(((v.historial||{})[mk2]||{}).dpsVenta)||0;
+        totS2+=parseInt(((v.historial||{})[mk2]||{}).dpsSinVenta)||0;
+        totP2+=parseInt(((v.historial||{})[mk2]||{}).dpsPendiente)||0;
+        totR2+=parseInt(((v.historial||{})[mk2]||{}).dpsRechazado)||0;
+        totB2+=parseInt(((v.historial||{})[mk2]||{}).nBenef)||0;
+        totCt2+=parseInt(((v.historial||{})[mk2]||{}).cttosDig)||0;
+        totUF2+=parseFloat(v.uf)||0;
+      });
+      totT2=totC2+totS2+totP2+totR2;
+      tasa2=totT2>0?Math.round((totC2/totT2)*100):0;
+    } else if (datosMinicards[mk2]) {
+      // Mes histórico: usar datos cargados desde Firebase
+      var dm=datosMinicards[mk2];
+      totC2=dm.totC; totS2=dm.totS; totP2=dm.totP; totR2=dm.totR;
+      totB2=dm.totB; totCt2=dm.totCt; totUF2=dm.totUF; totT2=dm.totT; tasa2=dm.tasa;
+    } else {
+      // Fallback: historial incrustado (solo UF para Hall de Honor)
+      equipo.forEach(function(v){
+        totUF2+=parseFloat(((v.historial||{})[mk2]||{}).uf)||0;
+      });
+    }
+    mesesDisp.push({mk:mk2,key:mk2,nom:nom2,totC:totC2,totS:totS2,totP:totP2,totR:totR2,totT:totT2,totB:totB2,totCt:totCt2,totUF:parseFloat(totUF2.toFixed(2)),tasa:tasa2});
   }
 
   var mesKey = mesSeleccionado;
