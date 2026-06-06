@@ -2959,6 +2959,7 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
             if (!dataRow || dataRow.every(function(c){return !c && c!==0;})) continue;
             var obj = {};
             headers.forEach(function(h,j){ obj[h] = dataRow[j] !== undefined ? dataRow[j] : ""; });
+            obj._rawIdx = di;
             filas.push(obj);
           }
         }
@@ -2997,16 +2998,12 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
           var dpsRechazado = (function(){var v=_fv("Rechazadas.1"); return v!==null?v:(_fv("Rechazadas")||_fv("Rechazada")||0);})();
           var dpsTotal     = (function(){var v=_fv("Total DPS "); return v!==null?v:(_fv("Total DPS")||0);})();
           var uf = parseFloat(parseFloat(String(f["UF  DIG."]||f["UF DIG."]||f["UF Dif"]||f["UF"]||"0").replace(",",".")).toFixed(2)) || 0;
-          // nBenef: col 31 = N° Benef (mes actual), col 28 = N° Benef. (mes anterior)
+          // nBenef: col 31 = N° Benef (VENTAS DIGITADAS = correcto), col 28 = N° Benef. (DPS MES = incorrecto)
           var nBenef = (function(){
-            // Intentar por nombre primero
+            var rr = rawArr[f._rawIdx];
+            if(rr && rr[31]!==null && rr[31]!==undefined && rr[31]!=="") return parseInt(rr[31])||0;
             var v = f["N° Benef"]||f["N° Benef."]||f["N°Benef"]||null;
             if(v!==null && v!==undefined && v!=="") return parseInt(String(v))||0;
-            // Fallback: leer por índice rawArr col 31
-            if(rawArr && typeof rowIdx !== "undefined"){
-              var rr = rawArr[rowIdx];
-              if(rr && rr[31]!==null && rr[31]!==undefined) return parseInt(rr[31])||0;
-            }
             return 0;
           })();
           var cttosDig     = parseInt(String(f["Cttos Dig"]||f["Cttos  Dig"]||f["CttoDig"]||"0")) || 0;
@@ -3185,52 +3182,18 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
       return Object.assign({}, v, {historial:hist}, extra);
     });
 
-    // PASO 3b: eliminado — los ejecutivos sin match conservan su historial del mes
-    // para que los totales reflejen todo lo producido ese mes sin importar
-    // si el AGV sigue activo hoy en el equipo.
+    // PASO 3b: eliminado — conservar historial existente de ejecutivos no en Excel
 
-    // PASO 3c: Para mes histórico, agregar los sin match como entrada virtual (id=0)
-    // en el historial del equipo, así DpsAnalisisView los suma en los totales
-    if (!esMesActual && sinMatch.length > 0) {
-      var sinMatchUF=0, sinMatchCV=0, sinMatchSV=0, sinMatchP=0, sinMatchR=0, sinMatchB=0, sinMatchCt=0;
-      sinMatch.forEach(function(r){
-        var p=r.excel;
-        sinMatchUF += parseFloat(p.uf)||0;
-        sinMatchCV += parseInt(p.dpsConVenta)||0;
-        sinMatchSV += parseInt(p.dpsSinVenta)||0;
-        sinMatchP  += parseInt(p.dpsPendiente)||0;
-        sinMatchR  += parseInt(p.dpsRechazado)||0;
-        sinMatchB  += parseInt(p.nBenef)||0;
-        sinMatchCt += parseInt(p.cttosDig)||0;
-      });
-      // Buscar si ya existe un ejecutivo virtual id=0, sino crearlo
-      var idx0 = nuevoEquipo.findIndex(function(v){return v.id===0;});
-      var hist0 = idx0>=0 ? Object.assign({},nuevoEquipo[idx0].historial||{}) : {};
-      hist0[mesKey] = {
-        uf: parseFloat(sinMatchUF.toFixed(2)),
-        ufDig: parseFloat(sinMatchUF.toFixed(2)),
-        dps: sinMatchCV+sinMatchSV+sinMatchP+sinMatchR,
-        dpsVenta: sinMatchCV, dpsSinVenta: sinMatchSV,
-        dpsPendiente: sinMatchP, dpsRechazado: sinMatchR,
-        nBenef: sinMatchB, cttosDig: sinMatchCt, conecta: 0
-      };
-      if (idx0 >= 0) {
-        nuevoEquipo[idx0] = Object.assign({},nuevoEquipo[idx0],{historial:hist0});
-      } else {
-        nuevoEquipo = nuevoEquipo.concat([{
-          id:0, nombre:"[Otros ese mes]", cargo:"", pin:"", rut:"",
-          uf:0, dps:0, rep:[], historial:hist0,
-          metaUF:0, metaDPS:0
-        }]);
-      }
-    }
-
-    // PASO 4: Guardar sin match como referencia (no se pierden)
+    // PASO 4: Guardar sin match con todos los campos (UF, DPS desglosado, benef, cttos)
     var sinMatchData = sinMatch.map(function(r){
       var p = r.excel;
-      return {nombre:p.nombre, uf:p.uf, dpsVenta:p.dpsConVenta, dpsSinVenta:p.dpsSinVenta,
-              dpsTotal:p.dpsTotal||(p.dpsConVenta+p.dpsSinVenta+p.dpsPendiente+p.dpsRechazado),
-              nBenef:p.nBenef, cttosDig:p.cttosDig, conecta:p.conecta};
+      return {
+        nombre:p.nombre, uf:p.uf,
+        dpsVenta:p.dpsConVenta, dpsSinVenta:p.dpsSinVenta,
+        dpsPendiente:p.dpsPendiente, dpsRechazado:p.dpsRechazado,
+        dpsTotal:p.dpsTotal||(p.dpsConVenta+p.dpsSinVenta+p.dpsPendiente+p.dpsRechazado),
+        nBenef:p.nBenef, cttosDig:p.cttosDig, conecta:p.conecta
+      };
     });
 
     if(window.skipSnapshotRef) window.skipSnapshotRef.current=true;
@@ -6473,13 +6436,34 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
             if (!data2 || !Array.isArray(data2.equipo)) return;
             // Guardar en global indexado por ejecutivo id
             data2.equipo.forEach(function(vMes) {
-              if (!(vMes.uf > 0)) return;
+              var hMes = (vMes.historial||{})[mk] || {};
+              var tieneData = vMes.uf > 0 || hMes.dpsVenta > 0 || hMes.nBenef > 0;
+              if (!tieneData) return;
               if (!window.__historialMeses[String(vMes.id)]) window.__historialMeses[String(vMes.id)] = {};
-              // Solo setear si no hay ya dato para ese mes
               if (!window.__historialMeses[String(vMes.id)][mk]) {
-                window.__historialMeses[String(vMes.id)][mk] = { uf: vMes.uf, dps: vMes.dps||0 };
+                window.__historialMeses[String(vMes.id)][mk] = Object.assign(
+                  { uf: vMes.uf||0, dps: vMes.dps||0 }, hMes
+                );
               }
             });
+            // Sumar _sinMatch al bucket especial id="_sm" para que DpsAnalisisView lo incluya
+            if (data2._sinMatch && data2._sinMatch.length > 0) {
+              if (!window.__historialMeses["_sm"]) window.__historialMeses["_sm"] = {};
+              if (!window.__historialMeses["_sm"][mk]) {
+                var smUF=0,smCV=0,smSV=0,smP=0,smR=0,smB=0,smCt=0;
+                data2._sinMatch.forEach(function(s){
+                  smUF+=parseFloat(s.uf)||0; smCV+=parseInt(s.dpsVenta)||0;
+                  smSV+=parseInt(s.dpsSinVenta)||0; smP+=parseInt(s.dpsPendiente)||0;
+                  smR+=parseInt(s.dpsRechazado)||0; smB+=parseInt(s.nBenef)||0;
+                  smCt+=parseInt(s.cttosDig)||0;
+                });
+                window.__historialMeses["_sm"][mk] = {
+                  uf:parseFloat(smUF.toFixed(2)), ufDig:parseFloat(smUF.toFixed(2)),
+                  dps:smCV+smSV+smP+smR, dpsVenta:smCV, dpsSinVenta:smSV,
+                  dpsPendiente:smP, dpsRechazado:smR, nBenef:smB, cttosDig:smCt, conecta:0
+                };
+              }
+            }
             console.log("[HISTORIAL] Cargado: " + mk);
           }).catch(function(){});
         });
@@ -6488,7 +6472,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
           console.log("[HISTORIAL] Meses anteriores cargados OK");
           // Inyectar en el estado del equipo para que DpsAnalisisView los vea
           setEquipo(function(prev){
-            return prev.map(function(v){
+            var resultado = prev.map(function(v){
               var histAcum = Object.assign({}, v.historial||{});
               var hMeses = window.__historialMeses[String(v.id)] || {};
               Object.keys(hMeses).forEach(function(mk){
@@ -6498,6 +6482,22 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
               });
               return Object.assign({}, v, {historial: histAcum});
             });
+            // Agregar o actualizar ejecutivo virtual "_sm" con los sinMatch
+            var smData = window.__historialMeses["_sm"] || {};
+            if (Object.keys(smData).length > 0) {
+              var idxSm = resultado.findIndex(function(v){ return v.id === "_sm"; });
+              var histSm = idxSm >= 0 ? Object.assign({}, resultado[idxSm].historial||{}) : {};
+              Object.keys(smData).forEach(function(mk){ histSm[mk] = smData[mk]; });
+              if (idxSm >= 0) {
+                resultado[idxSm] = Object.assign({}, resultado[idxSm], {historial: histSm});
+              } else {
+                resultado = resultado.concat([{
+                  id:"_sm", nombre:"[Otros ese mes]", cargo:"", pin:"", rut:"",
+                  uf:0, dps:0, rep:[], historial:histSm, metaUF:0, metaDPS:0
+                }]);
+              }
+            }
+            return resultado;
           });
           setSincronizado(function(v){ return v; });
         });
