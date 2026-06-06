@@ -3216,8 +3216,6 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
         .then(function(){
           var extra2 = sinMatchData.length>0?" ("+sinMatchData.length+" sin match guardados igualmente)":"";
           setMsg("✅ ¡Guardado! "+(_nm?_nm.nom:mesKey)+" actualizado."+extra2);
-          // Para mes histórico: actualizar también el historial dentro del doc del mes ACTUAL
-          // porque onSnapshot lee equipos/mesActual y el historial de cada ej está incrustado ahí
           if (!esMesActual && window.__fbGetDoc) {
             window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos",info.mesKey)).then(function(snapAct){
               var exAct = typeof snapAct.exists==="function" ? snapAct.exists() : snapAct.exists;
@@ -6474,7 +6472,11 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
               if (!window.__historialMeses[String(vMes.id)]) window.__historialMeses[String(vMes.id)] = {};
               // Solo setear si no hay ya dato para ese mes
               if (!window.__historialMeses[String(vMes.id)][mk]) {
-                window.__historialMeses[String(vMes.id)][mk] = { uf: vMes.uf, dps: vMes.dps||0 };
+                // Guardar historial COMPLETO del mes (no solo uf/dps)
+                var hMes = (vMes.historial||{})[mk] || {};
+                window.__historialMeses[String(vMes.id)][mk] = Object.assign(
+                  {uf: vMes.uf, dps: vMes.dps||0}, hMes
+                );
               }
             });
             console.log("[HISTORIAL] Cargado: " + mk);
@@ -6489,9 +6491,8 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
               var histAcum = Object.assign({}, v.historial||{});
               var hMeses = window.__historialMeses[String(v.id)] || {};
               Object.keys(hMeses).forEach(function(mk){
-                if (!histAcum[mk] || !(histAcum[mk].uf > 0)) {
-                  histAcum[mk] = Object.assign({}, histAcum[mk]||{}, hMeses[mk]);
-                }
+                // Reemplazar completamente — no mezclar con historial viejo
+                histAcum[mk] = Object.assign({}, histAcum[mk]||{}, hMeses[mk]);
               });
               return Object.assign({}, v, {historial: histAcum});
             });
