@@ -2998,7 +2998,7 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
           var dpsRechazado = (function(){var v=_fv("Rechazadas.1"); return v!==null?v:(_fv("Rechazadas")||_fv("Rechazada")||0);})();
           var dpsTotal     = (function(){var v=_fv("Total DPS "); return v!==null?v:(_fv("Total DPS")||0);})();
           var uf = parseFloat(parseFloat(String(f["UF  DIG."]||f["UF DIG."]||f["UF Dif"]||f["UF"]||"0").replace(",",".")).toFixed(2)) || 0;
-          // nBenef: col 31 = N° Benef (VENTAS DIGITADAS = correcto), col 28 = N° Benef. (DPS MES = incorrecto)
+          // nBenef: col 31 = N° Benef (VENTAS DIGITADAS = correcto)
           var nBenef = (function(){
             var rr = rawArr[f._rawIdx];
             if(rr && rr[31]!==null && rr[31]!==undefined && rr[31]!=="") return parseInt(rr[31])||0;
@@ -3206,63 +3206,12 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
     });
 
     if(window.skipSnapshotRef) window.skipSnapshotRef.current=true;
-    // Actualizar estado local: si es mes histórico, actualizar solo historial[mesKey]
-    // en el equipo actual (no reemplazar todo el equipo)
-    if (esMesActual) {
-      setEquipo(nuevoEquipo);
-    } else {
-      setEquipo(function(prev){
-        return prev.map(function(v){
-          var match = nuevoEquipo.find(function(n){ return n.id === v.id; });
-          var histAct = Object.assign({}, v.historial||{});
-          if (match) {
-            histAct[mesKey] = (match.historial||{})[mesKey] || {};
-          } else {
-            delete histAct[mesKey];
-          }
-          return Object.assign({}, v, {historial: histAct});
-        });
-      });
-    }
+    if (esMesActual) setEquipo(nuevoEquipo);
     setPreview([]);
     var _nm=mesesOpciones.find(function(m){return m.mk===mesKey;});
     var docData = {equipo:nuevoEquipo, metaEquipo:window.__metaEquipoActual||550};
     if (sinMatchData.length>0) docData._sinMatch = sinMatchData;
-
-    if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc&&window.__fbGetDoc) {
-      // PASO CRÍTICO: Para mes histórico, limpiar historial[mesKey] en el doc del mes actual
-      // y reemplazarlo con los datos correctos del Excel. Así una sola fuente de verdad.
-      if (!esMesActual) {
-        window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos",info.mesKey)).then(function(snapAct){
-          var exAct = typeof snapAct.exists==="function" ? snapAct.exists() : snapAct.exists;
-          if (!exAct) return;
-          var dataAct = typeof snapAct.data==="function" ? snapAct.data() : snapAct.data;
-          if (!dataAct || !Array.isArray(dataAct.equipo)) return;
-          var equipoMesActLimpio = dataAct.equipo.map(function(v){
-            // Buscar datos correctos del Excel para este ejecutivo
-            var match = nuevoEquipo.find(function(n){ return n.id === v.id; });
-            var histAct = Object.assign({}, v.historial||{});
-            if (match) {
-              // Reemplazar con datos correctos del Excel
-              histAct[mesKey] = (match.historial||{})[mesKey] || {};
-            } else {
-              // No estaba en el Excel — limpiar ese mes
-              delete histAct[mesKey];
-            }
-            return Object.assign({}, v, {historial: histAct});
-          });
-          // Guardar el doc del mes actual con historial limpio
-          window.__fbSetDoc(
-            window.__fbDoc(window.__fbDb,"equipos",info.mesKey),
-            Object.assign({}, dataAct, {equipo: equipoMesActLimpio}),
-            {merge:false}
-          ).then(function(){
-            console.log("[HIST] ✅ historial["+mesKey+"] actualizado en doc mes actual");
-          }).catch(function(e){ console.warn("[HIST] Error:", e); });
-        }).catch(function(){});
-      }
-
-      // Guardar el doc del mes histórico
+    if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
       window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey), docData, {merge:false})
         .then(function(){
           var extra2 = sinMatchData.length>0?" ("+sinMatchData.length+" sin match guardados igualmente)":"";
@@ -3270,7 +3219,7 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
           setTimeout(function(){if(window.skipSnapshotRef)window.skipSnapshotRef.current=false;},4000);
         })
         .catch(function(e){ setMsg("⚠️ Error Firebase: "+e.message); if(window.skipSnapshotRef)window.skipSnapshotRef.current=false; });
-    } else { setMsg("✅ Actualizado localmente."); if(window.skipSnapshotRef)window.skipSnapshotRef.current=false; }
+    else { setMsg("✅ Actualizado localmente."); if(window.skipSnapshotRef)window.skipSnapshotRef.current=false; }
   }
 
   return React.createElement('div', {style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(233,7,41,.09)"}}
@@ -3529,59 +3478,58 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
   var [editVal, setEditVal] = React.useState("");
   var [guardando, setGuardando] = React.useState(false);
   var [kpiDetalle, setKpiDetalle] = React.useState(null);
-  var [datosMinicards, setDatosMinicards] = React.useState({});
-  var [datosMesHist, setDatosMesHist] = React.useState(null); // datos del mes histórico desde Firebase
+  var [datosMes, setDatosMes] = React.useState(null); // {equipo:[], _sinMatch:[]} leido directo de Firebase
   var [cargandoMes, setCargandoMes] = React.useState(false);
+  var [resumenMeses, setResumenMeses] = React.useState({}); // {mk: {totUF,totT,totC,totB,totCt,tasa}}
 
-  // Cargar datos del mes histórico desde Firebase cuando cambia el mes seleccionado
+  var mesKey = mesSeleccionado;
+  var esMesActual = mesKey === info.mesKey;
+
+  // Al cambiar mes: cargar directo desde Firebase si es histórico
   React.useEffect(function(){
-    var esMesAct = mesSeleccionado === info.mesKey;
-    if (esMesAct) { setDatosMesHist(null); return; }
+    if (esMesActual) { setDatosMes(null); return; }
     if (!window.__fbDb||!window.__fbDoc||!window.__fbGetDoc) return;
     setCargandoMes(true);
-    window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos",mesSeleccionado)).then(function(snap){
+    window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey)).then(function(snap){
       var ex = typeof snap.exists==="function" ? snap.exists() : snap.exists;
-      if (!ex) { setDatosMesHist(null); setCargandoMes(false); return; }
+      if (!ex) { setDatosMes(null); setCargandoMes(false); return; }
       var d = typeof snap.data==="function" ? snap.data() : snap.data;
-      setDatosMesHist(d||null);
+      setDatosMes(d||null);
       setCargandoMes(false);
     }).catch(function(){ setCargandoMes(false); });
-  }, [mesSeleccionado]);
+  }, [mesKey]);
 
-  // Cargar totales de todos los meses históricos desde Firebase al montar
+  // Al montar: cargar resumen de todos los meses históricos para mini cards
   React.useEffect(function(){
     if (!window.__fbDb||!window.__fbDoc||!window.__fbGetDoc) return;
     var hoy = new Date();
     for (var i=1; i<=5; i++) {
-      (function(offset){
-        var d = new Date(hoy.getFullYear(), hoy.getMonth()-offset, 1);
+      (function(off){
+        var d = new Date(hoy.getFullYear(), hoy.getMonth()-off, 1);
         var mk = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
         window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos",mk)).then(function(snap){
           var ex = typeof snap.exists==="function" ? snap.exists() : snap.exists;
           if (!ex) return;
           var data = typeof snap.data==="function" ? snap.data() : snap.data;
-          if (!data || !Array.isArray(data.equipo)) return;
-          var totC=0,totS=0,totP=0,totR=0,totB=0,totCt=0,totUF=0;
+          if (!data||!Array.isArray(data.equipo)) return;
+          var totUF=0,totC=0,totS=0,totP=0,totR=0,totB=0,totCt=0;
           data.equipo.forEach(function(v){
             var h=(v.historial||{})[mk]||{};
+            totUF+=parseFloat(h.ufDig||h.uf)||0;
             totC+=parseInt(h.dpsVenta)||0; totS+=parseInt(h.dpsSinVenta)||0;
             totP+=parseInt(h.dpsPendiente)||0; totR+=parseInt(h.dpsRechazado)||0;
             totB+=parseInt(h.nBenef)||0; totCt+=parseInt(h.cttosDig)||0;
-            totUF+=parseFloat(h.ufDig||h.uf)||0;
           });
-          // Sumar sinMatch si existe
-          if (data._sinMatch) {
-            data._sinMatch.forEach(function(s){
-              totC+=parseInt(s.dpsVenta)||0; totS+=parseInt(s.dpsSinVenta)||0;
-              totP+=parseInt(s.dpsPendiente)||0; totR+=parseInt(s.dpsRechazado)||0;
-              totB+=parseInt(s.nBenef)||0; totCt+=parseInt(s.cttosDig)||0;
-              totUF+=parseFloat(s.uf)||0;
-            });
-          }
+          if (data._sinMatch) data._sinMatch.forEach(function(s){
+            totUF+=parseFloat(s.uf)||0;
+            totC+=parseInt(s.dpsVenta)||0; totS+=parseInt(s.dpsSinVenta)||0;
+            totP+=parseInt(s.dpsPendiente)||0; totR+=parseInt(s.dpsRechazado)||0;
+            totB+=parseInt(s.nBenef)||0; totCt+=parseInt(s.cttosDig)||0;
+          });
           var totT=totC+totS+totP+totR;
-          setDatosMinicards(function(prev){
+          setResumenMeses(function(prev){
             var n=Object.assign({},prev);
-            n[mk]={totC:totC,totS:totS,totP:totP,totR:totR,totT:totT,totB:totB,totCt:totCt,totUF:parseFloat(totUF.toFixed(2)),tasa:totT>0?Math.round((totC/totT)*100):0};
+            n[mk]={totUF:parseFloat(totUF.toFixed(2)),totC:totC,totS:totS,totP:totP,totR:totR,totT:totT,totB:totB,totCt:totCt,tasa:totT>0?Math.round((totC/totT)*100):0};
             return n;
           });
         }).catch(function(){});
@@ -3589,99 +3537,54 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
     }
   }, []);
 
+  // Mini cards de los 6 meses
   var mesesDisp = [];
   for (var i=0; i<=5; i++) {
     var d2 = new Date(new Date().getFullYear(), new Date().getMonth()-i, 1);
     var mk2 = d2.getFullYear()+"-"+String(d2.getMonth()+1).padStart(2,"0");
     var nom2 = d2.toLocaleString("es-CL",{month:"long",year:"numeric"}).replace(/^./,function(c){return c.toUpperCase();});
-    var esMesActual2 = (mk2 === info.mesKey);
-    var totC2=0,totS2=0,totP2=0,totR2=0,totB2=0,totCt2=0,totUF2=0,totT2=0,tasa2=0;
-    if (esMesActual2) {
-      // Mes actual: leer del estado equipo en vivo
+    var esAct2 = mk2===info.mesKey;
+    var r2 = {totUF:0,totC:0,totS:0,totP:0,totR:0,totT:0,totB:0,totCt:0,tasa:0};
+    if (esAct2) {
       equipo.forEach(function(v){
-        totC2+=parseInt(((v.historial||{})[mk2]||{}).dpsVenta)||0;
-        totS2+=parseInt(((v.historial||{})[mk2]||{}).dpsSinVenta)||0;
-        totP2+=parseInt(((v.historial||{})[mk2]||{}).dpsPendiente)||0;
-        totR2+=parseInt(((v.historial||{})[mk2]||{}).dpsRechazado)||0;
-        totB2+=parseInt(((v.historial||{})[mk2]||{}).nBenef)||0;
-        totCt2+=parseInt(((v.historial||{})[mk2]||{}).cttosDig)||0;
-        totUF2+=parseFloat(v.uf)||0;
+        r2.totUF+=parseFloat(v.uf)||0;
+        var h=(v.historial||{})[mk2]||{};
+        r2.totC+=parseInt(h.dpsVenta)||0; r2.totS+=parseInt(h.dpsSinVenta)||0;
+        r2.totP+=parseInt(h.dpsPendiente)||0; r2.totR+=parseInt(h.dpsRechazado)||0;
+        r2.totB+=parseInt(h.nBenef)||0; r2.totCt+=parseInt(h.cttosDig)||0;
       });
-      totT2=totC2+totS2+totP2+totR2;
-      tasa2=totT2>0?Math.round((totC2/totT2)*100):0;
-    } else if (datosMinicards[mk2]) {
-      // Mes histórico: usar datos cargados desde Firebase
-      var dm=datosMinicards[mk2];
-      totC2=dm.totC; totS2=dm.totS; totP2=dm.totP; totR2=dm.totR;
-      totB2=dm.totB; totCt2=dm.totCt; totUF2=dm.totUF; totT2=dm.totT; tasa2=dm.tasa;
-    } else {
-      // Fallback: historial incrustado (solo UF para Hall de Honor)
-      equipo.forEach(function(v){
-        totUF2+=parseFloat(((v.historial||{})[mk2]||{}).uf)||0;
-      });
+      r2.totT=r2.totC+r2.totS+r2.totP+r2.totR;
+      r2.tasa=r2.totT>0?Math.round((r2.totC/r2.totT)*100):0;
+      r2.totUF=parseFloat(r2.totUF.toFixed(2));
+    } else if (resumenMeses[mk2]) {
+      r2=resumenMeses[mk2];
     }
-    mesesDisp.push({mk:mk2,key:mk2,nom:nom2,totC:totC2,totS:totS2,totP:totP2,totR:totR2,totT:totT2,totB:totB2,totCt:totCt2,totUF:parseFloat(totUF2.toFixed(2)),tasa:tasa2});
+    mesesDisp.push({mk:mk2,key:mk2,nom:nom2,totUF:r2.totUF,totC:r2.totC,totS:r2.totS,totP:r2.totP,totR:r2.totR,totT:r2.totT,totB:r2.totB,totCt:r2.totCt,tasa:r2.tasa});
   }
 
-  var mesKey = mesSeleccionado;
-  var esMesActual = mesKey === info.mesKey;
+  // Datos para cards grandes y tabla — EXCLUSIVAMENTE desde Firebase (datosMes) para histórico
+  var equipoBase = esMesActual ? equipo : (datosMes && datosMes.equipo ? datosMes.equipo : []);
+  var sinMatchBase = (!esMesActual && datosMes && datosMes._sinMatch) ? datosMes._sinMatch : [];
 
-  // Para mes histórico: construir datos desde Firebase (datosMesHist)
-  // Para mes actual: usar equipo en vivo
-  var equipoParaDatos = esMesActual ? equipo : (
-    datosMesHist && datosMesHist.equipo ? (
-      datosMesHist._sinMatch && datosMesHist._sinMatch.length > 0
-        ? datosMesHist.equipo.concat(datosMesHist._sinMatch.map(function(s,idx){
-            var h={};
-            h[mesKey]={uf:s.uf||0,ufDig:s.uf||0,dpsVenta:s.dpsVenta||0,dpsSinVenta:s.dpsSinVenta||0,dpsPendiente:s.dpsPendiente||0,dpsRechazado:s.dpsRechazado||0,nBenef:s.nBenef||0,cttosDig:s.cttosDig||0,conecta:s.conecta||0};
-            return {id:"_sm"+idx,nombre:s.nombre||"[sin match]",uf:0,dps:0,rep:[],historial:h,metaUF:0,metaDPS:0};
-          }))
-        : datosMesHist.equipo
-    ) : equipo
-  );
-
-  // Build datos
-  var datos = equipoParaDatos.map(function(v){
+  // Construir filas de datos
+  var datos = equipoBase.map(function(v){
     var h=(v.historial||{})[mesKey]||{};
-    var esMesAct = mesKey===info.mesKey;
-    // Para mes actual, calcular sexo y conecta desde reportes del ejecutivo
-    var pctF=0, pctM=0, conecta=0;
-    var totSexReps=0;
-    if(esMesAct){
-      var reps=v.rep||[];
-      var totH=reps.reduce(function(s,r){return s+(parseInt(r.hombres)||0);},0);
-      var totMu=reps.reduce(function(s,r){return s+(parseInt(r.mujeres)||0);},0);
-      totSexReps=totH+totMu;
-      // pctF=Mujer, pctM=Hombre (correcto)
-      pctF=totSexReps>0?Math.round((totMu/totSexReps)*100):0;
-      pctM=totSexReps>0?Math.round((totH/totSexReps)*100):0;
-      // Conecta: SOLO desde Excel del supervisor
-      conecta = parseInt(h.conecta)||0;
-    } else {
-      pctF=parseInt(h.pctF)||0;
-      pctM=parseInt(h.pctM)||0;
-      if(pctF===0&&pctM>0) pctF=100-pctM;
-      if(pctM===0&&pctF>0) pctM=100-pctF;
-      conecta=parseInt(h.conecta)||0;
-    }
-    var cttosDig=parseInt(h.cttosDig)||0;
-    return {
-      id: v.id, nombre: v.nombre,
-      uf:          esMesAct ? (parseFloat(v.uf)||0) : (parseFloat(h.ufDig)||parseFloat(h.uf)||0),
-      dpsConVenta:  parseInt(h.dpsVenta)||0,
-      dpsSinVenta:  parseInt(h.dpsSinVenta)||0,
-      dpsPendiente: parseInt(h.dpsPendiente)||0,
-      dpsRechazado: parseInt(h.dpsRechazado)||0,
-      dpsTotal: (parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0) || (esMesAct?(parseInt(v.dps)||0):0),
-      nBenef:   parseInt(h.nBenef)||0,
-      cttosDig: cttosDig,
-      // Para el ponderado de % sexo usar totSexReps cuando es mes actual
-      _sexBase: esMesAct ? totSexReps : cttosDig,
-      pctF: pctF, pctM: pctM, conecta: conecta,
-    };
+    var uf = esMesActual ? (parseFloat(v.uf)||0) : (parseFloat(h.ufDig||h.uf)||0);
+    var dpsCV=parseInt(h.dpsVenta)||0, dpsSV=parseInt(h.dpsSinVenta)||0;
+    var dpsP=parseInt(h.dpsPendiente)||0, dpsR=parseInt(h.dpsRechazado)||0;
+    var dpsT=dpsCV+dpsSV+dpsP+dpsR||(esMesActual?(parseInt(v.dps)||0):0);
+    var pctF=parseInt(h.pctF)||0, pctM=parseInt(h.pctM)||0;
+    if(esMesActual){var reps=v.rep||[];var totH=reps.reduce(function(s,r){return s+(parseInt(r.hombres)||0);},0);var totMu=reps.reduce(function(s,r){return s+(parseInt(r.mujeres)||0);},0);var totSex=totH+totMu;pctF=totSex>0?Math.round((totMu/totSex)*100):0;pctM=totSex>0?Math.round((totH/totSex)*100):0;}
+    else{if(pctF===0&&pctM>0)pctF=100-pctM;if(pctM===0&&pctF>0)pctM=100-pctF;}
+    return {id:v.id,nombre:v.nombre,uf:uf,dpsConVenta:dpsCV,dpsSinVenta:dpsSV,dpsPendiente:dpsP,dpsRechazado:dpsR,dpsTotal:dpsT,nBenef:parseInt(h.nBenef)||0,cttosDig:parseInt(h.cttosDig)||0,conecta:parseInt(h.conecta)||0,pctF:pctF,pctM:pctM};
   });
 
-  datos.sort(function(a,b){ var va=a[sortCol]||0,vb=b[sortCol]||0; return sortAsc?va-vb:vb-va; });
+  // Agregar sinMatch como filas adicionales
+  sinMatchBase.forEach(function(s,idx){
+    datos.push({id:"_sm"+idx,nombre:s.nombre||"[sin match]",uf:parseFloat(s.uf)||0,dpsConVenta:parseInt(s.dpsVenta)||0,dpsSinVenta:parseInt(s.dpsSinVenta)||0,dpsPendiente:parseInt(s.dpsPendiente)||0,dpsRechazado:parseInt(s.dpsRechazado)||0,dpsTotal:(parseInt(s.dpsVenta)||0)+(parseInt(s.dpsSinVenta)||0)+(parseInt(s.dpsPendiente)||0)+(parseInt(s.dpsRechazado)||0),nBenef:parseInt(s.nBenef)||0,cttosDig:parseInt(s.cttosDig)||0,conecta:0,pctF:0,pctM:0});
+  });
+
+  datos.sort(function(a,b){var va=a[sortCol]||0,vb=b[sortCol]||0;return sortAsc?va-vb:vb-va;});
 
   var totConVenta=datos.reduce(function(s,d){return s+d.dpsConVenta;},0);
   var totSinVenta=datos.reduce(function(s,d){return s+d.dpsSinVenta;},0);
@@ -3692,136 +3595,11 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
   var totBenef=datos.reduce(function(s,d){return s+d.nBenef;},0);
   var totCttos=datos.reduce(function(s,d){return s+d.cttosDig;},0);
   var totConectaMes=datos.reduce(function(s,d){return s+(d.conecta||0);},0);
-  // Promedio % sexo ponderado por cttos
-  // Usar _sexBase como denominador (rep[] para mes actual, cttosDig para histórico)
-  var totSexBase=datos.reduce(function(s,d){return s+(d._sexBase||0);},0);
-  var totPctF=totSexBase>0?Math.round(datos.reduce(function(s,d){return s+(d.pctF*(d._sexBase||0));},0)/totSexBase):0;
   var agvEnCero=datos.filter(function(p){return (parseFloat(p.uf)||0)===0;}).length;
-  var totPctM=totSexBase>0?Math.round(datos.reduce(function(s,d){return s+(d.pctM*(d._sexBase||0));},0)/totSexBase):0;
-  var totUF=datos.reduce(function(s,d){return s+d.uf;},0);
+  var totUF=parseFloat(datos.reduce(function(s,d){return s+d.uf;},0).toFixed(2));
 
-  // Guardar edición en Firebase
-  function saveEdit(vid, campo, valor) {
-    setGuardando(true);
-    var campoHist = campo==="uf"?"ufDig":campo==="dpsConVenta"?"dpsVenta":campo==="dpsSinVenta"?"dpsSinVenta":campo==="dpsPendiente"?"dpsPendiente":campo==="dpsRechazado"?"dpsRechazado":campo==="nBenef"?"nBenef":"cttosDig";
-    var val = campo==="uf" ? parseFloat(valor)||0 : parseInt(valor)||0;
-    var nuevoEquipo = equipo.map(function(v){
-      if(v.id !== vid) return v;
-      var hist = Object.assign({}, v.historial||{});
-      var mes = Object.assign({uf:0,dps:0,dpsVenta:0,dpsSinVenta:0,dpsPendiente:0,dpsRechazado:0,nBenef:0,cttosDig:0}, hist[mesKey]||{});
-      mes[campoHist] = val;
-      // Recalcular dps total
-      mes.dps = (parseInt(mes.dpsVenta)||0)+(parseInt(mes.dpsSinVenta)||0)+(parseInt(mes.dpsPendiente)||0)+(parseInt(mes.dpsRechazado)||0);
-      hist[mesKey] = mes;
-      return Object.assign({}, v, {historial: hist});
-    });
-    setEquipo(nuevoEquipo);
-    setEditCell(null);
-    // Firebase
-    if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
-      var fbDoc = esMesActual ? {equipo:nuevoEquipo} : (function(){
-        var d3={}; nuevoEquipo.forEach(function(v){ d3[String(v.id)]=(v.historial||{})[mesKey]||{}; }); return {historial:d3};
-      })();
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey),esMesActual?{equipo:nuevoEquipo}:{historial:(function(){var d3={};nuevoEquipo.forEach(function(v){d3[String(v.id)]=(v.historial||{})[mesKey]||{};});return d3;})()})
-        .then(function(){setGuardando(false);})
-        .catch(function(){setGuardando(false);});
-    } else { setGuardando(false); }
-  }
-
-  function EditableCell({vid, campo, valor, color}) {
-    var isEditing = editCell && editCell.vid===vid && editCell.campo===campo;
-    if(isEditing) {
-      return React.createElement("td",{style:{padding:"4px 6px",textAlign:"center"}}
-        ,React.createElement("input",{type:"number",autoFocus:true,value:editVal,
-            onChange:function(e){setEditVal(e.target.value);},
-            onBlur:function(){saveEdit(vid,campo,editVal);},
-            onKeyDown:function(e){if(e.key==="Enter")saveEdit(vid,campo,editVal);if(e.key==="Escape")setEditCell(null);},
-            onFocus:function(e){e.target.select();},
-            style:{width:60,padding:"4px 6px",borderRadius:6,border:"2px solid "+R,textAlign:"center",fontSize:12,fontWeight:700,fontFamily:"inherit"}
-          })
-      );
-    }
-    return React.createElement("td",{
-        onClick:function(){setEditCell({vid:vid,campo:campo});setEditVal(String(valor));},
-        style:{padding:"10px 12px",textAlign:"center",fontWeight:900,color:color||"#374151",cursor:"pointer",borderBottom:"1px dashed #E5E7EB"}
-      },valor||"—",React.createElement("span",{style:{fontSize:8,color:"#D1D5DB",marginLeft:2}},"✏️")
-    );
-  }
-
-  function thSort(col, label) {
-    return React.createElement("th",{key:col,onClick:function(){if(sortCol===col)setSortAsc(!sortAsc);else{setSortCol(col);setSortAsc(false);}},
-        style:{padding:"10px 12px",textAlign:col==="nombre"?"left":"center",fontSize:11,color:"#6B7280",fontWeight:700,cursor:"pointer",userSelect:"none",whiteSpace:"nowrap"}
-      },label+(sortCol===col?(sortAsc?" ↑":" ↓"):" ↕"));
-  }
-
-  function renderDetalleKpi(cfgMap, colores) {
-    var cfg = cfgMap[kpiDetalle];
-    if(!cfg) return null;
-    var filas = datos.slice().filter(function(v){
-      var val=cfg.fn(v);
-      if(typeof val==="string") return val!=="0%" && parseFloat(val)>0;
-      return val>0;
-    }).sort(function(a,b){
-      var va=cfg.fn(a), vb=cfg.fn(b);
-      if(typeof va==="string") return parseFloat(String(vb).replace(" UF",""))-parseFloat(String(va).replace(" UF",""));
-      return vb-va;
-    });
-    return React.createElement("div",{style:{background:"#F8FAFC",borderRadius:12,padding:"14px 16px",marginBottom:8,border:"1px solid #E5E7EB"}},
-      React.createElement("div",{style:{fontSize:12,fontWeight:900,color:cfg.c,marginBottom:10,textTransform:"uppercase",letterSpacing:"0.05em"}},"📊 Detalle individual — "+cfg.l),
-      filas.length===0
-        ? React.createElement("div",{style:{color:"#9CA3AF",fontSize:12,fontStyle:"italic"}},"Todos los ejecutivos están en cero para esta métrica.")
-        : React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:6}},
-            filas.map(function(v){
-              var val=cfg.fn(v);
-              return React.createElement("div",{key:v.id,style:{display:"flex",justifyContent:"space-between",alignItems:"center",background:"#fff",borderRadius:8,padding:"8px 12px",border:"1px solid #E5E7EB"}},
-                React.createElement("span",{style:{fontSize:12,fontWeight:700,color:"#374151"}},(v.nombre.split(" ")[0]||"")+" "+(v.nombre.split(" ")[1]||"")),
-                React.createElement("span",{style:{fontSize:14,fontWeight:900,color:cfg.c}},val)
-              );
-            })
-          )
-    );
-  }
-
-  function renderDetalleF1() {
-    return renderDetalleKpi({
-      totTotal:   {l:"Total DPS",       c:"#374151", fn:function(v){return v.dpsTotal||0;}},
-      conVenta:   {l:"DPS Con Venta",   c:"#16A34A", fn:function(v){return v.dpsConVenta||0;}},
-      sinVenta:   {l:"DPS Sin Venta",   c:"#2563EB", fn:function(v){return v.dpsSinVenta||0;}},
-      pendiente:  {l:"DPS Pendientes",  c:"#D97706", fn:function(v){return v.dpsPendiente||0;}},
-      rechazado:  {l:"DPS Rechazadas",  c:"#DC2626", fn:function(v){return v.dpsRechazado||0;}},
-      tasaCierre: {l:"Tasa Cierre DPS", c:"#374151", fn:function(v){return v.dpsTotal>0?Math.round((v.dpsConVenta/v.dpsTotal)*100)+"%":"0%";}}
-    });
-  }
-
-  function renderDetalleF2() {
-    if (kpiDetalle==="agvCero") {
-      var enCero=datos.filter(function(p){return (parseFloat(p.uf)||0)===0;});
-      return React.createElement("div",{style:{background:"#FFF1F2",borderRadius:12,padding:"16px 20px",marginBottom:12,border:"1px solid #FCA5A5"}}
-        ,React.createElement("div",{style:{fontWeight:900,color:"#DC2626",fontSize:14,marginBottom:10}},"AGV en 0 UF este mes ("+enCero.length+")")
-        ,React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:8}}
-          ,enCero.map(function(p){return React.createElement("div",{key:p.id,style:{background:"#FEE2E2",borderRadius:99,padding:"5px 14px",fontSize:12,fontWeight:700,color:"#DC2626"}},p.nombre);})
-        )
-      );
-    }
-    if (kpiDetalle==="agvCero") {
-      var enCero=datos.filter(function(p){return (parseFloat(p.uf)||0)===0;});
-      return React.createElement("div",{style:{background:"#FFF1F2",borderRadius:12,padding:"16px 20px",marginBottom:12,border:"1px solid #FCA5A5"}}
-        ,React.createElement("div",{style:{fontWeight:900,color:"#DC2626",fontSize:14,marginBottom:10}},"AGV en 0 UF este mes ("+enCero.length+")")
-        ,React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:8}}
-          ,enCero.map(function(p){return React.createElement("div",{key:p.id,style:{background:"#FEE2E2",borderRadius:99,padding:"5px 14px",fontSize:12,fontWeight:700,color:"#DC2626"}},p.nombre);})
-        )
-      );
-    }
-    return renderDetalleKpi({
-      totUF:      {l:"Total UF",           c:"#C9A84C", fn:function(v){return parseFloat(v.uf||0).toFixed(2)+" UF";}},
-      totBenef:   {l:"N° Beneficiarios",   c:"#0891B2", fn:function(v){return v.nBenef||0;}},
-      totCttos:   {l:"Contratos Digitados",c:"#059669", fn:function(v){return v.cttosDig||0;}},
-      totConecta: {l:"Planes Conecta",     c:"#059669", fn:function(v){return v.conecta||0;}}
-    });
-  }
-
-  // Totales del mes ACTUAL para BenchmarkComparativa
-  var datosActBench=equipo.map(function(v){var h=(v.historial||{})[info.mesKey]||{};var reps=v.rep||[];var hom=reps.reduce(function(s,r){return s+(parseInt(r.hombres)||0);},0);var muj=reps.reduce(function(s,r){return s+(parseInt(r.mujeres)||0);},0);return {uf:parseFloat(v.uf)||0,dpsConVenta:parseInt(h.dpsVenta)||0,dpsSinVenta:parseInt(h.dpsSinVenta)||0,dpsPendiente:parseInt(h.dpsPendiente)||0,dpsRechazado:parseInt(h.dpsRechazado)||0,nBenef:parseInt(h.nBenef)||0,cttosDig:parseInt(h.cttosDig)||0,hombres:hom,mujeres:muj};});
+  // Para BenchmarkComparativa usar mes actual
+  var datosActBench=equipo.map(function(v){var h=(v.historial||{})[info.mesKey]||{};return{uf:parseFloat(v.uf)||0,dpsConVenta:parseInt(h.dpsVenta)||0,dpsSinVenta:parseInt(h.dpsSinVenta)||0,dpsPendiente:parseInt(h.dpsPendiente)||0,dpsRechazado:parseInt(h.dpsRechazado)||0,nBenef:parseInt(h.nBenef)||0,cttosDig:parseInt(h.cttosDig)||0};});
   var totUFMesAct=datosActBench.reduce(function(s,d){return s+d.uf;},0);
   var totCVMesAct=datosActBench.reduce(function(s,d){return s+d.dpsConVenta;},0);
   var totSVMesAct=datosActBench.reduce(function(s,d){return s+d.dpsSinVenta;},0);
@@ -3831,105 +3609,110 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
   var totCtMesAct=datosActBench.reduce(function(s,d){return s+d.cttosDig;},0);
   var totDPSMesAct=totCVMesAct+totSVMesAct+totPMesAct+totRMesAct;
   var tasaMesAct=totDPSMesAct>0?Math.round((totCVMesAct/totDPSMesAct)*100):0;
+
+  function saveEdit(vid, campo, valor) {
+    setGuardando(true);
+    var campoHist=campo==="uf"?"ufDig":campo==="dpsConVenta"?"dpsVenta":campo==="dpsSinVenta"?"dpsSinVenta":campo==="dpsPendiente"?"dpsPendiente":campo==="dpsRechazado"?"dpsRechazado":campo==="nBenef"?"nBenef":"cttosDig";
+    var val=campo==="uf"?parseFloat(valor)||0:parseInt(valor)||0;
+    var nuevoEquipo=equipo.map(function(v){
+      if(v.id!==vid) return v;
+      var hist=Object.assign({},v.historial||{});
+      var mes=Object.assign({uf:0,dps:0,dpsVenta:0,dpsSinVenta:0,dpsPendiente:0,dpsRechazado:0,nBenef:0,cttosDig:0},hist[mesKey]||{});
+      mes[campoHist]=val;
+      mes.dps=(parseInt(mes.dpsVenta)||0)+(parseInt(mes.dpsSinVenta)||0)+(parseInt(mes.dpsPendiente)||0)+(parseInt(mes.dpsRechazado)||0);
+      hist[mesKey]=mes;
+      return Object.assign({},v,{historial:hist});
+    });
+    setEquipo(nuevoEquipo);
+    setEditCell(null);
+    if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey),esMesActual?{equipo:nuevoEquipo}:{historial:(function(){var d3={};nuevoEquipo.forEach(function(v){d3[String(v.id)]=(v.historial||{})[mesKey]||{};});return d3;})()})
+        .then(function(){setGuardando(false);}).catch(function(){setGuardando(false);});
+    } else {setGuardando(false);}
+  }
+
+  function EditableCell(props) {
+    var vid=props.vid,campo=props.campo,valor=props.valor,color=props.color;
+    var isEditing=editCell&&editCell.vid===vid&&editCell.campo===campo;
+    if(isEditing){return React.createElement("td",{style:{padding:"4px 6px",textAlign:"center"}},React.createElement("input",{type:"number",autoFocus:true,value:editVal,onChange:function(e){setEditVal(e.target.value);},onBlur:function(){saveEdit(vid,campo,editVal);},onKeyDown:function(e){if(e.key==="Enter")saveEdit(vid,campo,editVal);if(e.key==="Escape")setEditCell(null);},onFocus:function(e){e.target.select();},style:{width:60,padding:"4px 6px",borderRadius:6,border:"2px solid "+R,textAlign:"center",fontSize:12,fontWeight:700,fontFamily:"inherit"}}));}
+    return React.createElement("td",{onClick:function(){setEditCell({vid:vid,campo:campo});setEditVal(String(valor));},style:{padding:"10px 12px",textAlign:"center",fontWeight:900,color:color||"#374151",cursor:"pointer",borderBottom:"1px dashed #E5E7EB"}},valor||"—",React.createElement("span",{style:{fontSize:8,color:"#D1D5DB",marginLeft:2}},"✏️"));
+  }
+
+  function thSort(col,label){return React.createElement("th",{key:col,onClick:function(){if(sortCol===col)setSortAsc(!sortAsc);else{setSortCol(col);setSortAsc(false);}},style:{padding:"10px 12px",textAlign:col==="nombre"?"left":"center",fontSize:11,color:"#6B7280",fontWeight:700,cursor:"pointer",userSelect:"none",whiteSpace:"nowrap"}},label+(sortCol===col?(sortAsc?" ↑":" ↓"):" ↕"));}
+
+  var nomMesSel=(mesesDisp.find(function(m){return m.mk===mesKey;})||{nom:mesKey}).nom;
+
   return React.createElement("div",{style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(233,7,41,.09)"}}
     ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:RD,marginBottom:4}},"🔵 Análisis de Métricas por Mes")
     ,React.createElement("div",{style:{fontSize:12,color:"#6B7280",marginBottom:4}},"Selecciona un mes · Click en cualquier celda para editar · Enter o click fuera para guardar")
     ,guardando&&React.createElement("div",{style:{fontSize:11,color:"#D97706",marginBottom:8,fontWeight:700}},"⏳ Guardando...")
+    ,cargandoMes&&React.createElement("div",{style:{fontSize:11,color:"#1D4ED8",marginBottom:8,fontWeight:700}},"⏳ Cargando datos del mes...")
 
-    // Cards de meses
+    // Mini cards
     ,React.createElement("div",{style:{display:"flex",gap:10,overflowX:"auto",paddingBottom:8,marginBottom:20,WebkitOverflowScrolling:"touch"}}
       ,mesesDisp.map(function(m){
-          var activo=m.mk===mesSeleccionado;
-          var tieneData=m.totT>0||m.totB>0||m.totCt>0;
-          var esMesActual=m.mk===info.mesKey;
-          var esBenchmark=benchmark&&benchmark.mesLabel&&benchmark.mesLabel===m.nom.split(" de ")[0];
-          return React.createElement("div",{key:m.mk,
-              style:{flexShrink:0,background:activo?"linear-gradient(135deg,"+RD+",#C91B2F)":esMesActual?"#FFF5F5":tieneData?"#F8FAFC":"#F8FAFC",borderRadius:14,padding:"14px 18px",cursor:"pointer",border:activo?"2px solid "+RD:"2px solid "+(esBenchmark?"#1D4ED8":esMesActual?RD:tieneData?"#E5E7EB":"#D1D5DB"),minWidth:140,transition:"all .2s",boxShadow:activo?"0 4px 16px rgba(233,7,41,.3)":esBenchmark?"0 4px 16px rgba(29,78,216,.2)":esMesActual?"0 2px 8px rgba(233,7,41,.15)":"none"}}
-            ,React.createElement("div",{onClick:function(){setMesSeleccionado(m.mk);}}
-              ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:activo?"#fff":tieneData?"#374151":"#9CA3AF",marginBottom:6}},m.nom.split(" de ")[0])
-              ,tieneData
-                ?React.createElement("div",null
-                    ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:activo?"#fff":tieneData?"#374151":"#9CA3AF",marginBottom:2}},m.totUF>0?m.totUF+" UF vendidas":"Sin UF")
-                    ,React.createElement("div",{style:{fontSize:11,color:activo?"rgba(255,255,255,.8)":"#6B7280"}},m.totT+" DPS · "+m.tasa+"% cierre")
-                    ,React.createElement("div",{style:{fontSize:10,color:activo?"rgba(255,255,255,.6)":"#9CA3AF",marginTop:2}},m.totB+" benef · "+m.totCt+" cttos")
-                  )
-                :React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",fontStyle:"italic"}},"Sin datos")
-            )
-            ,tieneData&&setBenchmark&&React.createElement("div",{
-                onClick:function(e){
-                  e.stopPropagation();
-                  var bm={mesLabel:m.nom.split(" de ")[0],mesKey:m.key,uf:m.totUF,dps:m.totT,dpsCV:m.totC,dpsSV:m.totS,dpsP:m.totP,dpsR:m.totR,nBenef:m.totB,cttosDig:m.totCt,tasa:m.tasa};
-                  setBenchmark(bm);
-                  if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
-                    window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","benchmark"),bm,{merge:true});
-                },
-                style:{marginTop:8,background:esBenchmark?"#1D4ED8":"rgba(29,78,216,.1)",color:esBenchmark?"#fff":"#1D4ED8",borderRadius:8,padding:"4px 8px",fontSize:9,fontWeight:700,textAlign:"center",cursor:"pointer"}
-              }, esBenchmark?"📌 Benchmark activo":"📌 Usar como Benchmark")
-              , esBenchmark && React.createElement("button",{
-                  onClick:function(e){e.stopPropagation();setBenchmark(null);if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","benchmark"),{});},
-                  style:{marginTop:4,background:"#FEE2E2",color:"#B91C1C",borderRadius:8,padding:"4px 8px",fontSize:9,fontWeight:700,textAlign:"center",cursor:"pointer",border:"none",width:"100%",fontFamily:"inherit"}
-                },"✕ Quitar benchmark")
-          );
-        })
-    )
-    ,React.createElement("div",{style:{display:"flex",gap:10,alignItems:"center",marginBottom:16,flexWrap:"wrap"}}
-      ,React.createElement("div",{style:{fontSize:13,fontWeight:700,color:"#374151"}},"Mes: "+(mesesDisp.find(function(m){return m.mk===mesSeleccionado;})||{nom:mesSeleccionado}).nom)
-      ,setSupVista&&React.createElement("button",{
-          onClick:function(){ setSupVista("metricas"); },
-          style:{background:"#1D4ED8",color:"#fff",border:"none",borderRadius:8,padding:"6px 14px",fontSize:11,cursor:"pointer",fontWeight:700,fontFamily:"inherit"}
-        },"📥 Cargar reporte para este mes")
-      ,benchmark&&React.createElement("div",{style:{background:"#EFF6FF",borderRadius:8,padding:"5px 12px",fontSize:11,color:"#1D4ED8",fontWeight:700}}
-        ,"📌 Benchmark: "+benchmark.mesLabel
-      )
+        var activo=m.mk===mesKey;
+        var tieneData=m.totT>0||m.totUF>0;
+        var esActCard=m.mk===info.mesKey;
+        var esBM=benchmark&&benchmark.mesLabel&&benchmark.mesLabel===m.nom.split(" de ")[0];
+        return React.createElement("div",{key:m.mk,style:{flexShrink:0,background:activo?"linear-gradient(135deg,"+RD+",#C91B2F)":esActCard?"#FFF5F5":"#F8FAFC",borderRadius:14,padding:"14px 18px",cursor:"pointer",border:activo?"2px solid "+RD:"2px solid "+(esBM?"#1D4ED8":esActCard?RD:tieneData?"#E5E7EB":"#D1D5DB"),minWidth:140,transition:"all .2s",boxShadow:activo?"0 4px 16px rgba(233,7,41,.3)":esBM?"0 4px 16px rgba(29,78,216,.2)":"none"}}
+          ,React.createElement("div",{onClick:function(){setMesSeleccionado(m.mk);setKpiDetalle(null);}}
+            ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:activo?"#fff":tieneData?"#374151":"#9CA3AF",marginBottom:6}},m.nom.split(" de ")[0])
+            ,tieneData
+              ?React.createElement("div",null
+                ,React.createElement("div",{style:{fontSize:12,fontWeight:800,color:activo?"#fff":"#374151",marginBottom:2}},m.totUF>0?m.totUF+" UF vendidas":"Sin UF")
+                ,React.createElement("div",{style:{fontSize:11,color:activo?"rgba(255,255,255,.8)":"#6B7280"}},m.totT+" DPS · "+m.tasa+"% cierre")
+                ,React.createElement("div",{style:{fontSize:10,color:activo?"rgba(255,255,255,.6)":"#9CA3AF",marginTop:2}},m.totB+" benef · "+m.totCt+" cttos")
+              )
+              :React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",fontStyle:"italic"}},"Sin datos")
+          )
+          ,tieneData&&setBenchmark&&React.createElement("div",{onClick:function(e){e.stopPropagation();var bm={mesLabel:m.nom.split(" de ")[0],mesKey:m.key,uf:m.totUF,dps:m.totT,dpsCV:m.totC,dpsSV:m.totS,dpsP:m.totP,dpsR:m.totR,nBenef:m.totB,cttosDig:m.totCt,tasa:m.tasa};setBenchmark(bm);if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","benchmark"),bm,{merge:true});},style:{marginTop:8,background:esBM?"#1D4ED8":"rgba(29,78,216,.1)",color:esBM?"#fff":"#1D4ED8",borderRadius:8,padding:"4px 8px",fontSize:9,fontWeight:700,textAlign:"center",cursor:"pointer"}},esBM?"📌 Benchmark activo":"📌 Usar como Benchmark")
+          ,esBM&&React.createElement("button",{onClick:function(e){e.stopPropagation();setBenchmark(null);if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","benchmark"),{});},style:{marginTop:4,background:"#FEE2E2",color:"#B91C1C",borderRadius:8,padding:"4px 8px",fontSize:9,fontWeight:700,textAlign:"center",cursor:"pointer",border:"none",width:"100%",fontFamily:"inherit"}},"✕ Quitar benchmark")
+        );
+      })
     )
 
-    // KPIs resumen — FILA 1 (clickeables con detalle desplegable)
+    ,React.createElement("div",{style:{display:"flex",gap:10,alignItems:"center",marginBottom:16,flexWrap:"wrap"}}
+      ,React.createElement("div",{style:{fontSize:13,fontWeight:700,color:"#374151"}},"Mes: "+nomMesSel)
+      ,setSupVista&&React.createElement("button",{onClick:function(){setSupVista("metricas");},style:{background:"#1D4ED8",color:"#fff",border:"none",borderRadius:8,padding:"6px 14px",fontSize:11,cursor:"pointer",fontWeight:700,fontFamily:"inherit"}},"📥 Cargar reporte para este mes")
+      ,benchmark&&React.createElement("div",{style:{background:"#EFF6FF",borderRadius:8,padding:"5px 12px",fontSize:11,color:"#1D4ED8",fontWeight:700}},"📌 Benchmark: "+benchmark.mesLabel)
+    )
+
+    // KPIs Fila 1
     ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:12,marginBottom:4}}
       ,[
-        {l:"Total DPS",      k:"totTotal",    v:totTotal,      c:"#374151", bg:"#F9FAFB",  field:"dpsTotal",     fmt:function(x){return x;}},
-        {l:"DPS Con Venta",  k:"conVenta",    v:totConVenta,   c:"#16A34A", bg:"#F0FDF4",  field:"dpsConVenta",  fmt:function(x){return x;}},
-        {l:"DPS Sin Venta",  k:"sinVenta",    v:totSinVenta,   c:"#2563EB", bg:"#EFF6FF",  field:"dpsSinVenta",  fmt:function(x){return x;}},
-        {l:"DPS Pendientes", k:"pendiente",   v:totPendiente,  c:"#D97706", bg:"#FFFBEB",  field:"dpsPendiente", fmt:function(x){return x;}},
-        {l:"DPS Rechazadas", k:"rechazado",   v:totRechazado,  c:"#DC2626", bg:"#FFF1F2",  field:"dpsRechazado", fmt:function(x){return x;}},
-        {l:"Tasa Cierre DPS",k:"tasaCierre",  v:tasaCierre+"%",c:tasaCierre>=50?"#16A34A":tasaCierre>=30?"#D97706":"#DC2626",bg:tasaCierre>=50?"#F0FDF4":tasaCierre>=30?"#FFFBEB":"#FFF1F2",field:null,fmt:function(x){return x;}}
+        {l:"Total DPS",k:"totTotal",v:totTotal,c:"#374151",bg:"#F9FAFB"},
+        {l:"DPS Con Venta",k:"conVenta",v:totConVenta,c:"#16A34A",bg:"#F0FDF4"},
+        {l:"DPS Sin Venta",k:"sinVenta",v:totSinVenta,c:"#2563EB",bg:"#EFF6FF"},
+        {l:"DPS Pendientes",k:"pendiente",v:totPendiente,c:"#D97706",bg:"#FFFBEB"},
+        {l:"DPS Rechazadas",k:"rechazado",v:totRechazado,c:"#DC2626",bg:"#FFF1F2"},
+        {l:"Tasa Cierre DPS",k:"tasaCierre",v:tasaCierre+"%",c:tasaCierre>=50?"#16A34A":tasaCierre>=30?"#D97706":"#DC2626",bg:tasaCierre>=50?"#F0FDF4":tasaCierre>=30?"#FFFBEB":"#FFF1F2"},
       ].map(function(k){
-        var isOpen = kpiDetalle===k.k;
-        return React.createElement("div",{key:k.l,onClick:function(){setKpiDetalle(isOpen?null:k.k);},
-          style:{background:k.bg,borderRadius:12,padding:"12px 10px",textAlign:"center",
-            border:"1px solid "+(isOpen?"#374151":"#E5E7EB"),cursor:"pointer",
-            boxShadow:isOpen?"0 2px 12px rgba(0,0,0,.12)":"none",transition:"all .15s",position:"relative"}}
+        var isOpen=kpiDetalle===k.k;
+        return React.createElement("div",{key:k.l,onClick:function(){setKpiDetalle(isOpen?null:k.k);},style:{background:k.bg,borderRadius:12,padding:"12px 10px",textAlign:"center",border:"1px solid "+(isOpen?"#374151":"#E5E7EB"),cursor:"pointer",transition:"all .15s"}}
           ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:k.c}},k.v)
           ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},k.l)
-          ,React.createElement("div",{style:{fontSize:9,color:"#9CA3AF",marginTop:3}},isOpen?"▲ cerrar":"👆 ver detalle")
         );
       })
     )
-    // Panel desplegable FILA 1
-    ,kpiDetalle&&["totTotal","conVenta","sinVenta","pendiente","rechazado","tasaCierre"].indexOf(kpiDetalle)>=0&&renderDetalleF1()
-  // KPIs FILA 2 (clickeables)
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:12,marginBottom:4}}
-      ,[
-        {k:"totUF",     l:"Total UF",           v:totUF.toFixed(2)+" UF",  c:"#C9A84C", bg:"#FFF8E7", brd:"#FCD34D"},
-        {k:"totBenef",  l:"N° Beneficiarios",    v:totBenef,                c:"#0891B2", bg:"#F0FDFA", brd:"#A7F3D0"},
-        {k:"totCttos",  l:"Contratos Digitados", v:totCttos,                c:"#059669", bg:"#F0FDF4", brd:"#86EFAC"},
-        {k:"totConecta",l:"💚 Planes Conecta",   v:totConectaMes,           c:"#059669", bg:"#ECFDF5", brd:"#6EE7B7"},
-        {k:"agvCero",l:"AGV en 0",v:agvEnCero,c:agvEnCero>0?"#DC2626":"#16A34A",bg:agvEnCero>0?"#FFF1F2":"#F0FDF4",brd:agvEnCero>0?"#FCA5A5":"#86EFAC"}
-      ].map(function(k){
-        var isOpen = kpiDetalle===k.k;
-        return React.createElement("div",{key:k.l,onClick:function(){setKpiDetalle(isOpen?null:k.k);},
-          style:{background:k.bg,borderRadius:12,padding:"12px",textAlign:"center",
-            border:"1px solid "+(isOpen?"#374151":k.brd),cursor:"pointer",
-            boxShadow:isOpen?"0 2px 12px rgba(0,0,0,.12)":"none",transition:"all .15s"}}
-          ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:k.c}},k.v)
-          ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},k.l)
-          ,React.createElement("div",{style:{fontSize:9,color:"#9CA3AF",marginTop:3}},isOpen?"▲ cerrar":"👆 ver detalle")
-        );
-      })
-    )
-    // Panel desplegable FILA 2
-    ,kpiDetalle&&["totUF","totBenef","totCttos","totConecta","agvCero"].indexOf(kpiDetalle)>=0&&renderDetalleF2()
 
-    // Tabla editable
+    // KPIs Fila 2
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:12,marginBottom:16}}
+      ,[
+        {k:"totUF",l:"Total UF",v:totUF.toFixed(2)+" UF",c:"#C9A84C",bg:"#FFF8E7",brd:"#FCD34D"},
+        {k:"totBenef",l:"N° Beneficiarios",v:totBenef,c:"#0891B2",bg:"#F0FDFA",brd:"#A7F3D0"},
+        {k:"totCttos",l:"Contratos Digitados",v:totCttos,c:"#059669",bg:"#F0FDF4",brd:"#86EFAC"},
+        {k:"totConecta",l:"💚 Planes Conecta",v:totConectaMes,c:"#059669",bg:"#ECFDF5",brd:"#6EE7B7"},
+        {k:"agvCero",l:"AGV en 0",v:agvEnCero,c:agvEnCero>0?"#DC2626":"#16A34A",bg:agvEnCero>0?"#FFF1F2":"#F0FDF4",brd:agvEnCero>0?"#FCA5A5":"#86EFAC"},
+      ].map(function(k){
+        return React.createElement("div",{key:k.l,style:{background:k.bg,borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid "+k.brd}}
+          ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:k.c}},k.v)
+          ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},k.l)
+        );
+      })
+    )
+
+    // Tabla ejecutivos
     ,React.createElement("div",{style:{overflowX:"auto"}}
       ,React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:12}}
         ,React.createElement("thead",null
@@ -3951,39 +3734,37 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
         )
         ,React.createElement("tbody",null
           ,datos.map(function(d,i){
-              var tasa=d.dpsTotal>0?Math.round((d.dpsConVenta/d.dpsTotal)*100):0;
-              return React.createElement("tr",{key:d.id,style:{borderTop:"1px solid #F3F4F6",background:i%2===0?"#fff":"#FAFBFF"}}
-                ,React.createElement("td",{style:{padding:"10px 12px",fontWeight:700,color:RD,fontSize:12}},d.nombre)
-                ,React.createElement(EditableCell,{vid:d.id,campo:"uf",valor:d.uf,color:"#C9A84C"})
-                ,React.createElement(EditableCell,{vid:d.id,campo:"dpsTotal",valor:d.dpsTotal,color:"#374151"})
-                ,React.createElement(EditableCell,{vid:d.id,campo:"dpsVenta",valor:d.dpsConVenta,color:"#16A34A"})
-                ,React.createElement(EditableCell,{vid:d.id,campo:"dpsSinVenta",valor:d.dpsSinVenta,color:"#2563EB"})
-                ,React.createElement(EditableCell,{vid:d.id,campo:"dpsPendiente",valor:d.dpsPendiente,color:"#D97706"})
-                ,React.createElement(EditableCell,{vid:d.id,campo:"dpsRechazado",valor:d.dpsRechazado,color:"#DC2626"})
-                ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center"}}
-                  ,React.createElement("span",{style:{background:tasa>=50?"#DCFCE7":tasa>=30?"#FEF9C3":"#FEE2E2",color:tasa>=50?"#16A34A":tasa>=30?"#92400E":"#DC2626",borderRadius:99,padding:"3px 10px",fontSize:11,fontWeight:800}},d.dpsTotal>0?tasa+"%":"—")
-                )
-                ,React.createElement(EditableCell,{vid:d.id,campo:"nBenef",valor:d.nBenef,color:"#0891B2"})
-                ,React.createElement(EditableCell,{vid:d.id,campo:"cttosDig",valor:d.cttosDig,color:"#059669"})
-                ,React.createElement(EditableCell,{vid:d.id,campo:"conecta",valor:d.conecta,color:"#059669"})
-                ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#EC4899",fontWeight:700}},d.pctF>0?d.pctF+"%":"—")
-                ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#3B82F6",fontWeight:700}},d.pctM>0?d.pctM+"%":"—")
-              );
-            })
+            var tasa=d.dpsTotal>0?Math.round((d.dpsConVenta/d.dpsTotal)*100):0;
+            return React.createElement("tr",{key:d.id,style:{borderTop:"1px solid #F3F4F6",background:i%2===0?"#fff":"#FAFBFF"}}
+              ,React.createElement("td",{style:{padding:"10px 12px",fontWeight:700,color:RD,fontSize:12}},d.nombre)
+              ,React.createElement(EditableCell,{vid:d.id,campo:"uf",valor:d.uf,color:"#C9A84C"})
+              ,React.createElement(EditableCell,{vid:d.id,campo:"dpsTotal",valor:d.dpsTotal,color:"#374151"})
+              ,React.createElement(EditableCell,{vid:d.id,campo:"dpsVenta",valor:d.dpsConVenta,color:"#16A34A"})
+              ,React.createElement(EditableCell,{vid:d.id,campo:"dpsSinVenta",valor:d.dpsSinVenta,color:"#2563EB"})
+              ,React.createElement(EditableCell,{vid:d.id,campo:"dpsPendiente",valor:d.dpsPendiente,color:"#D97706"})
+              ,React.createElement(EditableCell,{vid:d.id,campo:"dpsRechazado",valor:d.dpsRechazado,color:"#DC2626"})
+              ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center"}},React.createElement("span",{style:{background:tasa>=50?"#DCFCE7":tasa>=30?"#FEF9C3":"#FEE2E2",color:tasa>=50?"#16A34A":tasa>=30?"#92400E":"#DC2626",borderRadius:99,padding:"3px 10px",fontSize:11,fontWeight:800}},d.dpsTotal>0?tasa+"%":"—"))
+              ,React.createElement(EditableCell,{vid:d.id,campo:"nBenef",valor:d.nBenef,color:"#0891B2"})
+              ,React.createElement(EditableCell,{vid:d.id,campo:"cttosDig",valor:d.cttosDig,color:"#059669"})
+              ,React.createElement(EditableCell,{vid:d.id,campo:"conecta",valor:d.conecta,color:"#059669"})
+              ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#EC4899",fontWeight:700}},d.pctF>0?d.pctF+"%":"—")
+              ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#3B82F6",fontWeight:700}},d.pctM>0?d.pctM+"%":"—")
+            );
+          })
           ,React.createElement("tr",{style:{borderTop:"3px solid #E5E7EB",background:"#F8FAFC",fontWeight:900}}
             ,React.createElement("td",{style:{padding:"10px 12px",color:RD,fontSize:12}},"TOTAL")
             ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#C9A84C"}},totUF.toFixed(2))
-            ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#374151",fontWeight:900}},totTotal)
+            ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#374151"}},totTotal)
             ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#16A34A"}},totConVenta)
             ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#2563EB"}},totSinVenta)
             ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#D97706"}},totPendiente)
             ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#DC2626"}},totRechazado)
-            ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center"}} ,React.createElement("span",{style:{background:tasaCierre>=50?"#DCFCE7":tasaCierre>=30?"#FEF9C3":"#FEE2E2",color:tasaCierre>=50?"#16A34A":tasaCierre>=30?"#92400E":"#DC2626",borderRadius:99,padding:"3px 10px",fontSize:12,fontWeight:900}},tasaCierre+"%"))
+            ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center"}},React.createElement("span",{style:{background:tasaCierre>=50?"#DCFCE7":tasaCierre>=30?"#FEF9C3":"#FEE2E2",color:tasaCierre>=50?"#16A34A":tasaCierre>=30?"#92400E":"#DC2626",borderRadius:99,padding:"3px 10px",fontSize:12,fontWeight:900}},tasaCierre+"%"))
             ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#0891B2"}},totBenef)
             ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#059669"}},totCttos)
             ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#059669"}},totConectaMes>0?totConectaMes:"—")
-            ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#EC4899"}},totPctF>0?totPctF+"%":"—")
-            ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#3B82F6"}},totPctM>0?totPctM+"%":"—")
+            ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#EC4899"}},"—")
+            ,React.createElement("td",{style:{padding:"10px 12px",textAlign:"center",color:"#3B82F6"}},"—")
           )
         )
       )
@@ -6567,51 +6348,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
 
       // Cargar meses anteriores en window.__historialMeses (fuera del estado React)
       // para NO disparar el save useEffect
-      function cargarHistorialMesesAnteriores() {
-        if (!window.__fbGetDoc) return;
-        window.__historialMeses = window.__historialMeses || {};
-        var offsets = [1,2,3,4,5,6];
-        var promises = offsets.map(function(offset) {
-          var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - offset);
-          var mk = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
-          var fbKey = mk;
-          var ref2 = window.__fbDoc(window.__fbDb, "equipos", fbKey);
-          return window.__fbGetDoc(ref2).then(function(snap2) {
-            var _ex2 = typeof snap2.exists === "function" ? snap2.exists() : snap2.exists;
-            if (!_ex2) return;
-            var data2 = snap2.data() || snap2.data;
-            if (!data2 || !Array.isArray(data2.equipo)) return;
-            // Guardar en global indexado por ejecutivo id
-            data2.equipo.forEach(function(vMes) {
-              if (!(vMes.uf > 0)) return;
-              if (!window.__historialMeses[String(vMes.id)]) window.__historialMeses[String(vMes.id)] = {};
-              // Solo setear si no hay ya dato para ese mes
-              if (!window.__historialMeses[String(vMes.id)][mk]) {
-                window.__historialMeses[String(vMes.id)][mk] = { uf: vMes.uf, dps: vMes.dps||0 };
-              }
-            });
-            console.log("[HISTORIAL] Cargado: " + mk);
-          }).catch(function(){});
-        });
-        Promise.all(promises).then(function(){
-          localStorage.setItem("HIST_LAST_LOAD", String(Date.now()));
-          console.log("[HISTORIAL] Meses anteriores cargados OK");
-          // Inyectar en el estado del equipo para que DpsAnalisisView los vea
-          setEquipo(function(prev){
-            return prev.map(function(v){
-              var histAcum = Object.assign({}, v.historial||{});
-              var hMeses = window.__historialMeses[String(v.id)] || {};
-              Object.keys(hMeses).forEach(function(mk){
-                if (!histAcum[mk] || !(histAcum[mk].uf > 0)) {
-                  histAcum[mk] = Object.assign({}, histAcum[mk]||{}, hMeses[mk]);
-                }
-              });
-              return Object.assign({}, v, {historial: histAcum});
-            });
-          });
-          setSincronizado(function(v){ return v; });
-        });
-      }
+      // cargarHistorialMesesAnteriores eliminado — DpsAnalisisView lee directo desde Firebase
 
       const unsub = window.__fbOnSnapshot(ref, function(snap) {
         fbRespondio = true;
@@ -6664,8 +6401,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
             }
             var _lh=parseInt(localStorage.getItem("HIST_LAST_LOAD")||"0");
             // Cargar historial si no se cargó en las últimas 2 horas o si hay meses sin datos
-            if(Date.now()-_lh>7200000){ setTimeout(cargarHistorialMesesAnteriores, 800); }
-            else { setTimeout(cargarHistorialMesesAnteriores, 800); } // Siempre recargar al iniciar
+            // Historial de meses anteriores no se carga aquí — DpsAnalisisView lo lee directo
           }
           const m = snapData.metaEquipo;
           if (m && typeof m === "number" && !isNaN(m) && m > 0) {
