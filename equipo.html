@@ -3196,21 +3196,43 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
       };
     });
 
+    // ── INYECCIÓN DIRECTA EN CACHÉ ──────────────────────────────────────────
+    // Actualizar window.__historialMeses con los datos CORRECTOS del Excel
+    // ANTES de que cargarHistorialMesesAnteriores pueda sobreescribir con datos viejos de Firebase
+    if (!window.__historialMeses) window.__historialMeses = {};
+    nuevoEquipo.forEach(function(v){
+      var hMes = (v.historial||{})[mesKey];
+      if (!hMes) return;
+      if (!window.__historialMeses[String(v.id)]) window.__historialMeses[String(v.id)] = {};
+      window.__historialMeses[String(v.id)][mesKey] = Object.assign({}, hMes);
+    });
+    // Inyectar sinMatch como "_sm"
+    if (sinMatchData.length > 0) {
+      if (!window.__historialMeses["_sm"]) window.__historialMeses["_sm"] = {};
+      var smUF=0,smCV=0,smSV=0,smP=0,smR=0,smB=0,smCt=0;
+      sinMatchData.forEach(function(s){
+        smUF+=parseFloat(s.uf)||0; smCV+=parseInt(s.dpsVenta)||0;
+        smSV+=parseInt(s.dpsSinVenta)||0; smP+=parseInt(s.dpsPendiente)||0;
+        smR+=parseInt(s.dpsRechazado)||0; smB+=parseInt(s.nBenef)||0;
+        smCt+=parseInt(s.cttosDig)||0;
+      });
+      window.__historialMeses["_sm"][mesKey] = {
+        uf:parseFloat(smUF.toFixed(2)), ufDig:parseFloat(smUF.toFixed(2)),
+        dps:smCV+smSV+smP+smR, dpsVenta:smCV, dpsSinVenta:smSV,
+        dpsPendiente:smP, dpsRechazado:smR, nBenef:smB, cttosDig:smCt, conecta:0
+      };
+    }
+    localStorage.removeItem("HIST_LAST_LOAD");
+    // ────────────────────────────────────────────────────────────────────────
+
     if(window.skipSnapshotRef) window.skipSnapshotRef.current=true;
     setEquipo(nuevoEquipo);
     setPreview([]);
     var _nm=mesesOpciones.find(function(m){return m.mk===mesKey;});
     var docData = {equipo:nuevoEquipo, metaEquipo:window.__metaEquipoActual||metaEquipo||550};
     if (sinMatchData.length>0) docData._sinMatch = sinMatchData;
-
-    // Invalidar cache de historial para este mes — fuerza recarga limpia
-    if (window.__historialMeses) delete window.__historialMeses[mesKey];
-    localStorage.removeItem("HIST_LAST_LOAD");
-
-    // merge:false para mes histórico — reemplaza el doc completamente sin mezclar datos viejos
-    var mergeOpt = esMesActual ? {merge:true} : {merge:false};
     if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey), docData, mergeOpt)
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey), docData, {merge:false})
         .then(function(){
           var extra2 = sinMatchData.length>0?" ("+sinMatchData.length+" sin match guardados igualmente)":"";
           setMsg("✅ ¡Guardado! "+(_nm?_nm.nom:mesKey)+" actualizado."+extra2);
@@ -6447,11 +6469,12 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
               var tieneData = (vMes.uf > 0) || (hMes.dpsVenta > 0) || (hMes.nBenef > 0);
               if (!tieneData) return;
               if (!window.__historialMeses[String(vMes.id)]) window.__historialMeses[String(vMes.id)] = {};
+              // Solo setear si no hay ya dato para ese mes — respeta lo inyectado por confirmarCarga
               if (!window.__historialMeses[String(vMes.id)][mk]) {
                 window.__historialMeses[String(vMes.id)][mk] = Object.assign({uf:vMes.uf||0, dps:vMes.dps||0}, hMes);
               }
             });
-            // Acumular _sinMatch en bucket "_sm" para sumarlos a los totales
+            // _sinMatch: solo setear si no hay ya dato inyectado por confirmarCarga
             if (data2._sinMatch && data2._sinMatch.length > 0) {
               if (!window.__historialMeses["_sm"]) window.__historialMeses["_sm"] = {};
               if (!window.__historialMeses["_sm"][mk]) {
