@@ -3182,63 +3182,44 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
       return Object.assign({}, v, {historial:hist}, extra);
     });
 
-    // PASO 3b: eliminado
+    // PASO 3b: Para meses históricos, limpiar ejecutivos que NO están en el Excel
+    // (ej: ejecutivos que se agregaron después de ese mes)
+    if (!esMesActual) {
+      nuevoEquipo = nuevoEquipo.map(function(v) {
+        var estaEnExcel = resultados.find(function(x){return x.equipo&&x.equipo.id===v.id;});
+        if (estaEnExcel) return v; // ya fue procesado en PASO 3
+        // Este ejecutivo NO estaba en el Excel — limpiar su historial de ese mes
+        var hist = Object.assign({}, v.historial||{});
+        if (hist[mesKey]) {
+          hist[mesKey] = {uf:0,dps:0,dpsVenta:0,dpsSinVenta:0,dpsPendiente:0,dpsRechazado:0,nBenef:0,cttosDig:0,pctF:0,pctM:0,ufDig:0,conecta:0};
+        }
+        return Object.assign({}, v, {historial:hist});
+      });
+    }
 
-    // PASO 4: sinMatch con todos los campos
+    // PASO 4: Guardar sin match como referencia (no se pierden)
     var sinMatchData = sinMatch.map(function(r){
       var p = r.excel;
-      return {
-        nombre:p.nombre, uf:p.uf,
-        dpsVenta:p.dpsConVenta, dpsSinVenta:p.dpsSinVenta,
-        dpsPendiente:p.dpsPendiente, dpsRechazado:p.dpsRechazado,
-        dpsTotal:p.dpsTotal||(p.dpsConVenta+p.dpsSinVenta+p.dpsPendiente+p.dpsRechazado),
-        nBenef:p.nBenef, cttosDig:p.cttosDig, conecta:p.conecta
-      };
+      return {nombre:p.nombre, uf:p.uf, dpsVenta:p.dpsConVenta, dpsSinVenta:p.dpsSinVenta,
+              dpsTotal:p.dpsTotal||(p.dpsConVenta+p.dpsSinVenta+p.dpsPendiente+p.dpsRechazado),
+              nBenef:p.nBenef, cttosDig:p.cttosDig, conecta:p.conecta};
     });
 
     if(window.skipSnapshotRef) window.skipSnapshotRef.current=true;
     setEquipo(nuevoEquipo);
     setPreview([]);
     var _nm=mesesOpciones.find(function(m){return m.mk===mesKey;});
-    var docData = {equipo:nuevoEquipo, metaEquipo:window.__metaEquipoActual||metaEquipo||550};
+    var docData = {equipo:nuevoEquipo, metaEquipo:window.__metaEquipoActual||550};
     if (sinMatchData.length>0) docData._sinMatch = sinMatchData;
-
-    if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc) {
-      // Guardar el mes histórico con merge:false para reemplazar completamente
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey), docData, {merge:false})
+    if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey), docData, {merge:true})
         .then(function(){
           var extra2 = sinMatchData.length>0?" ("+sinMatchData.length+" sin match guardados igualmente)":"";
           setMsg("✅ ¡Guardado! "+(_nm?_nm.nom:mesKey)+" actualizado."+extra2);
           setTimeout(function(){if(window.skipSnapshotRef)window.skipSnapshotRef.current=false;},4000);
         })
         .catch(function(e){ setMsg("⚠️ Error Firebase: "+e.message); if(window.skipSnapshotRef)window.skipSnapshotRef.current=false; });
-
-      // CRÍTICO: Si es mes histórico, actualizar también el historial dentro del doc del mes ACTUAL
-      // porque onSnapshot lee equipos/mesActual y cada ejecutivo lleva su historial completo incrustado
-      if (!esMesActual && window.__fbGetDoc) {
-        var mesActualKey = info.mesKey;
-        window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos",mesActualKey)).then(function(snapAct){
-          var exAct = typeof snapAct.exists==="function" ? snapAct.exists() : snapAct.exists;
-          if (!exAct) return;
-          var dataAct = typeof snapAct.data==="function" ? snapAct.data() : snapAct.data;
-          if (!dataAct || !Array.isArray(dataAct.equipo)) return;
-          // Actualizar historial[mesKey] en cada ejecutivo del doc actual
-          var equipoActualizado = dataAct.equipo.map(function(v){
-            var match = nuevoEquipo.find(function(n){ return n.id === v.id; });
-            if (!match) return v;
-            var histNuevo = Object.assign({}, v.historial||{});
-            histNuevo[mesKey] = (match.historial||{})[mesKey] || histNuevo[mesKey] || {};
-            return Object.assign({}, v, {historial: histNuevo});
-          });
-          window.__fbSetDoc(
-            window.__fbDoc(window.__fbDb,"equipos",mesActualKey),
-            Object.assign({}, dataAct, {equipo: equipoActualizado}),
-            {merge:false}
-          ).then(function(){ console.log("[HIST] Historial "+mesKey+" actualizado en doc del mes actual"); })
-           .catch(function(e){ console.warn("[HIST] Error actualizando mes actual:", e); });
-        }).catch(function(){});
-      }
-    } else { setMsg("✅ Actualizado localmente."); if(window.skipSnapshotRef)window.skipSnapshotRef.current=false; }
+    else { setMsg("✅ Actualizado localmente."); if(window.skipSnapshotRef)window.skipSnapshotRef.current=false; }
   }
 
   return React.createElement('div', {style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(233,7,41,.09)"}}
