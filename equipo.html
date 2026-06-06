@@ -2959,6 +2959,7 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
             if (!dataRow || dataRow.every(function(c){return !c && c!==0;})) continue;
             var obj = {};
             headers.forEach(function(h,j){ obj[h] = dataRow[j] !== undefined ? dataRow[j] : ""; });
+            obj._rawIdx = di; // guardar índice para leer columnas duplicadas por posición
             filas.push(obj);
           }
         }
@@ -2998,12 +2999,12 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
           var dpsTotal     = (function(){var v=_fv("Total DPS "); return v!==null?v:(_fv("Total DPS")||0);})();
           var uf = parseFloat(parseFloat(String(f["UF  DIG."]||f["UF DIG."]||f["UF Dif"]||f["UF"]||"0").replace(",",".")).toFixed(2)) || 0;
           // nBenef: col 31 = N° Benef (bloque VENTAS DIGITADAS = correcto)
-          // col 28 = N° Benef. (bloque DPS MES = incorrecto, no usar)
-          // Leer siempre por índice rawArr[di] para evitar colisión de nombres duplicados
+          // col 28 = N° Benef. (bloque DPS MES = incorrecto)
+          // Usar _rawIdx guardado en el objeto para leer por posición exacta
           var nBenef = (function(){
-            var rr = rawArr[di];
+            var rr = rawArr[f._rawIdx];
             if(rr && rr[31]!==null && rr[31]!==undefined && rr[31]!=="") return parseInt(rr[31])||0;
-            // Fallback por nombre (por si cambia el layout)
+            // Fallback por nombre
             var v = f["N° Benef"]||f["N° Benef."]||f["N°Benef"]||null;
             if(v!==null && v!==undefined && v!=="") return parseInt(String(v))||0;
             return 0;
@@ -3185,8 +3186,8 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
     });
 
     // PASO 3b: eliminado — los ejecutivos sin match conservan su historial del mes
-    // para que los totales reflejen todo lo producido ese mes independientemente
-    // de si el AGV sigue activo hoy en el equipo.
+    // para que los totales reflejen todo lo producido ese mes sin importar
+    // si el AGV sigue activo hoy en el equipo.
 
     // PASO 4: Guardar sin match como referencia (no se pierden)
     var sinMatchData = sinMatch.map(function(r){
