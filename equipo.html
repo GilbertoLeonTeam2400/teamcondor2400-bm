@@ -3182,9 +3182,9 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
       return Object.assign({}, v, {historial:hist}, extra);
     });
 
-    // PASO 3b: eliminado — conservar historial existente de ejecutivos no en Excel
+    // PASO 3b: eliminado
 
-    // PASO 4: Guardar sinMatch con todos los campos
+    // PASO 4: sinMatch con todos los campos
     var sinMatchData = sinMatch.map(function(r){
       var p = r.excel;
       return {
@@ -3202,7 +3202,12 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
     var _nm=mesesOpciones.find(function(m){return m.mk===mesKey;});
     var docData = {equipo:nuevoEquipo, metaEquipo:window.__metaEquipoActual||metaEquipo||550};
     if (sinMatchData.length>0) docData._sinMatch = sinMatchData;
-    // Para mes histórico usar merge:false para reemplazar el doc completamente y limpiar datos viejos
+
+    // Invalidar cache de historial para este mes — fuerza recarga limpia
+    if (window.__historialMeses) delete window.__historialMeses[mesKey];
+    localStorage.removeItem("HIST_LAST_LOAD");
+
+    // merge:false para mes histórico — reemplaza el doc completamente sin mezclar datos viejos
     var mergeOpt = esMesActual ? {merge:true} : {merge:false};
     if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
       window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey), docData, mergeOpt)
@@ -6443,12 +6448,10 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
               if (!tieneData) return;
               if (!window.__historialMeses[String(vMes.id)]) window.__historialMeses[String(vMes.id)] = {};
               if (!window.__historialMeses[String(vMes.id)][mk]) {
-                window.__historialMeses[String(vMes.id)][mk] = Object.assign(
-                  { uf: vMes.uf||0, dps: vMes.dps||0 }, hMes
-                );
+                window.__historialMeses[String(vMes.id)][mk] = Object.assign({uf:vMes.uf||0, dps:vMes.dps||0}, hMes);
               }
             });
-            // Leer _sinMatch y acumular en bucket "_sm"
+            // Acumular _sinMatch en bucket "_sm" para sumarlos a los totales
             if (data2._sinMatch && data2._sinMatch.length > 0) {
               if (!window.__historialMeses["_sm"]) window.__historialMeses["_sm"] = {};
               if (!window.__historialMeses["_sm"][mk]) {
@@ -6483,7 +6486,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
               });
               return Object.assign({}, v, {historial: histAcum});
             });
-            // Agregar ejecutivo virtual "_sm" con los sinMatch de cada mes
+            // Agregar ejecutivo virtual "_sm" con totales de sinMatch por mes
             var smData = window.__historialMeses["_sm"] || {};
             if (Object.keys(smData).length > 0) {
               var idxSm = resultado.findIndex(function(v){ return v.id === "_sm"; });
