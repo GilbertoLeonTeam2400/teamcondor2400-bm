@@ -3612,8 +3612,22 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
   var mesKey = mesSeleccionado;
   var esMesActual = mesKey === info.mesKey;
 
-  // Build datos incluyendo todos los ejecutivos del equipo (editables aunque estén en 0)
-  var datos = equipo.map(function(v){
+  // Para mes histórico: construir datos desde Firebase (datosMesHist)
+  // Para mes actual: usar equipo en vivo
+  var equipoParaDatos = esMesActual ? equipo : (
+    datosMesHist && datosMesHist.equipo ? (
+      datosMesHist._sinMatch && datosMesHist._sinMatch.length > 0
+        ? datosMesHist.equipo.concat(datosMesHist._sinMatch.map(function(s,idx){
+            var h={};
+            h[mesKey]={uf:s.uf||0,ufDig:s.uf||0,dpsVenta:s.dpsVenta||0,dpsSinVenta:s.dpsSinVenta||0,dpsPendiente:s.dpsPendiente||0,dpsRechazado:s.dpsRechazado||0,nBenef:s.nBenef||0,cttosDig:s.cttosDig||0,conecta:s.conecta||0};
+            return {id:"_sm"+idx,nombre:s.nombre||"[sin match]",uf:0,dps:0,rep:[],historial:h,metaUF:0,metaDPS:0};
+          }))
+        : datosMesHist.equipo
+    ) : equipo
+  );
+
+  // Build datos
+  var datos = equipoParaDatos.map(function(v){
     var h=(v.historial||{})[mesKey]||{};
     var esMesAct = mesKey===info.mesKey;
     // Para mes actual, calcular sexo y conecta desde reportes del ejecutivo
