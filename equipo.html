@@ -3200,7 +3200,9 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
     // PASO 4: Guardar sin match como referencia (no se pierden)
     var sinMatchData = sinMatch.map(function(r){
       var p = r.excel;
-      return {nombre:p.nombre, uf:p.uf, dpsVenta:p.dpsConVenta, dpsSinVenta:p.dpsSinVenta,
+      return {nombre:p.nombre, uf:p.uf,
+              dpsVenta:p.dpsConVenta, dpsSinVenta:p.dpsSinVenta,
+              dpsPendiente:p.dpsPendiente, dpsRechazado:p.dpsRechazado,
               dpsTotal:p.dpsTotal||(p.dpsConVenta+p.dpsSinVenta+p.dpsPendiente+p.dpsRechazado),
               nBenef:p.nBenef, cttosDig:p.cttosDig, conecta:p.conecta};
     });
