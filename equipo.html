@@ -3196,42 +3196,15 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
       };
     });
 
-    // ── INYECCIÓN DIRECTA EN CACHÉ ──────────────────────────────────────────
-    // Actualizar window.__historialMeses con los datos CORRECTOS del Excel
-    // ANTES de que cargarHistorialMesesAnteriores pueda sobreescribir con datos viejos de Firebase
-    if (!window.__historialMeses) window.__historialMeses = {};
-    nuevoEquipo.forEach(function(v){
-      var hMes = (v.historial||{})[mesKey];
-      if (!hMes) return;
-      if (!window.__historialMeses[String(v.id)]) window.__historialMeses[String(v.id)] = {};
-      window.__historialMeses[String(v.id)][mesKey] = Object.assign({}, hMes);
-    });
-    // Inyectar sinMatch como "_sm"
-    if (sinMatchData.length > 0) {
-      if (!window.__historialMeses["_sm"]) window.__historialMeses["_sm"] = {};
-      var smUF=0,smCV=0,smSV=0,smP=0,smR=0,smB=0,smCt=0;
-      sinMatchData.forEach(function(s){
-        smUF+=parseFloat(s.uf)||0; smCV+=parseInt(s.dpsVenta)||0;
-        smSV+=parseInt(s.dpsSinVenta)||0; smP+=parseInt(s.dpsPendiente)||0;
-        smR+=parseInt(s.dpsRechazado)||0; smB+=parseInt(s.nBenef)||0;
-        smCt+=parseInt(s.cttosDig)||0;
-      });
-      window.__historialMeses["_sm"][mesKey] = {
-        uf:parseFloat(smUF.toFixed(2)), ufDig:parseFloat(smUF.toFixed(2)),
-        dps:smCV+smSV+smP+smR, dpsVenta:smCV, dpsSinVenta:smSV,
-        dpsPendiente:smP, dpsRechazado:smR, nBenef:smB, cttosDig:smCt, conecta:0
-      };
-    }
-    localStorage.removeItem("HIST_LAST_LOAD");
-    // ────────────────────────────────────────────────────────────────────────
-
     if(window.skipSnapshotRef) window.skipSnapshotRef.current=true;
     setEquipo(nuevoEquipo);
     setPreview([]);
     var _nm=mesesOpciones.find(function(m){return m.mk===mesKey;});
     var docData = {equipo:nuevoEquipo, metaEquipo:window.__metaEquipoActual||metaEquipo||550};
     if (sinMatchData.length>0) docData._sinMatch = sinMatchData;
-    if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
+
+    if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc) {
+      // Guardar el mes histórico con merge:false para reemplazar completamente
       window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey), docData, {merge:false})
         .then(function(){
           var extra2 = sinMatchData.length>0?" ("+sinMatchData.length+" sin match guardados igualmente)":"";
@@ -3239,7 +3212,33 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
           setTimeout(function(){if(window.skipSnapshotRef)window.skipSnapshotRef.current=false;},4000);
         })
         .catch(function(e){ setMsg("⚠️ Error Firebase: "+e.message); if(window.skipSnapshotRef)window.skipSnapshotRef.current=false; });
-    else { setMsg("✅ Actualizado localmente."); if(window.skipSnapshotRef)window.skipSnapshotRef.current=false; }
+
+      // CRÍTICO: Si es mes histórico, actualizar también el historial dentro del doc del mes ACTUAL
+      // porque onSnapshot lee equipos/mesActual y cada ejecutivo lleva su historial completo incrustado
+      if (!esMesActual && window.__fbGetDoc) {
+        var mesActualKey = info.mesKey;
+        window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos",mesActualKey)).then(function(snapAct){
+          var exAct = typeof snapAct.exists==="function" ? snapAct.exists() : snapAct.exists;
+          if (!exAct) return;
+          var dataAct = typeof snapAct.data==="function" ? snapAct.data() : snapAct.data;
+          if (!dataAct || !Array.isArray(dataAct.equipo)) return;
+          // Actualizar historial[mesKey] en cada ejecutivo del doc actual
+          var equipoActualizado = dataAct.equipo.map(function(v){
+            var match = nuevoEquipo.find(function(n){ return n.id === v.id; });
+            if (!match) return v;
+            var histNuevo = Object.assign({}, v.historial||{});
+            histNuevo[mesKey] = (match.historial||{})[mesKey] || histNuevo[mesKey] || {};
+            return Object.assign({}, v, {historial: histNuevo});
+          });
+          window.__fbSetDoc(
+            window.__fbDoc(window.__fbDb,"equipos",mesActualKey),
+            Object.assign({}, dataAct, {equipo: equipoActualizado}),
+            {merge:false}
+          ).then(function(){ console.log("[HIST] Historial "+mesKey+" actualizado en doc del mes actual"); })
+           .catch(function(e){ console.warn("[HIST] Error actualizando mes actual:", e); });
+        }).catch(function(){});
+      }
+    } else { setMsg("✅ Actualizado localmente."); if(window.skipSnapshotRef)window.skipSnapshotRef.current=false; }
   }
 
   return React.createElement('div', {style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(233,7,41,.09)"}}
@@ -6465,41 +6464,22 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
             if (!data2 || !Array.isArray(data2.equipo)) return;
             // Guardar en global indexado por ejecutivo id
             data2.equipo.forEach(function(vMes) {
-              var hMes = (vMes.historial||{})[mk] || {};
-              var tieneData = (vMes.uf > 0) || (hMes.dpsVenta > 0) || (hMes.nBenef > 0);
-              if (!tieneData) return;
+              if (!(vMes.uf > 0)) return;
               if (!window.__historialMeses[String(vMes.id)]) window.__historialMeses[String(vMes.id)] = {};
-              // Solo setear si no hay ya dato para ese mes — respeta lo inyectado por confirmarCarga
+              // Solo setear si no hay ya dato para ese mes
               if (!window.__historialMeses[String(vMes.id)][mk]) {
-                window.__historialMeses[String(vMes.id)][mk] = Object.assign({uf:vMes.uf||0, dps:vMes.dps||0}, hMes);
+                window.__historialMeses[String(vMes.id)][mk] = { uf: vMes.uf, dps: vMes.dps||0 };
               }
             });
-            // _sinMatch: solo setear si no hay ya dato inyectado por confirmarCarga
-            if (data2._sinMatch && data2._sinMatch.length > 0) {
-              if (!window.__historialMeses["_sm"]) window.__historialMeses["_sm"] = {};
-              if (!window.__historialMeses["_sm"][mk]) {
-                var smUF=0,smCV=0,smSV=0,smP=0,smR=0,smB=0,smCt=0;
-                data2._sinMatch.forEach(function(s){
-                  smUF+=parseFloat(s.uf)||0; smCV+=parseInt(s.dpsVenta)||0;
-                  smSV+=parseInt(s.dpsSinVenta)||0; smP+=parseInt(s.dpsPendiente)||0;
-                  smR+=parseInt(s.dpsRechazado)||0; smB+=parseInt(s.nBenef)||0;
-                  smCt+=parseInt(s.cttosDig)||0;
-                });
-                window.__historialMeses["_sm"][mk]={
-                  uf:parseFloat(smUF.toFixed(2)), ufDig:parseFloat(smUF.toFixed(2)),
-                  dps:smCV+smSV+smP+smR, dpsVenta:smCV, dpsSinVenta:smSV,
-                  dpsPendiente:smP, dpsRechazado:smR, nBenef:smB, cttosDig:smCt, conecta:0
-                };
-              }
-            }
             console.log("[HISTORIAL] Cargado: " + mk);
           }).catch(function(){});
         });
         Promise.all(promises).then(function(){
           localStorage.setItem("HIST_LAST_LOAD", String(Date.now()));
           console.log("[HISTORIAL] Meses anteriores cargados OK");
+          // Inyectar en el estado del equipo para que DpsAnalisisView los vea
           setEquipo(function(prev){
-            var resultado = prev.map(function(v){
+            return prev.map(function(v){
               var histAcum = Object.assign({}, v.historial||{});
               var hMeses = window.__historialMeses[String(v.id)] || {};
               Object.keys(hMeses).forEach(function(mk){
@@ -6509,22 +6489,6 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
               });
               return Object.assign({}, v, {historial: histAcum});
             });
-            // Agregar ejecutivo virtual "_sm" con totales de sinMatch por mes
-            var smData = window.__historialMeses["_sm"] || {};
-            if (Object.keys(smData).length > 0) {
-              var idxSm = resultado.findIndex(function(v){ return v.id === "_sm"; });
-              var histSm = idxSm >= 0 ? Object.assign({}, resultado[idxSm].historial||{}) : {};
-              Object.keys(smData).forEach(function(mk){ histSm[mk] = smData[mk]; });
-              if (idxSm >= 0) {
-                resultado[idxSm] = Object.assign({}, resultado[idxSm], {historial: histSm});
-              } else {
-                resultado = resultado.concat([{
-                  id:"_sm", nombre:"[Otros ese mes]", cargo:"", pin:"", rut:"",
-                  uf:0, dps:0, rep:[], historial:histSm, metaUF:0, metaDPS:0
-                }]);
-              }
-            }
-            return resultado;
           });
           setSincronizado(function(v){ return v; });
         });
