@@ -2998,27 +2998,41 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
           var dpsRechazado = (function(){var v=_fv("Rechazadas.1"); return v!==null?v:(_fv("Rechazadas")||_fv("Rechazada")||0);})();
           var dpsTotal     = (function(){var v=_fv("Total DPS "); return v!==null?v:(_fv("Total DPS")||0);})();
           var uf = parseFloat(parseFloat(String(f["UF  DIG."]||f["UF DIG."]||f["UF Dif"]||f["UF"]||"0").replace(",",".")).toFixed(2)) || 0;
-          // nBenef: col 31 = N° Benef (VENTAS DIGITADAS = correcto)
+          // nBenef y cttosDig: buscar por header exacto en rawArr para evitar problemas con columnas corridas
+          var _colNBenef = -1, _colCttos = -1;
+          if (rawArr[headerRow]) {
+            rawArr[headerRow].forEach(function(h,ci){
+              var hs = String(h||"").trim();
+              // Buscar "N° Benef " o "N° Benef" en bloque VENTAS DIGITADAS (cols 28+)
+              if (ci >= 28 && _colNBenef < 0 && (hs==="N° Benef " || hs==="N° Benef")) _colNBenef = ci;
+              if (ci >= 28 && _colCttos < 0 && (hs==="Cttos Dig" || hs==="Cttos  Dig")) _colCttos = ci;
+            });
+          }
           var nBenef = (function(){
             var rr = rawArr[f._rawIdx];
-            if(rr && rr[31]!==null && rr[31]!==undefined && rr[31]!=="") return parseInt(rr[31])||0;
+            if (rr && _colNBenef >= 0 && rr[_colNBenef]!==null && rr[_colNBenef]!==undefined && rr[_colNBenef]!=="") return parseInt(rr[_colNBenef])||0;
             var v = f["N° Benef"]||f["N° Benef."]||f["N°Benef"]||null;
             if(v!==null && v!==undefined && v!=="") return parseInt(String(v))||0;
             return 0;
           })();
-          var cttosDig     = parseInt(String(f["Cttos Dig"]||f["Cttos  Dig"]||f["CttoDig"]||"0")) || 0;
+          var cttosDig = (function(){
+            var rr = rawArr[f._rawIdx];
+            if (rr && _colCttos >= 0 && rr[_colCttos]!==null && rr[_colCttos]!==undefined && rr[_colCttos]!=="") return parseInt(rr[_colCttos])||0;
+            return parseInt(String(f["Cttos Dig"]||f["Cttos  Dig"]||f["CttoDig"]||"0"))||0;
+          })();
           // Sexo % contratos
           var pctF = parseFloat(String(f["Sexo % Cttos F"]||f["% F"]||f["F"]||f["Fem"]||"0").replace(",",".").replace("%","")) || 0;
           var pctM = parseFloat(String(f["Sexo % Cttos M"]||f["% M"]||f["M"]||f["Mas"]||"0").replace(",",".").replace("%","")) || 0;
           // Si vienen como decimales (0.6 en vez de 60%), convertir
           if(pctF > 0 && pctF <= 1) pctF = Math.round(pctF*100);
           if(pctM > 0 && pctM <= 1) pctM = Math.round(pctM*100);
-          // Plan Conecta = columna CONECTA→M (col 36, solo hombres) del Excel de Banmédica
-          // rawArr[rowIndex][36] — leído directamente por índice para evitar ambigüedad de nombres duplicados
+          // Plan Conecta = columna col 36 SOLO si el header dice algo relacionado con Conecta
+          // En Excels anteriores a Marzo 2026 esta columna no existe o tiene otro dato
           var conecta = (function(){
-            // Leer conecta directo del objeto f usando el índice original de la fila
-            // Col 36 = CONECTA M (planes conecta hombres)
-            // Como sheet_to_json puede renombrar columnas duplicadas, usamos rawArr por índice
+            // Verificar que el header de col 36 sea Conecta
+            var headerCol36 = String(rawArr[headerRow] ? rawArr[headerRow][36] : "").toUpperCase();
+            var esConecta = headerCol36.indexOf("CONECT") >= 0 || headerCol36.indexOf("PLAN") >= 0;
+            if (!esConecta) return 0;
             var nombreBuscar = nombre;
             var conectaVal = 0;
             for (var ri2 = headerRow+1; ri2 < rawArr.length; ri2++) {
