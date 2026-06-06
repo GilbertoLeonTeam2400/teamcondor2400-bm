@@ -3184,7 +3184,7 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
 
     // PASO 3b: eliminado — conservar historial existente de ejecutivos no en Excel
 
-    // PASO 4: Guardar sin match con todos los campos (UF, DPS desglosado, benef, cttos)
+    // PASO 4: Guardar sinMatch con todos los campos
     var sinMatchData = sinMatch.map(function(r){
       var p = r.excel;
       return {
@@ -3202,8 +3202,10 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
     var _nm=mesesOpciones.find(function(m){return m.mk===mesKey;});
     var docData = {equipo:nuevoEquipo, metaEquipo:window.__metaEquipoActual||metaEquipo||550};
     if (sinMatchData.length>0) docData._sinMatch = sinMatchData;
+    // Para mes histórico usar merge:false para reemplazar el doc completamente y limpiar datos viejos
+    var mergeOpt = esMesActual ? {merge:true} : {merge:false};
     if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey), docData, {merge:true})
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey), docData, mergeOpt)
         .then(function(){
           var extra2 = sinMatchData.length>0?" ("+sinMatchData.length+" sin match guardados igualmente)":"";
           setMsg("✅ ¡Guardado! "+(_nm?_nm.nom:mesKey)+" actualizado."+extra2);
@@ -6437,7 +6439,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
             // Guardar en global indexado por ejecutivo id
             data2.equipo.forEach(function(vMes) {
               var hMes = (vMes.historial||{})[mk] || {};
-              var tieneData = vMes.uf > 0 || hMes.dpsVenta > 0 || hMes.nBenef > 0;
+              var tieneData = (vMes.uf > 0) || (hMes.dpsVenta > 0) || (hMes.nBenef > 0);
               if (!tieneData) return;
               if (!window.__historialMeses[String(vMes.id)]) window.__historialMeses[String(vMes.id)] = {};
               if (!window.__historialMeses[String(vMes.id)][mk]) {
@@ -6446,7 +6448,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                 );
               }
             });
-            // Sumar _sinMatch al bucket especial id="_sm" para que DpsAnalisisView lo incluya
+            // Leer _sinMatch y acumular en bucket "_sm"
             if (data2._sinMatch && data2._sinMatch.length > 0) {
               if (!window.__historialMeses["_sm"]) window.__historialMeses["_sm"] = {};
               if (!window.__historialMeses["_sm"][mk]) {
@@ -6457,7 +6459,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                   smR+=parseInt(s.dpsRechazado)||0; smB+=parseInt(s.nBenef)||0;
                   smCt+=parseInt(s.cttosDig)||0;
                 });
-                window.__historialMeses["_sm"][mk] = {
+                window.__historialMeses["_sm"][mk]={
                   uf:parseFloat(smUF.toFixed(2)), ufDig:parseFloat(smUF.toFixed(2)),
                   dps:smCV+smSV+smP+smR, dpsVenta:smCV, dpsSinVenta:smSV,
                   dpsPendiente:smP, dpsRechazado:smR, nBenef:smB, cttosDig:smCt, conecta:0
@@ -6470,7 +6472,6 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
         Promise.all(promises).then(function(){
           localStorage.setItem("HIST_LAST_LOAD", String(Date.now()));
           console.log("[HISTORIAL] Meses anteriores cargados OK");
-          // Inyectar en el estado del equipo para que DpsAnalisisView los vea
           setEquipo(function(prev){
             var resultado = prev.map(function(v){
               var histAcum = Object.assign({}, v.historial||{});
@@ -6482,7 +6483,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
               });
               return Object.assign({}, v, {historial: histAcum});
             });
-            // Agregar o actualizar ejecutivo virtual "_sm" con los sinMatch
+            // Agregar ejecutivo virtual "_sm" con los sinMatch de cada mes
             var smData = window.__historialMeses["_sm"] || {};
             if (Object.keys(smData).length > 0) {
               var idxSm = resultado.findIndex(function(v){ return v.id === "_sm"; });
