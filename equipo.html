@@ -2997,16 +2997,15 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
           var dpsRechazado = (function(){var v=_fv("Rechazadas.1"); return v!==null?v:(_fv("Rechazadas")||_fv("Rechazada")||0);})();
           var dpsTotal     = (function(){var v=_fv("Total DPS "); return v!==null?v:(_fv("Total DPS")||0);})();
           var uf = parseFloat(parseFloat(String(f["UF  DIG."]||f["UF DIG."]||f["UF Dif"]||f["UF"]||"0").replace(",",".")).toFixed(2)) || 0;
-          // nBenef: col 31 = N° Benef (mes actual), col 28 = N° Benef. (mes anterior)
+          // nBenef: col 31 = N° Benef (bloque VENTAS DIGITADAS = correcto)
+          // col 28 = N° Benef. (bloque DPS MES = incorrecto, no usar)
+          // Leer siempre por índice rawArr[di] para evitar colisión de nombres duplicados
           var nBenef = (function(){
-            // Intentar por nombre primero
+            var rr = rawArr[di];
+            if(rr && rr[31]!==null && rr[31]!==undefined && rr[31]!=="") return parseInt(rr[31])||0;
+            // Fallback por nombre (por si cambia el layout)
             var v = f["N° Benef"]||f["N° Benef."]||f["N°Benef"]||null;
             if(v!==null && v!==undefined && v!=="") return parseInt(String(v))||0;
-            // Fallback: leer por índice rawArr col 31
-            if(rawArr && typeof rowIdx !== "undefined"){
-              var rr = rawArr[rowIdx];
-              if(rr && rr[31]!==null && rr[31]!==undefined) return parseInt(rr[31])||0;
-            }
             return 0;
           })();
           var cttosDig     = parseInt(String(f["Cttos Dig"]||f["Cttos  Dig"]||f["CttoDig"]||"0")) || 0;
@@ -3185,20 +3184,9 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
       return Object.assign({}, v, {historial:hist}, extra);
     });
 
-    // PASO 3b: Para meses históricos, limpiar ejecutivos que NO están en el Excel
-    // (ej: ejecutivos que se agregaron después de ese mes)
-    if (!esMesActual) {
-      nuevoEquipo = nuevoEquipo.map(function(v) {
-        var estaEnExcel = resultados.find(function(x){return x.equipo&&x.equipo.id===v.id;});
-        if (estaEnExcel) return v; // ya fue procesado en PASO 3
-        // Este ejecutivo NO estaba en el Excel — limpiar su historial de ese mes
-        var hist = Object.assign({}, v.historial||{});
-        if (hist[mesKey]) {
-          hist[mesKey] = {uf:0,dps:0,dpsVenta:0,dpsSinVenta:0,dpsPendiente:0,dpsRechazado:0,nBenef:0,cttosDig:0,pctF:0,pctM:0,ufDig:0,conecta:0};
-        }
-        return Object.assign({}, v, {historial:hist});
-      });
-    }
+    // PASO 3b: eliminado — los ejecutivos sin match conservan su historial del mes
+    // para que los totales reflejen todo lo producido ese mes independientemente
+    // de si el AGV sigue activo hoy en el equipo.
 
     // PASO 4: Guardar sin match como referencia (no se pierden)
     var sinMatchData = sinMatch.map(function(r){
