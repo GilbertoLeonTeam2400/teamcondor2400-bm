@@ -3211,15 +3211,40 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
     var _nm=mesesOpciones.find(function(m){return m.mk===mesKey;});
     var docData = {equipo:nuevoEquipo, metaEquipo:window.__metaEquipoActual||550};
     if (sinMatchData.length>0) docData._sinMatch = sinMatchData;
-    if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
+    if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc) {
       window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey), docData, {merge:true})
         .then(function(){
           var extra2 = sinMatchData.length>0?" ("+sinMatchData.length+" sin match guardados igualmente)":"";
           setMsg("✅ ¡Guardado! "+(_nm?_nm.nom:mesKey)+" actualizado."+extra2);
+          // Para mes histórico: actualizar también el historial dentro del doc del mes ACTUAL
+          // porque onSnapshot lee equipos/mesActual y el historial de cada ej está incrustado ahí
+          if (!esMesActual && window.__fbGetDoc) {
+            window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos",info.mesKey)).then(function(snapAct){
+              var exAct = typeof snapAct.exists==="function" ? snapAct.exists() : snapAct.exists;
+              if (!exAct) return;
+              var dataAct = typeof snapAct.data==="function" ? snapAct.data() : snapAct.data;
+              if (!dataAct || !Array.isArray(dataAct.equipo)) return;
+              var equipoActualizado = dataAct.equipo.map(function(v){
+                var match = nuevoEquipo.find(function(n){ return n.id === v.id; });
+                if (!match) return v;
+                var hNuevo = (match.historial||{})[mesKey];
+                if (!hNuevo) return v;
+                var histAct = Object.assign({}, v.historial||{});
+                histAct[mesKey] = hNuevo;
+                return Object.assign({}, v, {historial: histAct});
+              });
+              window.__fbSetDoc(
+                window.__fbDoc(window.__fbDb,"equipos",info.mesKey),
+                Object.assign({}, dataAct, {equipo: equipoActualizado}),
+                {merge:false}
+              ).then(function(){ console.log("[HIST] ✅ Historial "+mesKey+" actualizado en mes actual"); })
+               .catch(function(e){ console.warn("[HIST] Error:", e); });
+            }).catch(function(){});
+          }
           setTimeout(function(){if(window.skipSnapshotRef)window.skipSnapshotRef.current=false;},4000);
         })
         .catch(function(e){ setMsg("⚠️ Error Firebase: "+e.message); if(window.skipSnapshotRef)window.skipSnapshotRef.current=false; });
-    else { setMsg("✅ Actualizado localmente."); if(window.skipSnapshotRef)window.skipSnapshotRef.current=false; }
+    } else { setMsg("✅ Actualizado localmente."); if(window.skipSnapshotRef)window.skipSnapshotRef.current=false; }
   }
 
   return React.createElement('div', {style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(233,7,41,.09)"}}
