@@ -2942,9 +2942,9 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
           // Headers están en fila 4 (rowNum=4), datos desde fila 5
           // Leer como array y construir objetos manualmente
           var rawArr = window.XLSX.utils.sheet_to_json(ws, {header:1, defval:""});
-          // Buscar fila con "CC" y "NOMBRE EJECUTIVO"
+          // Buscar fila con "CC" y "NOMBRE EJECUTIVO" — buscar en las primeras 20 filas
           var headerRow = -1;
-          for (var ri=0; ri<Math.min(rawArr.length,10); ri++) {
+          for (var ri=0; ri<Math.min(rawArr.length,20); ri++) {
             var rowStr = rawArr[ri].map(function(c){return String(c).trim().toUpperCase();});
             if (rowStr.indexOf("CC") >= 0 && rowStr.some(function(c){return c.indexOf("NOMBRE")>=0;})) {
               headerRow = ri; break;
@@ -3611,7 +3611,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
   var totBenef=datos.reduce(function(s,d){return s+d.nBenef;},0);
   var totCttos=datos.reduce(function(s,d){return s+d.cttosDig;},0);
   var totConectaMes=datos.reduce(function(s,d){return s+(d.conecta||0);},0);
-  var agvEnCero=datos.filter(function(p){return (parseFloat(p.uf)||0)===0;}).length;
+  var agvEnCero=datos.filter(function(p){return (parseFloat(p.uf)||0)===0 && !String(p.id).startsWith("_sm");}).length;
   var totUF=parseFloat(datos.reduce(function(s,d){return s+d.uf;},0).toFixed(2));
 
   // Para BenchmarkComparativa usar mes actual
