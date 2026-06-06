@@ -9108,8 +9108,6 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                         
                       )
                       , React.createElement(PanelAlertas, { equipo: equipo, proyV: proyV, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3781}} )
-
-                      )
                       , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:20}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3782}}
                         , [{l:"UF equipo",v:fmtUF(totUF),c:R},{l:"Ritmo esperado hoy",v:proyEq>0?fmtUF2(proyEq)+" UF":"Día 1",c:colSem(pctEq)},{l:"DPS totales",v:totDPS,c:"#15803D"},{l:"Con reportes",v:equipo.filter(function(v){return (v.rep||[]).length>0;}).length,c:"#7C3AED"}].map(function(k){return React.createElement('div', { key: k.l, style: {background:"#F8FAFC",borderRadius:12,padding:"12px 14px",borderLeft:"3px solid "+k.c}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3783}}, React.createElement('div', { style: {fontSize:20,fontWeight:900,color:RD}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3783}}, k.v), React.createElement('div', { style: {fontSize:11,color:"#9CA3AF",marginTop:2}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3783}}, k.l));})
                       )
