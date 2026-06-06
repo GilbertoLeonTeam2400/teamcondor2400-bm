@@ -3211,11 +3211,29 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
     var _nm=mesesOpciones.find(function(m){return m.mk===mesKey;});
     var docData = {equipo:nuevoEquipo, metaEquipo:window.__metaEquipoActual||550};
     if (sinMatchData.length>0) docData._sinMatch = sinMatchData;
+
+    // Actualizar estado local inmediatamente con los datos correctos del Excel
+    // Solo toca historial[mesKey] — no modifica ningún otro mes
+    if (!esMesActual) {
+      setEquipo(function(prev){
+        return prev.map(function(v){
+          var match = nuevoEquipo.find(function(n){ return n.id === v.id; });
+          if (!match) return v;
+          var hNuevo = (match.historial||{})[mesKey];
+          if (!hNuevo) return v;
+          var histAct = Object.assign({}, v.historial||{});
+          histAct[mesKey] = hNuevo;
+          return Object.assign({}, v, {historial: histAct});
+        });
+      });
+    }
+
     if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc) {
       window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey), docData, {merge:true})
         .then(function(){
           var extra2 = sinMatchData.length>0?" ("+sinMatchData.length+" sin match guardados igualmente)":"";
           setMsg("✅ ¡Guardado! "+(_nm?_nm.nom:mesKey)+" actualizado."+extra2);
+          // Actualizar también historial[mesKey] en doc del mes actual para que persista tras recarga
           if (!esMesActual && window.__fbGetDoc) {
             window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos",info.mesKey)).then(function(snapAct){
               var exAct = typeof snapAct.exists==="function" ? snapAct.exists() : snapAct.exists;
@@ -6472,7 +6490,6 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
               if (!window.__historialMeses[String(vMes.id)]) window.__historialMeses[String(vMes.id)] = {};
               // Solo setear si no hay ya dato para ese mes
               if (!window.__historialMeses[String(vMes.id)][mk]) {
-                // Guardar historial COMPLETO del mes (no solo uf/dps)
                 var hMes = (vMes.historial||{})[mk] || {};
                 window.__historialMeses[String(vMes.id)][mk] = Object.assign(
                   {uf: vMes.uf, dps: vMes.dps||0}, hMes
@@ -6491,8 +6508,9 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
               var histAcum = Object.assign({}, v.historial||{});
               var hMeses = window.__historialMeses[String(v.id)] || {};
               Object.keys(hMeses).forEach(function(mk){
-                // Reemplazar completamente — no mezclar con historial viejo
-                histAcum[mk] = Object.assign({}, histAcum[mk]||{}, hMeses[mk]);
+                if (!histAcum[mk] || !(histAcum[mk].uf > 0)) {
+                  histAcum[mk] = Object.assign({}, histAcum[mk]||{}, hMeses[mk]);
+                }
               });
               return Object.assign({}, v, {historial: histAcum});
             });
