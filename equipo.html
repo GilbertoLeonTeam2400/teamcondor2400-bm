@@ -3525,14 +3525,28 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
   var [mesSeleccionado, setMesSeleccionado] = React.useState(info.mesKey);
   var [sortCol, setSortCol] = React.useState("dpsConVenta");
   var [sortAsc, setSortAsc] = React.useState(false);
-  var [editCell, setEditCell] = React.useState(null); // {vid, campo}
+  var [editCell, setEditCell] = React.useState(null);
   var [editVal, setEditVal] = React.useState("");
   var [guardando, setGuardando] = React.useState(false);
-  var [kpiDetalle, setKpiDetalle] = React.useState(null); // key de la card abierta
-
-  // Generar últimos 6 meses con totales
-  // Estado para datos de mini cards de meses históricos
+  var [kpiDetalle, setKpiDetalle] = React.useState(null);
   var [datosMinicards, setDatosMinicards] = React.useState({});
+  var [datosMesHist, setDatosMesHist] = React.useState(null); // datos del mes histórico desde Firebase
+  var [cargandoMes, setCargandoMes] = React.useState(false);
+
+  // Cargar datos del mes histórico desde Firebase cuando cambia el mes seleccionado
+  React.useEffect(function(){
+    var esMesAct = mesSeleccionado === info.mesKey;
+    if (esMesAct) { setDatosMesHist(null); return; }
+    if (!window.__fbDb||!window.__fbDoc||!window.__fbGetDoc) return;
+    setCargandoMes(true);
+    window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos",mesSeleccionado)).then(function(snap){
+      var ex = typeof snap.exists==="function" ? snap.exists() : snap.exists;
+      if (!ex) { setDatosMesHist(null); setCargandoMes(false); return; }
+      var d = typeof snap.data==="function" ? snap.data() : snap.data;
+      setDatosMesHist(d||null);
+      setCargandoMes(false);
+    }).catch(function(){ setCargandoMes(false); });
+  }, [mesSeleccionado]);
 
   // Cargar totales de todos los meses históricos desde Firebase al montar
   React.useEffect(function(){
