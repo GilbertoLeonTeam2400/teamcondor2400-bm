@@ -2992,15 +2992,43 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
           // Leer como array y construir objetos manualmente
           var rawArr = window.XLSX.utils.sheet_to_json(ws, {header:1, defval:""});
 
-          // Leer % F y % M totales del equipo desde fila 2 (índice 1), cols 38 y 39
+          // Buscar dinámicamente la sección "Sexo % Cttos" buscando en filas 1-6
+          // La fila de sección tiene "Sexo % Cttos" y la fila de headers tiene "F%", "M%"
+          var _colSexoF = -1, _colSexoM = -1; // índices de F% y M% bajo "Sexo % Cttos"
+          var _sexoSeccionCol = -1;
+          for (var _si = 0; _si < Math.min(rawArr.length, 8); _si++) {
+            var _srow = rawArr[_si];
+            if (!_srow) continue;
+            for (var _sc = 0; _sc < _srow.length; _sc++) {
+              if (String(_srow[_sc]||"").trim().toLowerCase() === "sexo % cttos") {
+                _sexoSeccionCol = _sc; break;
+              }
+            }
+            if (_sexoSeccionCol >= 0) break;
+          }
+          // Si encontramos la sección, buscar "F%" y "M%" en la fila de headers (headerRow o headerRow-1)
+          if (_sexoSeccionCol >= 0) {
+            // Buscar en las filas siguientes a la sección el header F%, M%
+            for (var _hi2 = _si+1; _hi2 < Math.min(rawArr.length, _si+4); _hi2++) {
+              var _hrow = rawArr[_hi2];
+              if (!_hrow) continue;
+              for (var _hc = _sexoSeccionCol; _hc < Math.min(_hrow.length, _sexoSeccionCol+6); _hc++) {
+                var _hv = String(_hrow[_hc]||"").trim();
+                if (_hv === "F%") _colSexoF = _hc;
+                if (_hv === "M%") _colSexoM = _hc;
+              }
+              if (_colSexoF >= 0 && _colSexoM >= 0) break;
+            }
+          }
+          // Leer total equipo desde fila 2 (índice 1) usando columnas detectadas
           var _pctFTotal = 0, _pctMTotal = 0;
-          if (rawArr[1] && rawArr[1][38] !== undefined && rawArr[1][38] !== "") {
-            var pf = parseFloat(rawArr[1][38]);
-            var pm = parseFloat(rawArr[1][39]);
+          if (_colSexoF >= 0 && rawArr[1]) {
+            var pf = parseFloat(rawArr[1][_colSexoF]);
+            var pm = _colSexoM >= 0 ? parseFloat(rawArr[1][_colSexoM]) : 0;
             if (!isNaN(pf)) _pctFTotal = pf <= 1 ? Math.round(pf*100) : Math.round(pf);
             if (!isNaN(pm)) _pctMTotal = pm <= 1 ? Math.round(pm*100) : Math.round(pm);
           }
-          console.log("[SEXO] %F="+_pctFTotal+" %M="+_pctMTotal);
+          console.log("[SEXO] Sección col="+_sexoSeccionCol+" F%col="+_colSexoF+" M%col="+_colSexoM+" → %F="+_pctFTotal+" %M="+_pctMTotal);
           pctFRef.current = _pctFTotal;
           pctMRef.current = _pctMTotal;
 
@@ -3085,33 +3113,44 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
             if (rr && _colCttos >= 0 && rr[_colCttos]!==null && rr[_colCttos]!==undefined && rr[_colCttos]!=="") return parseInt(rr[_colCttos])||0;
             return parseInt(String(f["Cttos Dig"]||f["Cttos  Dig"]||f["CttoDig"]||"0"))||0;
           })();
-          // Sexo % contratos
-          var pctF = parseFloat(String(f["Sexo % Cttos F"]||f["% F"]||f["F"]||f["Fem"]||"0").replace(",",".").replace("%","")) || 0;
-          var pctM = parseFloat(String(f["Sexo % Cttos M"]||f["% M"]||f["M"]||f["Mas"]||"0").replace(",",".").replace("%","")) || 0;
-          // Si vienen como decimales (0.6 en vez de 60%), convertir
-          if(pctF > 0 && pctF <= 1) pctF = Math.round(pctF*100);
-          if(pctM > 0 && pctM <= 1) pctM = Math.round(pctM*100);
-          // Plan Conecta = columna col 36 SOLO si el header dice algo relacionado con Conecta
-          // En Excels anteriores a Marzo 2026 esta columna no existe o tiene otro dato
+          // Sexo % contratos — leer por índice de columna dinámico (evita ambigüedad con headers "F","M" duplicados)
+          var pctF = 0, pctM = 0;
+          var _rr = rawArr[f._rawIdx];
+          if (_rr && _colSexoF >= 0) {
+            var _pfv = parseFloat(_rr[_colSexoF]);
+            if (!isNaN(_pfv)) pctF = _pfv <= 1 ? Math.round(_pfv*100) : Math.round(_pfv);
+          }
+          if (_rr && _colSexoM >= 0) {
+            var _pmv = parseFloat(_rr[_colSexoM]);
+            if (!isNaN(_pmv)) pctM = _pmv <= 1 ? Math.round(_pmv*100) : Math.round(_pmv);
+          }
+          // Plan Conecta — buscar dinámicamente la sección "CONECTA" en la fila de secciones
+          // La sección tiene sub-columnas F y M; el total es F+M
           var conecta = (function(){
-            // Verificar que el header de col 36 sea Conecta
-            var headerCol36 = String(rawArr[headerRow] ? rawArr[headerRow][36] : "").toUpperCase();
-            var esConecta = headerCol36.indexOf("CONECT") >= 0 || headerCol36.indexOf("PLAN") >= 0;
-            if (!esConecta) return 0;
-            var nombreBuscar = nombre;
-            var conectaVal = 0;
-            for (var ri2 = headerRow+1; ri2 < rawArr.length; ri2++) {
-              var rr = rawArr[ri2];
-              var rnombre = String(rr[9]||"").trim().toUpperCase().replace(/\s+/g," ");
-              var nbuscar2 = nombreBuscar.replace(/\s+/g," ");
-              if (rnombre === nbuscar2) {
-                conectaVal = parseInt(rr[36])||0;
-                console.log("[CONECTA] "+nombre+" -> col36="+rr[36]+" -> "+conectaVal);
-                break;
+            // Buscar "CONECTA" en la fila anterior al headerRow (fila de secciones)
+            var _colConectaF = -1, _colConectaM = -1;
+            var secRow = headerRow > 0 ? rawArr[headerRow-1] : null;
+            if (secRow) {
+              for (var _cc = 0; _cc < secRow.length; _cc++) {
+                if (String(secRow[_cc]||"").toUpperCase().indexOf("CONECT") >= 0) {
+                  // Encontrada la sección — buscar F y M en la fila de headers
+                  var hdrRow = rawArr[headerRow];
+                  for (var _ch = _cc; _ch < Math.min(hdrRow.length, _cc+5); _ch++) {
+                    var _hv = String(hdrRow[_ch]||"").trim().toUpperCase();
+                    if (_hv === "F" && _colConectaF < 0) _colConectaF = _ch;
+                    if (_hv === "M" && _colConectaM < 0) _colConectaM = _ch;
+                  }
+                  break;
+                }
               }
             }
-            if(conectaVal===0) console.log("[CONECTA] No encontrado: "+nombre);
-            return conectaVal;
+            if (_colConectaF < 0 && _colConectaM < 0) return 0;
+            var rr = rawArr[f._rawIdx];
+            if (!rr) return 0;
+            // Conecta solo aplica a titulares hombres — usar columna M únicamente
+            var cM = _colConectaM >= 0 ? (parseInt(rr[_colConectaM])||0) : 0;
+            console.log("[CONECTA] "+nombre+" -> M="+cM);
+            return cM;
           })();
 
           return { nombre:nombre, rut:rutExcel, dpsConVenta:dpsConVenta, dpsSinVenta:dpsSinVenta, dpsPendiente:dpsPendiente, dpsRechazado:dpsRechazado, dpsTotal:dpsTotal, uf:uf, nBenef:nBenef, cttosDig:cttosDig, pctF:pctF, pctM:pctM, conecta:conecta };
