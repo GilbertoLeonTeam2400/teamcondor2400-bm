@@ -2933,9 +2933,12 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
         var filas = [];
         if (window.XLSX) {
           var wb = window.XLSX.read(ev.target.result, {type:"binary"});
-          // Buscar la pestaña "Resumen Agentes"
+          // Buscar la pestaña "Resumen Agentes" o "Resumen por Agentes"
           var sheetName = wb.SheetNames.find(function(s){
-            return s.toLowerCase().replace(/\s/g,"").indexOf("resumenagente") >= 0;
+            var sn = s.toLowerCase().replace(/\s/g,"");
+            return sn.indexOf("resumenagente") >= 0 || sn.indexOf("resumenporagente") >= 0;
+          }) || wb.SheetNames.find(function(s){
+            return s.toLowerCase().indexOf("resumen") >= 0 && s.toLowerCase().indexOf("agente") >= 0;
           }) || wb.SheetNames[0];
           console.log("[DPS] Pestaña:", sheetName);
           var ws = wb.Sheets[sheetName];
@@ -2945,8 +2948,11 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
           // Buscar fila con "CC" y "NOMBRE EJECUTIVO" — buscar en las primeras 20 filas
           var headerRow = -1;
           for (var ri=0; ri<Math.min(rawArr.length,20); ri++) {
-            var rowStr = rawArr[ri].map(function(c){return String(c).trim().toUpperCase();});
-            if (rowStr.indexOf("CC") >= 0 && rowStr.some(function(c){return c.indexOf("NOMBRE")>=0;})) {
+            var rowStr = rawArr[ri].map(function(c){return String(c||"").trim().toUpperCase();});
+            var tieneCC = rowStr.indexOf("CC") >= 0;
+            var tieneNombre = rowStr.some(function(c){return c.indexOf("NOMBRE")>=0 && c.indexOf("EJECUTIVO")>=0;});
+            var tieneRUT = rowStr.indexOf("RUT") >= 0;
+            if (tieneCC && (tieneNombre || tieneRUT)) {
               headerRow = ri; break;
             }
           }
