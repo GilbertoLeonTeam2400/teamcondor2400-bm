@@ -5194,7 +5194,6 @@ function BenchmarkView({ benchmark, setBenchmark, equipo, info, R, RD }) {
 
 // ── Tendencias y Gráficos ─────────────────────────────────────────────────────
 function TendenciasView({ equipo, info, R, RD }) {
-  var [selEjec, setSelEjec] = React.useState("");
   var KPIS = [
     {k:"uf",l:"UF",c:"#C9A84C"},{k:"dps",l:"DPS Total",c:"#374151"},
     {k:"dpsVenta",l:"DPS c/Venta",c:"#16A34A"},{k:"dpsSinVenta",l:"DPS s/Venta",c:"#2563EB"},
@@ -5203,85 +5202,167 @@ function TendenciasView({ equipo, info, R, RD }) {
     {k:"pctF",l:"% Mujer",c:"#EC4899"},{k:"pctM",l:"% Hombre",c:"#3B82F6"},
   ];
   var [selKPI, setSelKPI] = React.useState("uf");
-  
-  // Generar últimos 6 meses
-  var meses = [];
-  for(var i=0;i<=5;i++){
-    var d=new Date(new Date().getFullYear(),new Date().getMonth()-i,1);
-    var mk=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
-    var nom=d.toLocaleString("es-CL",{month:"short"}).replace(/^./,function(c){return c.toUpperCase();});
-    meses.push({mk:mk,nom:nom});
+  var [selEjec, setSelEjec] = React.useState("");
+  // Cache de docs Firebase por mesKey: {mk: {equipo:[], _sinMatch:[], _pctF, _pctM} | null}
+  var [fbCache, setFbCache] = React.useState({});
+  var [cargando, setCargando] = React.useState(false);
+
+  // Generar últimos 6 meses (índice 0 = más reciente)
+  var meses = React.useMemo(function(){
+    var arr = [];
+    for(var i=0;i<=5;i++){
+      var d=new Date(new Date().getFullYear(),new Date().getMonth()-i,1);
+      var mk=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+      var nom=d.toLocaleString("es-CL",{month:"short"}).replace(/^./,function(c){return c.toUpperCase();});
+      arr.push({mk:mk,nom:nom});
+    }
+    return arr;
+  },[]);
+
+  // Al montar: cargar los 5 meses históricos desde Firebase
+  React.useEffect(function(){
+    if(!window.__fbDb||!window.__fbDoc||!window.__fbGetDoc) return;
+    var mesActual = info.mesKey;
+    var hist = meses.filter(function(m){return m.mk!==mesActual;});
+    hist.forEach(function(m){
+      window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos",m.mk)).then(function(snap){
+        var ex = typeof snap.exists==="function" ? snap.exists() : snap.exists;
+        var data = ex ? (typeof snap.data==="function" ? snap.data() : snap.data) : null;
+        setFbCache(function(prev){
+          var n=Object.assign({},prev);
+          n[m.mk]=data||null;
+          return n;
+        });
+      }).catch(function(){
+        setFbCache(function(prev){var n=Object.assign({},prev);n[m.mk]=null;return n;});
+      });
+    });
+  },[]);
+
+  // Obtener lista de ejecutivos de un mes (ya sea el actual o histórico desde cache)
+  function getEquipoMes(mk) {
+    if(mk===info.mesKey) return equipo;
+    var d=fbCache[mk];
+    if(!d||!Array.isArray(d.equipo)) return [];
+    return d.equipo;
   }
 
+  // Obtener valor de un campo para un ejecutivo en un mes dado
+  // Para mes actual: uf viene de v.uf, DPS del historial, pctF/M de rep[]
+  // Para meses históricos: todo viene de historial[mk] dentro del doc Firebase
   function getVal(v, mk, campo) {
-    var nowKey=(function(){var n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");})();
+    var esMesActual = (mk===info.mesKey);
     var h=(v.historial||{})[mk]||{};
-    var hDs=(parseInt(h.dpsVenta)||0)+(parseInt(h.dpsSinVenta)||0)+(parseInt(h.dpsPendiente)||0)+(parseInt(h.dpsRechazado)||0);
-    if(mk===nowKey){
-      if(campo==="uf") return parseFloat(v.uf)||0;
-      if(campo==="dps") return hDs>0?hDs:(parseInt(v.dps)||0);
-      if(campo==="dpsVenta") return parseInt(h.dpsVenta)||0;
-      if(campo==="dpsSinVenta") return parseInt(h.dpsSinVenta)||0;
-      if(campo==="dpsPendiente") return parseInt(h.dpsPendiente)||0;
-      if(campo==="dpsRechazado") return parseInt(h.dpsRechazado)||0;
-      // pctF/pctM mes actual: calcular desde rep[] igual que el dashboard
-      if(campo==="pctF"||campo==="pctM"){
-        var repsV=v.rep||[];
-        var totHv=repsV.reduce(function(s,r){return s+(parseInt(r.hombres)||0);},0);
-        var totMv=repsV.reduce(function(s,r){return s+(parseInt(r.mujeres)||0);},0);
-        var totSv=totHv+totMv;
-        if(totSv===0) return 0;
-        return campo==="pctF"?Math.round((totMv/totSv)*100):Math.round((totHv/totSv)*100);
-      }
-      return parseFloat(h[campo])||0;
+    var dpsV=parseInt(h.dpsVenta)||0, dpsSV=parseInt(h.dpsSinVenta)||0;
+    var dpsP=parseInt(h.dpsPendiente)||0, dpsR=parseInt(h.dpsRechazado)||0;
+    var hDs=dpsV+dpsSV+dpsP+dpsR;
+    if(campo==="uf"){
+      if(esMesActual) return parseFloat(v.uf)||0;
+      return parseFloat(h.ufDig||h.uf)||0;
     }
-    if(campo==="uf") return parseFloat(h.uf)||parseFloat(h.ufDig)||0;
-    if(campo==="dps") return hDs>0?hDs:(parseInt(h.dps)||0);
+    if(campo==="dps") return hDs>0?hDs:(esMesActual?(parseInt(v.dps)||0):0);
+    if(campo==="dpsVenta")    return dpsV;
+    if(campo==="dpsSinVenta") return dpsSV;
+    if(campo==="dpsPendiente") return dpsP;
+    if(campo==="dpsRechazado") return dpsR;
+    if(campo==="nBenef")   return parseInt(h.nBenef)||0;
+    if(campo==="cttosDig") return parseInt(h.cttosDig)||0;
+    if(campo==="pctF"||campo==="pctM"){
+      if(esMesActual){
+        var reps=v.rep||[];
+        var totH=reps.reduce(function(s,r){return s+(parseInt(r.hombres)||0);},0);
+        var totM=reps.reduce(function(s,r){return s+(parseInt(r.mujeres)||0);},0);
+        var totS=totH+totM;
+        if(totS===0) return 0;
+        return campo==="pctF"?Math.round((totM/totS)*100):Math.round((totH/totS)*100);
+      }
+      var pF=parseInt(h.pctF)||0, pM=parseInt(h.pctM)||0;
+      if(pF===0&&pM>0) pF=100-pM;
+      if(pM===0&&pF>0) pM=100-pF;
+      return campo==="pctF"?pF:pM;
+    }
     return parseFloat(h[campo])||0;
   }
 
-  // Datos del equipo
-  var equipoData = meses.map(function(m){
-    var val;
-    if(selKPI==="pctF"||selKPI==="pctM"){
-      var nowKeyEq=(function(){var n=new Date();return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0");})();
-      if(m.mk===nowKeyEq){
-        // Mes actual: sumar hombres/mujeres de rep[] de todo el equipo
-        var totHEq=equipo.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.hombres)||0);},0);},0);
-        var totMEq=equipo.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.mujeres)||0);},0);},0);
-        var totSEq=totHEq+totMEq;
-        val=totSEq>0?(selKPI==="pctF"?Math.round((totMEq/totSEq)*100):Math.round((totHEq/totSEq)*100)):0;
-      } else {
-        // Meses históricos: ponderado por cttosDig
-        var totalCttos=equipo.reduce(function(s,v){var h=(v.historial||{})[m.mk]||{};return s+(parseInt(h.cttosDig)||0);},0);
-        if(totalCttos===0){
-          var conDatos=equipo.filter(function(v){return getVal(v,m.mk,selKPI)>0;});
-          val=conDatos.length>0?Math.round(conDatos.reduce(function(s,v){return s+getVal(v,m.mk,selKPI);},0)/conDatos.length):0;
-        } else {
-          var sumPond=equipo.reduce(function(s,v){var h=(v.historial||{})[m.mk]||{};var cttos=parseInt(h.cttosDig)||0;var pct=getVal(v,m.mk,selKPI);return s+(cttos*pct);},0);
-          val=Math.round(sumPond/totalCttos);
-        }
+  // Calcular total del equipo para un mes y KPI dados
+  function getEquipoTotal(m, kpi) {
+    var lista = getEquipoMes(m.mk);
+    var sinMatch = (m.mk!==info.mesKey && fbCache[m.mk] && Array.isArray(fbCache[m.mk]._sinMatch)) ? fbCache[m.mk]._sinMatch : [];
+    if(kpi==="pctF"||kpi==="pctM"){
+      // Mes actual: calcular desde rep[]
+      if(m.mk===info.mesKey){
+        var totH=equipo.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.hombres)||0);},0);},0);
+        var totMu=equipo.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.mujeres)||0);},0);},0);
+        var totS=totH+totMu;
+        return totS>0?(kpi==="pctF"?Math.round((totMu/totS)*100):Math.round((totH/totS)*100)):0;
       }
-    } else {
-      val=equipo.reduce(function(s,v){return s+getVal(v,m.mk,selKPI);},0);
+      // Histórico: usar _pctF/_pctM guardados en el doc Firebase (calculados al cargar Excel)
+      var fbDoc=fbCache[m.mk];
+      if(fbDoc){
+        if(kpi==="pctF"&&fbDoc._pctF!=null) return parseInt(fbDoc._pctF)||0;
+        if(kpi==="pctM"&&fbDoc._pctM!=null) return parseInt(fbDoc._pctM)||0;
+      }
+      // Fallback: ponderar por cttosDig desde historial de ejecutivos
+      var totalCttos=lista.reduce(function(s,v){return s+(parseInt((v.historial||{})[m.mk]&&(v.historial||{})[m.mk].cttosDig)||0);},0);
+      if(totalCttos===0){
+        var conDatos=lista.filter(function(v){return getVal(v,m.mk,kpi)>0;});
+        return conDatos.length>0?Math.round(conDatos.reduce(function(s,v){return s+getVal(v,m.mk,kpi);},0)/conDatos.length):0;
+      }
+      var sumP=lista.reduce(function(s,v){var ct=parseInt((v.historial||{})[m.mk]&&(v.historial||{})[m.mk].cttosDig)||0;return s+(ct*getVal(v,m.mk,kpi));},0);
+      return Math.round(sumP/totalCttos);
     }
-    return {nom:m.nom, val:val};
+    // Suma directa de ejecutivos + sinMatch
+    var tot=lista.reduce(function(s,v){return s+getVal(v,m.mk,kpi);},0);
+    // Sumar _sinMatch para UF y DPS en meses históricos
+    if(m.mk!==info.mesKey){
+      sinMatch.forEach(function(s){
+        if(kpi==="uf") tot+=parseFloat(s.uf)||0;
+        else if(kpi==="dpsVenta") tot+=parseInt(s.dpsVenta)||0;
+        else if(kpi==="dpsSinVenta") tot+=parseInt(s.dpsSinVenta)||0;
+        else if(kpi==="dpsPendiente") tot+=parseInt(s.dpsPendiente)||0;
+        else if(kpi==="dpsRechazado") tot+=parseInt(s.dpsRechazado)||0;
+        else if(kpi==="dps") tot+=(parseInt(s.dpsVenta)||0)+(parseInt(s.dpsSinVenta)||0)+(parseInt(s.dpsPendiente)||0)+(parseInt(s.dpsRechazado)||0);
+        else if(kpi==="nBenef") tot+=parseInt(s.nBenef)||0;
+        else if(kpi==="cttosDig") tot+=parseInt(s.cttosDig)||0;
+      });
+    }
+    return kpi==="uf"?parseFloat(tot.toFixed(2)):Math.round(tot);
+  }
+
+  // Calcular valor de un ejecutivo en un mes
+  function getEjecVal(ejId, m, kpi) {
+    var lista = getEquipoMes(m.mk);
+    var v = lista.find(function(e){return String(e.id)===String(ejId);});
+    if(!v) return 0;
+    return getVal(v, m.mk, kpi);
+  }
+
+  // Datos para los gráficos
+  var equipoData = meses.map(function(m){
+    return {nom:m.nom, val:getEquipoTotal(m, selKPI)};
   });
-  // Datos ejecutivo seleccionado
+
   var ejData = selEjec ? meses.map(function(m){
-    var v=equipo.find(function(e){return String(e.id)===String(selEjec);});
-    return {nom:m.nom, val:v?getVal(v,m.mk,selKPI):0};
+    return {nom:m.nom, val:getEjecVal(selEjec, m, selKPI)};
   }) : [];
 
   var maxVal = Math.max(1, Math.max.apply(null, equipoData.map(function(d){return d.val;})));
   var maxEj  = selEjec ? Math.max(1, Math.max.apply(null, ejData.map(function(d){return d.val;}))) : 1;
   var kpiInfo = KPIS.find(function(k){return k.k===selKPI;})||KPIS[0];
 
+  // ¿Cuántos meses históricos aún no han cargado?
+  var mesHistPendientes = meses.filter(function(m){
+    return m.mk!==info.mesKey && fbCache[m.mk]===undefined;
+  }).length;
+
   function MiniBar(props) {
-    var pct = Math.min(100, Math.round((props.val/props.max)*100));
+    var pct = Math.min(100, props.max>0?Math.round((props.val/props.max)*100):0);
+    var label;
+    if(selKPI==="uf") label=props.val.toFixed(2);
+    else if(selKPI==="pctF"||selKPI==="pctM") label=Math.round(props.val)+"%";
+    else label=Math.round(props.val);
     return React.createElement("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",flex:1,gap:4}}
-      ,React.createElement("div",{style:{fontSize:10,fontWeight:700,color:props.color}},
-        selKPI==="uf"||selKPI==="pctF"||selKPI==="pctM"?props.val.toFixed(selKPI==="uf"?2:0)+(selKPI.startsWith("pct")?"%":""):Math.round(props.val))
+      ,React.createElement("div",{style:{fontSize:10,fontWeight:700,color:props.color}},label)
       ,React.createElement("div",{style:{width:"100%",background:"#F3F4F6",borderRadius:6,height:80,display:"flex",alignItems:"flex-end",overflow:"hidden"}}
         ,React.createElement("div",{style:{width:"100%",height:pct+"%",background:props.color,borderRadius:"4px 4px 0 0",transition:"height .4s",minHeight:pct>0?4:0}})
       )
@@ -5290,16 +5371,19 @@ function TendenciasView({ equipo, info, R, RD }) {
   }
 
   return React.createElement("div",{style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}
-    ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:RD,marginBottom:4}},"📈 Tendencias y Gráficos")
-    ,React.createElement("div",{style:{fontSize:12,color:"#6B7280",marginBottom:16}},"Evolución de los últimos 6 meses por KPI")
+    ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10,marginBottom:4}}
+      ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:RD}},"📈 Tendencias y Gráficos")
+      ,mesHistPendientes>0&&React.createElement("div",{style:{fontSize:11,color:"#9CA3AF",fontStyle:"italic"}},"Cargando histórico…")
+    )
+    ,React.createElement("div",{style:{fontSize:12,color:"#6B7280",marginBottom:16}},"Evolución últimos 6 meses · Datos desde Firebase")
     // Selector KPI
     ,React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16}}
       ,KPIS.map(function(k){
-          return React.createElement("button",{key:k.k,onClick:function(){setSelKPI(k.k);},
-              style:{padding:"5px 12px",borderRadius:20,border:"1.5px solid "+(selKPI===k.k?k.c:"#E5E7EB"),
-                background:selKPI===k.k?k.c:"#fff",color:selKPI===k.k?"#fff":k.c,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}
-            ,k.l);
-        })
+        return React.createElement("button",{key:k.k,onClick:function(){setSelKPI(k.k);},
+            style:{padding:"5px 12px",borderRadius:20,border:"1.5px solid "+(selKPI===k.k?k.c:"#E5E7EB"),
+              background:selKPI===k.k?k.c:"#fff",color:selKPI===k.k?"#fff":k.c,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}
+          ,k.l);
+      })
     )
     // Gráfico equipo
     ,React.createElement("div",{style:{marginBottom:20}}
@@ -5320,7 +5404,7 @@ function TendenciasView({ equipo, info, R, RD }) {
     // Gráfico ejecutivo
     ,selEjec&&React.createElement("div",null
       ,React.createElement("div",{style:{fontSize:12,fontWeight:700,color:"#374151",marginBottom:8}}
-        ,equipo.find(function(v){return String(v.id)===String(selEjec);})?equipo.find(function(v){return String(v.id)===String(selEjec);}).nombre.split(" ").slice(0,2).join(" ")+" — "+kpiInfo.l:"Ejecutivo — "+kpiInfo.l)
+        ,(equipo.find(function(v){return String(v.id)===String(selEjec);})||{nombre:"Ejecutivo"}).nombre.split(" ").slice(0,2).join(" ")+" — "+kpiInfo.l)
       ,React.createElement("div",{style:{display:"flex",gap:8,alignItems:"flex-end",height:120,padding:"0 4px"}}
         ,ejData.map(function(d){return React.createElement(MiniBar,{key:d.nom,val:d.val,max:maxEj,nom:d.nom,color:kpiInfo.c});})
       )
