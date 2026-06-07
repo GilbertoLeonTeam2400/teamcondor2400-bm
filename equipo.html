@@ -2954,6 +2954,9 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
   var [msg, setMsg] = React.useState("");
   var [preview, setPreview] = React.useState([]);
   var [cargando, setCargando] = React.useState(false);
+  // Refs para pasar datos del parser a confirmarCarga (evita problema de scope)
+  var pctFRef = React.useRef(0);
+  var pctMRef = React.useRef(0);
   // Selector de mes — por defecto mes actual, permite elegir hasta 12 meses atrás
   var mesesOpciones = (function(){
     var opts = [];
@@ -2998,6 +3001,8 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
             if (!isNaN(pm)) _pctMTotal = pm <= 1 ? Math.round(pm*100) : Math.round(pm);
           }
           console.log("[SEXO] %F="+_pctFTotal+" %M="+_pctMTotal);
+          pctFRef.current = _pctFTotal;
+          pctMRef.current = _pctMTotal;
 
           // Buscar fila con "CC" y "NOMBRE EJECUTIVO" — buscar en las primeras 20 filas
           var headerRow = -1;
@@ -3293,7 +3298,7 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
     var docData = {equipo:nuevoEquipo, metaEquipo:window.__metaEquipoActual||550};
     if (sinMatchData.length>0) docData._sinMatch = sinMatchData;
     docData._agvEnCero = agvEnCeroData;
-    if (_pctFTotal>0||_pctMTotal>0) { docData._pctF = _pctFTotal; docData._pctM = _pctMTotal; }
+    if (pctFRef.current>0||pctMRef.current>0) { docData._pctF = pctFRef.current; docData._pctM = pctMRef.current; }
     if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
       window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey), docData, {merge:false})
         .then(function(){
@@ -3359,6 +3364,10 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
           )
         );
       })()
+      , React.createElement('button', {onClick:confirmarCarga,
+          style:{width:"100%",marginTop:8,marginBottom:12,background:"#16A34A",color:"#fff",border:"none",borderRadius:12,padding:"13px 28px",fontSize:15,fontWeight:900,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:8,boxShadow:"0 4px 12px rgba(22,163,74,.25)"}}
+        , "💾 Confirmar y guardar para todos"
+      )
       , React.createElement('div', {style:{fontWeight:800,color:"#374151",marginBottom:10}}, "Vista previa — "+preview.length+" ejecutivos detectados:")
       , React.createElement('div', {style:{overflowX:"auto"}}
         , React.createElement('table', {style:{width:"100%",borderCollapse:"collapse",fontSize:12}}
