@@ -5999,6 +5999,429 @@ function CorrelacionView({ equipo, info, R, RD }) {
         })
   );
 }
+
+// ── Bases de Datos Para AGV ───────────────────────────────────────────────────
+function BasesAGVView({ equipo, info, R, RD }) {
+  var [bases, setBases]         = React.useState([]);
+  var [selBase, setSelBase]     = React.useState(null);
+  var [contactos, setContactos] = React.useState([]);
+  var [cargando, setCargando]   = React.useState(false);
+  var [msg, setMsg]             = React.useState("");
+  var [vista, setVista]         = React.useState("bases");
+  var [filtroEstado, setFiltroEstado] = React.useState("todos");
+  var [filtroAGV, setFiltroAGV]      = React.useState("todos");
+  var [asigAGV, setAsigAGV]     = React.useState("");
+  var [asigCant, setAsigCant]   = React.useState(10);
+  var [asigMsg, setAsigMsg]     = React.useState("");
+
+  var ESTADOS = [
+    {k:"sinContactar",l:"Sin contactar",color:"#6B7280",bg:"#F3F4F6",emoji:"⬜"},
+    {k:"contactado",  l:"Contactado",   color:"#2563EB",bg:"#EFF6FF",emoji:"📞"},
+    {k:"interesado",  l:"Interesado",   color:"#D97706",bg:"#FFFBEB",emoji:"⭐"},
+    {k:"cerrado",     l:"Cerrado",      color:"#16A34A",bg:"#F0FDF4",emoji:"✅"},
+    {k:"noInteresa",  l:"No interesa",  color:"#DC2626",bg:"#FFF1F2",emoji:"❌"},
+  ];
+
+  React.useEffect(function(){
+    if(!window.__fbDb||!window.__fbCollection||!window.__fbGetDocs) return;
+    window.__fbGetDocs(window.__fbCollection(window.__fbDb,"hoc_bases")).then(function(snap){
+      var arr=[];
+      snap.forEach(function(d){ arr.push(Object.assign({id:d.id},typeof d.data==="function"?d.data():d.data)); });
+      arr.sort(function(a,b){return (b.ts||0)-(a.ts||0);});
+      setBases(arr);
+    }).catch(function(e){console.error("Bases:",e);});
+  },[]);
+
+  function cargarContactos(baseId){
+    if(!window.__fbDb||!window.__fbCollection||!window.__fbQuery||!window.__fbWhere||!window.__fbGetDocs) return;
+    setCargando(true);
+    window.__fbGetDocs(
+      window.__fbQuery(window.__fbCollection(window.__fbDb,"hoc_contactos"),window.__fbWhere("baseId","==",baseId))
+    ).then(function(snap){
+      var arr=[];
+      snap.forEach(function(d){ arr.push(Object.assign({id:d.id},typeof d.data==="function"?d.data():d.data)); });
+      arr.sort(function(a,b){return (a.nombre||"").localeCompare(b.nombre||"");});
+      setContactos(arr); setCargando(false);
+    }).catch(function(e){ setCargando(false); console.error(e); });
+  }
+
+  function handleExcelBase(e){
+    var file=e.target.files[0]; if(!file) return;
+    var titulo=window.prompt("Nombre para esta base de datos (ej: H0C Julio 2026, Leads Feria Salud):");
+    if(!titulo||!titulo.trim()) return;
+    if(!window.XLSX){setMsg("Error: librería Excel no disponible");return;}
+    setCargando(true); setMsg("Leyendo Excel...");
+    var reader=new FileReader();
+    reader.onload=function(ev){
+      try{
+        var wb=window.XLSX.read(ev.target.result,{type:"binary"});
+        var ws=wb.Sheets[wb.SheetNames[0]];
+        var raw=window.XLSX.utils.sheet_to_json(ws,{header:1,defval:""});
+        if(raw.length<2){setMsg("Excel vacío.");setCargando(false);return;}
+        var headers=raw[0].map(function(h){return String(h).trim().toUpperCase();});
+        function colIdx(posibles){for(var p=0;p<posibles.length;p++){var idx=headers.indexOf(posibles[p]);if(idx>=0)return idx;}return -1;}
+        var iRut=colIdx(["AFIL_NRUT","RUT","NRUT"]);
+        var iDv=colIdx(["D","DV","DIGITO","DÍGITO"]);
+        var iNombre=colIdx(["NOMBRE","NOMBRE COMPLETO","NAMES"]);
+        var iEmail=colIdx(["EMAIL","CORREO","MAIL","E-MAIL"]);
+        var iCel=colIdx(["CELULAR","CEL","TELEFONO","TELÉFONO","FONO","PHONE"]);
+        var iComuna=colIdx(["COMUNA","CITY","CIUDAD"]);
+        var filas=raw.slice(1).filter(function(r){return r[Math.max(iRut,0)]&&String(r[Math.max(iRut,0)]).trim()!="";});
+        if(filas.length===0){setMsg("No se encontraron datos.");setCargando(false);return;}
+        setMsg("Subiendo "+filas.length+" contactos a Firebase...");
+        var baseId="base_"+Date.now();
+        var baseMeta={id:baseId,titulo:titulo.trim(),total:filas.length,ts:Date.now(),cargadoPor:"supervisor"};
+        var batchSz=400; var idx=0;
+        function subirBatch(){
+          var chunk=filas.slice(idx,idx+batchSz);
+          var promises=chunk.map(function(row,ri){
+            var cId=baseId+"_"+(idx+ri);
+            var cData={
+              baseId:baseId,baseTitulo:titulo.trim(),
+              rut:iRut>=0?String(row[iRut]||"").trim():"",
+              dv:iDv>=0?String(row[iDv]||"").trim():"",
+              nombre:iNombre>=0?String(row[iNombre]||"").trim():"",
+              email:iEmail>=0?String(row[iEmail]||"").trim():"",
+              celular:iCel>=0?String(row[iCel]||"").trim():"",
+              comuna:iComuna>=0?String(row[iComuna]||"").trim():"",
+              estado:"sinContactar",agvId:null,agvNombre:null,
+              nota:"",fechaProxContacto:"",ts:Date.now()
+            };
+            return window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_contactos",cId),cData);
+          });
+          Promise.all(promises).then(function(){
+            idx+=batchSz;
+            if(idx<filas.length){setMsg("Subiendo... "+(Math.min(idx,filas.length))+"/"+filas.length);subirBatch();}
+            else{
+              window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_bases",baseId),baseMeta).then(function(){
+                setBases(function(prev){return [baseMeta].concat(prev);});
+                setMsg("✅ Base '"+titulo+"' cargada con "+filas.length+" contactos.");
+                setCargando(false);
+              });
+            }
+          }).catch(function(err){setMsg("Error: "+err.message);setCargando(false);});
+        }
+        subirBatch();
+      }catch(err){setMsg("Error: "+err.message);setCargando(false);}
+    };
+    reader.readAsBinaryString(file);
+    e.target.value="";
+  }
+
+  function asignarContactos(){
+    if(!asigAGV||asigCant<=0) return;
+    var agv=equipo.find(function(v){return String(v.id)===String(asigAGV);});
+    if(!agv) return;
+    var disponibles=contactos.filter(function(c){return !c.agvId&&c.baseId===selBase.id;}).slice(0,asigCant);
+    if(disponibles.length===0){setAsigMsg("⚠️ No hay contactos sin asignar.");return;}
+    setAsigMsg("Asignando "+disponibles.length+"...");
+    var promises=disponibles.map(function(c){
+      return window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_contactos",c.id),
+        {agvId:String(agv.id),agvNombre:agv.nombre,estado:"sinContactar",tsAsignado:Date.now()},{merge:true});
+    });
+    Promise.all(promises).then(function(){
+      setContactos(function(prev){return prev.map(function(c){
+        return disponibles.find(function(d){return d.id===c.id;})?Object.assign({},c,{agvId:String(agv.id),agvNombre:agv.nombre,estado:"sinContactar"}):c;
+      });});
+      setAsigMsg("✅ "+disponibles.length+" contactos asignados a "+agv.nombre.split(" ")[0]+".");
+    }).catch(function(e){setAsigMsg("Error: "+e.message);});
+  }
+
+  function reasignar(contactoId,nuevoAgvId){
+    var agv=equipo.find(function(v){return String(v.id)===String(nuevoAgvId);}); if(!agv) return;
+    window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_contactos",contactoId),
+      {agvId:String(agv.id),agvNombre:agv.nombre,tsReasignado:Date.now()},{merge:true}
+    ).then(function(){
+      setContactos(function(prev){return prev.map(function(c){
+        return c.id===contactoId?Object.assign({},c,{agvId:String(agv.id),agvNombre:agv.nombre}):c;
+      });});
+    });
+  }
+
+  var contactosFiltrados=contactos.filter(function(c){
+    if(!selBase||c.baseId!==selBase.id) return false;
+    if(filtroEstado!=="todos"&&c.estado!==filtroEstado) return false;
+    if(filtroAGV==="sinAsignar"&&c.agvId) return false;
+    if(filtroAGV!=="todos"&&filtroAGV!=="sinAsignar"&&c.agvId!==filtroAGV) return false;
+    return true;
+  });
+
+  return React.createElement("div",{style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}
+    ,React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}
+      ,React.createElement("div",{style:{fontSize:18,fontWeight:900,color:RD}},"🗂️ Bases de Datos Para AGV")
+      ,vista!=="bases"&&React.createElement("button",{onClick:function(){setVista("bases");setSelBase(null);setContactos([]);setMsg("");setAsigMsg("");},
+          style:{background:"#F3F4F6",border:"none",borderRadius:10,padding:"7px 14px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}},"← Volver")
+    )
+    ,React.createElement("div",{style:{fontSize:12,color:"#6B7280",marginBottom:20}},"Gestiona tus bases de prospectos y asígnalas a tu equipo")
+
+    ,vista==="bases"&&React.createElement("div",null
+      ,React.createElement("label",{style:{display:"inline-flex",alignItems:"center",gap:8,background:RD,color:"#fff",
+          borderRadius:12,padding:"10px 20px",fontSize:13,fontWeight:800,cursor:"pointer",marginBottom:20}}
+        ,React.createElement("input",{type:"file",accept:".xlsx,.xls,.csv",style:{display:"none"},onChange:handleExcelBase})
+        ,"📂 Cargar nueva base de prospectos"
+      )
+      ,msg&&React.createElement("div",{style:{background:"#F0FDF4",border:"1px solid #86EFAC",borderRadius:10,
+          padding:"10px 14px",fontSize:12,fontWeight:700,color:"#16A34A",marginBottom:16}},msg)
+      ,cargando&&React.createElement("div",{style:{textAlign:"center",padding:20,color:"#9CA3AF"}},"Procesando...")
+      ,!cargando&&bases.length===0&&React.createElement("div",{style:{textAlign:"center",padding:40,color:"#9CA3AF",fontSize:13}},"Aún no hay bases cargadas.")
+      ,bases.map(function(base){
+        var d=new Date(base.ts||0);
+        var fecha=d.toLocaleDateString("es-CL",{day:"2-digit",month:"short",year:"numeric"});
+        return React.createElement("div",{key:base.id,
+            style:{background:"#F8FAFC",borderRadius:14,padding:"16px 18px",marginBottom:10,
+              border:"1.5px solid #E5E7EB",cursor:"pointer"},
+            onClick:function(){setSelBase(base);setVista("detalle");setContactos([]);cargarContactos(base.id);}}
+          ,React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between"}}
+            ,React.createElement("div",null
+              ,React.createElement("div",{style:{fontSize:15,fontWeight:900,color:"#1F2937",marginBottom:2}},base.titulo)
+              ,React.createElement("div",{style:{fontSize:11,color:"#9CA3AF"}},"Cargada "+fecha+" · "+base.total+" contactos")
+            )
+            ,React.createElement("div",{style:{fontSize:20,color:"#9CA3AF"}},"›")
+          )
+        );
+      })
+    )
+
+    ,vista==="detalle"&&selBase&&React.createElement("div",null
+      ,React.createElement("div",{style:{fontSize:15,fontWeight:900,color:"#1F2937",marginBottom:2}},selBase.titulo)
+      ,React.createElement("div",{style:{fontSize:11,color:"#9CA3AF",marginBottom:16}},selBase.total+" contactos")
+
+      ,React.createElement("div",{style:{marginBottom:20}}
+        ,React.createElement("div",{style:{fontSize:12,fontWeight:700,color:"#374151",marginBottom:8}},"👥 Estado por AGV:")
+        ,React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:6}}
+          ,equipo.filter(function(v){return v.activo!==false;}).map(function(v){
+            var asig=contactos.filter(function(c){return c.agvId===String(v.id)&&c.baseId===selBase.id;});
+            var tieneDatos=asig.length>0;
+            var tieneCierre=asig.some(function(c){return c.estado==="cerrado";});
+            var emoji=tieneDatos?(tieneCierre?"🟢":"🔵"):"🔴";
+            var color=tieneDatos?(tieneCierre?"#16A34A":"#1D4ED8"):"#9CA3AF";
+            var bg=tieneDatos?(tieneCierre?"#F0FDF4":"#EFF6FF"):"#F3F4F6";
+            return React.createElement("div",{key:v.id,style:{background:bg,borderRadius:20,
+                padding:"4px 12px",fontSize:11,fontWeight:700,color:color,border:"1px solid "+(tieneDatos?(tieneCierre?"#86EFAC":"#93C5FD"):"#E5E7EB")}}
+              ,emoji+" "+_nombreCorto(v.nombre)+(asig.length>0?" ("+asig.length+")":"")
+            );
+          })
+        )
+        ,React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",marginTop:4}},"🔴 Sin datos · 🔵 Con asignados · 🟢 Con cierres")
+      )
+
+      ,React.createElement("div",{style:{background:"#F0FDF4",borderRadius:12,padding:"14px 18px",marginBottom:20,border:"1px solid #86EFAC"}}
+        ,React.createElement("div",{style:{fontSize:13,fontWeight:800,color:"#16A34A",marginBottom:10}},"➕ Asignar contactos")
+        ,React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}
+          ,React.createElement("select",{value:asigAGV,onChange:function(e){setAsigAGV(e.target.value);},
+              style:{flex:2,minWidth:160,padding:"8px 10px",borderRadius:8,border:"1.5px solid #D1D5DB",fontSize:13,fontFamily:"inherit"}}
+            ,React.createElement("option",{value:""},"Selecciona AGV...")
+            ,equipo.filter(function(v){return v.activo!==false;}).map(function(v){
+              var cnt=contactos.filter(function(c){return c.agvId===String(v.id)&&c.baseId===selBase.id;}).length;
+              return React.createElement("option",{key:v.id,value:v.id},_nombreCorto(v.nombre)+(cnt>0?" ("+cnt+" ya asig.)":""));
+            })
+          )
+          ,React.createElement("input",{type:"number",min:1,max:500,value:asigCant,
+              onChange:function(e){setAsigCant(parseInt(e.target.value)||1);},
+              style:{width:75,padding:"8px 10px",borderRadius:8,border:"1.5px solid #D1D5DB",fontSize:13,fontFamily:"inherit",fontWeight:700}})
+          ,React.createElement("span",{style:{fontSize:12,color:"#6B7280"}},"contactos")
+          ,React.createElement("button",{onClick:asignarContactos,disabled:!asigAGV,
+              style:{background:asigAGV?"#16A34A":"#E5E7EB",color:asigAGV?"#fff":"#9CA3AF",
+                border:"none",borderRadius:10,padding:"8px 18px",fontSize:13,fontWeight:800,cursor:asigAGV?"pointer":"default",fontFamily:"inherit"}},"Asignar")
+        )
+        ,asigMsg&&React.createElement("div",{style:{fontSize:12,fontWeight:700,color:"#16A34A",marginTop:8}},asigMsg)
+        ,React.createElement("div",{style:{fontSize:11,color:"#6B7280",marginTop:4}},
+          contactos.filter(function(c){return !c.agvId&&c.baseId===selBase.id;}).length+" sin asignar disponibles")
+      )
+
+      ,React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10,alignItems:"center"}}
+        ,React.createElement("span",{style:{fontSize:11,fontWeight:700,color:"#6B7280"}},"Filtrar:")
+        ,["todos","sinContactar","contactado","interesado","cerrado","noInteresa"].map(function(ek){
+          var info=ESTADOS.find(function(x){return x.k===ek;})||{l:"Todos",emoji:"📋"};
+          return React.createElement("button",{key:ek,onClick:function(){setFiltroEstado(ek);},
+            style:{padding:"3px 10px",borderRadius:20,border:"1.5px solid "+(filtroEstado===ek?"#374151":"#E5E7EB"),
+              background:filtroEstado===ek?"#374151":"#fff",color:filtroEstado===ek?"#fff":"#374151",
+              fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}},ek==="todos"?"Todos":(info.emoji+" "+info.l));
+        })
+        ,React.createElement("select",{value:filtroAGV,onChange:function(e){setFiltroAGV(e.target.value);},
+            style:{padding:"4px 10px",borderRadius:20,border:"1.5px solid #E5E7EB",fontSize:10,fontFamily:"inherit",fontWeight:700}}
+          ,React.createElement("option",{value:"todos"},"Todos los AGV")
+          ,React.createElement("option",{value:"sinAsignar"},"Sin asignar")
+          ,equipo.filter(function(v){return v.activo!==false;}).map(function(v){
+            return React.createElement("option",{key:v.id,value:String(v.id)},_nombreCorto(v.nombre));
+          })
+        )
+      )
+      ,React.createElement("div",{style:{fontSize:11,color:"#9CA3AF",marginBottom:8}},contactosFiltrados.length+" resultado(s)")
+
+      ,cargando
+        ?React.createElement("div",{style:{textAlign:"center",padding:24,color:"#9CA3AF"}},"Cargando contactos...")
+        :React.createElement("div",{style:{overflowX:"auto"}}
+          ,React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:12}}
+            ,React.createElement("thead",null
+              ,React.createElement("tr",{style:{background:"#F8FAFC"}}
+                ,["Nombre","RUT","Celular","Email","Comuna","Estado","AGV","Nota","Próx. Contacto","Reasignar"].map(function(h){
+                  return React.createElement("th",{key:h,style:{padding:"8px 10px",textAlign:"left",fontWeight:700,color:"#6B7280",fontSize:11,whiteSpace:"nowrap"}},h);
+                })
+              )
+            )
+            ,React.createElement("tbody",null
+              ,contactosFiltrados.slice(0,200).map(function(c,i){
+                var est=ESTADOS.find(function(x){return x.k===c.estado;})||ESTADOS[0];
+                return React.createElement("tr",{key:c.id,style:{borderTop:"1px solid #F3F4F6",background:i%2===0?"#fff":"#FAFBFF"}}
+                  ,React.createElement("td",{style:{padding:"7px 10px",fontWeight:700,color:"#1F2937",whiteSpace:"nowrap"}},c.nombre||"—")
+                  ,React.createElement("td",{style:{padding:"7px 10px",color:"#6B7280",whiteSpace:"nowrap"}},(c.rut||"—")+(c.dv?"-"+c.dv:""))
+                  ,React.createElement("td",{style:{padding:"7px 10px",whiteSpace:"nowrap"}},React.createElement("a",{href:"tel:"+c.celular,style:{color:"#1D4ED8",fontWeight:700,textDecoration:"none"}},c.celular||"—"))
+                  ,React.createElement("td",{style:{padding:"7px 10px",fontSize:11}},c.email||"—")
+                  ,React.createElement("td",{style:{padding:"7px 10px"}},c.comuna||"—")
+                  ,React.createElement("td",{style:{padding:"7px 10px"}}
+                    ,React.createElement("span",{style:{background:est.bg,color:est.color,borderRadius:20,padding:"2px 8px",fontSize:11,fontWeight:700,whiteSpace:"nowrap"}},est.emoji+" "+est.l)
+                  )
+                  ,React.createElement("td",{style:{padding:"7px 10px",fontSize:11,color:c.agvId?"#1D4ED8":"#9CA3AF",whiteSpace:"nowrap"}},
+                    c.agvNombre?_nombreCorto(c.agvNombre):"Sin asignar")
+                  ,React.createElement("td",{style:{padding:"7px 10px",fontSize:11,color:"#6B7280",maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},c.nota||"")
+                  ,React.createElement("td",{style:{padding:"7px 10px",fontSize:11,color:"#D97706",whiteSpace:"nowrap"}},c.fechaProxContacto||"")
+                  ,React.createElement("td",{style:{padding:"7px 10px"}}
+                    ,React.createElement("select",{value:"",onChange:function(e){if(e.target.value)reasignar(c.id,e.target.value);},
+                        style:{fontSize:11,padding:"3px 6px",borderRadius:6,border:"1px solid #D1D5DB",fontFamily:"inherit",cursor:"pointer"}}
+                      ,React.createElement("option",{value:""},"↔ Reasignar")
+                      ,equipo.filter(function(v){return v.activo!==false&&String(v.id)!==String(c.agvId);}).map(function(v){
+                        return React.createElement("option",{key:v.id,value:v.id},_nombreCorto(v.nombre));
+                      })
+                    )
+                  )
+                );
+              })
+              ,contactosFiltrados.length>200&&React.createElement("tr",null
+                ,React.createElement("td",{colSpan:10,style:{padding:10,textAlign:"center",color:"#9CA3AF",fontSize:11}},"Mostrando 200 de "+contactosFiltrados.length+". Usa filtros para acotar.")
+              )
+            )
+          )
+        )
+    )
+  );
+}
+
+// ── Prospectos — Vista AGV ────────────────────────────────────────────────────
+function ProspectosAGVView({ vidStr, info, R, RD }) {
+  var [contactos,setContactos]=React.useState([]);
+  var [cargando,setCargando]=React.useState(true);
+  var [filtro,setFiltro]=React.useState("todos");
+  var [editId,setEditId]=React.useState(null);
+  var [editNota,setEditNota]=React.useState("");
+  var [editFecha,setEditFecha]=React.useState("");
+  var [guardando,setGuardando]=React.useState(false);
+
+  var ESTADOS=[
+    {k:"sinContactar",l:"Sin contactar",color:"#6B7280",bg:"#F3F4F6",emoji:"⬜"},
+    {k:"contactado",  l:"Contactado",   color:"#2563EB",bg:"#EFF6FF",emoji:"📞"},
+    {k:"interesado",  l:"Interesado",   color:"#D97706",bg:"#FFFBEB",emoji:"⭐"},
+    {k:"cerrado",     l:"Cerrado",      color:"#16A34A",bg:"#F0FDF4",emoji:"✅"},
+    {k:"noInteresa",  l:"No interesa",  color:"#DC2626",bg:"#FFF1F2",emoji:"❌"},
+  ];
+
+  React.useEffect(function(){
+    if(!window.__fbDb||!window.__fbCollection||!window.__fbQuery||!window.__fbWhere||!window.__fbGetDocs){setCargando(false);return;}
+    window.__fbGetDocs(
+      window.__fbQuery(window.__fbCollection(window.__fbDb,"hoc_contactos"),window.__fbWhere("agvId","==",vidStr))
+    ).then(function(snap){
+      var arr=[];
+      snap.forEach(function(d){arr.push(Object.assign({id:d.id},typeof d.data==="function"?d.data():d.data));});
+      arr.sort(function(a,b){var ord={sinContactar:0,contactado:1,interesado:2,cerrado:3,noInteresa:4};return (ord[a.estado]||0)-(ord[b.estado]||0);});
+      setContactos(arr);setCargando(false);
+    }).catch(function(){setCargando(false);});
+  },[vidStr]);
+
+  function cambiarEstado(cId,nuevoEstado){
+    window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_contactos",cId),{estado:nuevoEstado,tsUltMov:Date.now()},{merge:true})
+      .then(function(){setContactos(function(prev){return prev.map(function(c){return c.id===cId?Object.assign({},c,{estado:nuevoEstado}):c;});});});
+  }
+
+  function guardarEdit(){
+    setGuardando(true);
+    window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_contactos",editId),
+      {nota:editNota,fechaProxContacto:editFecha,tsUltMov:Date.now()},{merge:true}
+    ).then(function(){
+      setContactos(function(prev){return prev.map(function(c){return c.id===editId?Object.assign({},c,{nota:editNota,fechaProxContacto:editFecha}):c;});});
+      setEditId(null);setGuardando(false);
+    }).catch(function(){setGuardando(false);});
+  }
+
+  var filtrados=filtro==="todos"?contactos:contactos.filter(function(c){return c.estado===filtro;});
+  var totales={};
+  ESTADOS.forEach(function(e){totales[e.k]=contactos.filter(function(c){return c.estado===e.k;}).length;});
+
+  return React.createElement("div",{style:{background:"#fff",borderRadius:18,padding:"20px 18px",boxShadow:"0 4px 16px rgba(0,0,0,.06)"}}
+    ,React.createElement("div",{style:{fontSize:16,fontWeight:900,color:RD,marginBottom:2}},"📋 Mis Prospectos")
+    ,React.createElement("div",{style:{fontSize:11,color:"#9CA3AF",marginBottom:14}},contactos.length+" contactos asignados por tu supervisor")
+    ,React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}
+      ,ESTADOS.map(function(e){
+        return React.createElement("div",{key:e.k,style:{background:e.bg,borderRadius:10,padding:"6px 12px",textAlign:"center",border:"1px solid #E5E7EB"}}
+          ,React.createElement("div",{style:{fontSize:16,fontWeight:900,color:e.color}},totales[e.k]||0)
+          ,React.createElement("div",{style:{fontSize:9,color:e.color,textTransform:"uppercase"}},e.emoji+" "+e.l)
+        );
+      })
+    )
+    ,React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}
+      ,["todos"].concat(ESTADOS.map(function(e){return e.k;})).map(function(ek){
+        var info=ESTADOS.find(function(x){return x.k===ek;})||{l:"Todos",emoji:"📋"};
+        return React.createElement("button",{key:ek,onClick:function(){setFiltro(ek);},
+          style:{padding:"4px 10px",borderRadius:20,border:"1.5px solid "+(filtro===ek?RD:"#E5E7EB"),
+            background:filtro===ek?RD:"#fff",color:filtro===ek?"#fff":"#374151",
+            fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}
+          ,ek==="todos"?"📋 Todos":info.emoji+" "+info.l);
+      })
+    )
+    ,cargando?React.createElement("div",{style:{textAlign:"center",padding:30,color:"#9CA3AF"}},"Cargando prospectos...")
+    :filtrados.length===0
+      ?React.createElement("div",{style:{textAlign:"center",padding:30,color:"#9CA3AF",fontSize:13}},
+          contactos.length===0?"Tu supervisor aún no te ha asignado prospectos.":"Sin resultados.")
+      :filtrados.map(function(c){
+        var est=ESTADOS.find(function(x){return x.k===c.estado;})||ESTADOS[0];
+        var esEdit=editId===c.id;
+        return React.createElement("div",{key:c.id,
+            style:{borderRadius:12,padding:"12px 14px",marginBottom:8,
+              border:"1.5px solid "+(esEdit?"#93C5FD":"#E5E7EB"),background:esEdit?"#EFF6FF":est.bg}}
+          ,React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}
+            ,React.createElement("div",{style:{fontWeight:800,fontSize:13,color:"#1F2937"}},c.nombre||"Sin nombre")
+            ,React.createElement("select",{value:c.estado,onChange:function(e){cambiarEstado(c.id,e.target.value);},
+                style:{fontSize:11,padding:"4px 8px",borderRadius:8,border:"1.5px solid "+est.color,
+                  background:est.bg,color:est.color,fontWeight:700,fontFamily:"inherit",cursor:"pointer"}}
+              ,ESTADOS.map(function(e){return React.createElement("option",{key:e.k,value:e.k},e.emoji+" "+e.l);})
+            )
+          )
+          ,React.createElement("div",{style:{display:"flex",gap:10,flexWrap:"wrap",marginBottom:6}}
+            ,c.rut&&React.createElement("span",{style:{fontSize:11,color:"#6B7280"}},"🪪 "+(c.rut+(c.dv?"-"+c.dv:"")))
+            ,c.celular&&React.createElement("a",{href:"tel:"+c.celular,style:{fontSize:11,color:"#1D4ED8",fontWeight:700,textDecoration:"none"}},"📱 "+c.celular)
+            ,c.email&&React.createElement("a",{href:"mailto:"+c.email,style:{fontSize:11,color:"#1D4ED8",textDecoration:"none"}},"✉️ "+c.email)
+            ,c.comuna&&React.createElement("span",{style:{fontSize:11,color:"#6B7280"}},"📍 "+c.comuna)
+            ,c.baseTitulo&&React.createElement("span",{style:{fontSize:10,color:"#9CA3AF",background:"#F3F4F6",borderRadius:8,padding:"1px 8px"}},c.baseTitulo)
+          )
+          ,!esEdit&&React.createElement("div",{style:{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}
+            ,c.nota&&React.createElement("span",{style:{fontSize:11,color:"#374151",flex:1}},"💬 "+c.nota)
+            ,c.fechaProxContacto&&React.createElement("span",{style:{fontSize:11,color:"#D97706",fontWeight:700}},"📅 "+c.fechaProxContacto)
+            ,React.createElement("button",{onClick:function(){setEditId(c.id);setEditNota(c.nota||"");setEditFecha(c.fechaProxContacto||"");},
+                style:{background:"none",border:"1px solid #D1D5DB",borderRadius:8,padding:"3px 10px",
+                  fontSize:11,cursor:"pointer",color:"#6B7280",fontFamily:"inherit"}},"✏️ Editar")
+          )
+          ,esEdit&&React.createElement("div",{style:{marginTop:8,display:"flex",flexDirection:"column",gap:6}}
+            ,React.createElement("textarea",{value:editNota,onChange:function(e){setEditNota(e.target.value);},
+                placeholder:"Nota sobre este prospecto...",rows:2,
+                style:{padding:"6px 10px",borderRadius:8,border:"1.5px solid #93C5FD",fontSize:12,fontFamily:"inherit",resize:"vertical"}})
+            ,React.createElement("div",{style:{display:"flex",gap:8,alignItems:"center"}}
+              ,React.createElement("label",{style:{fontSize:11,color:"#6B7280"}},"📅 Próximo contacto:")
+              ,React.createElement("input",{type:"date",value:editFecha,onChange:function(e){setEditFecha(e.target.value);},
+                  style:{padding:"4px 8px",borderRadius:8,border:"1.5px solid #D1D5DB",fontSize:12,fontFamily:"inherit"}})
+            )
+            ,React.createElement("div",{style:{display:"flex",gap:8}}
+              ,React.createElement("button",{onClick:guardarEdit,disabled:guardando,
+                  style:{background:"#16A34A",color:"#fff",border:"none",borderRadius:8,padding:"6px 16px",
+                    fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}},guardando?"Guardando...":"💾 Guardar")
+              ,React.createElement("button",{onClick:function(){setEditId(null);},
+                  style:{background:"#F3F4F6",color:"#6B7280",border:"none",borderRadius:8,padding:"6px 14px",
+                    fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}},"Cancelar")
+            )
+          )
+        );
+      })
+  );
+}
+
 // ── Alertas del Equipo ───────────────────────────────────────────────────────
 function AlertasView({ equipo, info, R, RD }) {
   var hoy = new Date().toISOString().split("T")[0];
@@ -7168,7 +7591,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
   const SUP_GRUPOS = {
     rendimiento:  [["dashboard","📊 Dashboard"],["dpsanalisis","📊 Análisis de Métricas"],["tendencias","📈 Tendencias y Gráficos"],["clasificacion","📊 Clasificación AGV"],["agentes0","🚨 Agentes en 0"],["planagv","📋 Plan de Trabajo AGV"],["uflineales","📈 UF's Lineales"],["correlacion","🔗 Correlación DPS→UF"]],
     equipo:       [["gestion","👥 Gestionar Equipo"],["meta","🎯 Meta del Equipo"]],
-    herramientas: [["gestPremios","🏆 Gestionar Premios"],["gestDocs","📂 Gestionar Docs"],["recordatorios","📌 Recordatorios"],["notas","📝 Bloc de Notas"],["config","⚙️ Configuración del Equipo"]],
+    herramientas: [["gestPremios","🏆 Gestionar Premios"],["gestDocs","📂 Gestionar Docs"],["bases","🗂️ Bases Para AGV"],["recordatorios","📌 Recordatorios"],["notas","📝 Bloc de Notas"],["config","⚙️ Configuración del Equipo"]],
   };
   const [bulk,     setBulk]     = useState({});
   const [bulkOk,   setBulkOk]   = useState(false);
@@ -7266,6 +7689,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
   const [crmEdit,  setCrmEdit]  = useState(null);
   const [crmVista, setCrmVista] = useState("calendario"); // calendario | activos | cerrados | noConcretados | ufCerradas | ufPotencial
   const [crmFiltro, setCrmFiltro] = useState("todos"); // todos | activos | cerrados | perdidos
+  const [crmSubTab, setCrmSubTab] = useState("crm");   // crm | prospectos
   // ── Info y Docs Importantes ──
   const [infoDocsVista, setInfoDocsVista] = useState("premios");
   const [premiosImgs,   setPremiosImgs]   = useState(function(){
@@ -8804,7 +9228,22 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
         /* ===== MÁS — CRM + Reconocimientos + Info/Docs ===== */
         , tab==="crm" && React.createElement('div', null, crmAcc
             ? React.createElement('div', {style:{maxWidth:960,margin:"0 auto"}},
-                React.createElement('div', {style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}},
+                // Sub-pestañas: CRM | Prospectos
+                React.createElement('div', {style:{display:"flex",gap:6,marginBottom:16}}
+                  ,React.createElement('button', {onClick:function(){setCrmSubTab("crm");},
+                      style:{padding:"7px 18px",borderRadius:20,border:"1.5px solid "+((!crmSubTab||crmSubTab==="crm")?RD:"#E5E7EB"),
+                        background:(!crmSubTab||crmSubTab==="crm")?RD:"#fff",color:(!crmSubTab||crmSubTab==="crm")?"#fff":"#374151",
+                        fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}, "📒 Mi Agenda")
+                  ,React.createElement('button', {onClick:function(){setCrmSubTab("prospectos");},
+                      style:{padding:"7px 18px",borderRadius:20,border:"1.5px solid "+(crmSubTab==="prospectos"?RD:"#E5E7EB"),
+                        background:crmSubTab==="prospectos"?RD:"#fff",color:crmSubTab==="prospectos"?"#fff":"#374151",
+                        fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}, "🗂️ Mis Prospectos")
+                )
+                // Sub-pestaña Prospectos
+                ,crmSubTab==="prospectos" && React.createElement(ProspectosAGVView, {vidStr:String(form.vid),info:info,R:R,RD:RD})
+                // Sub-pestaña CRM (contenido original)
+                ,(!crmSubTab||crmSubTab==="crm") && React.createElement('div', null
+                ,React.createElement('div', {style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}},
                   React.createElement('div', null,
                     React.createElement('div', {style:{fontSize:20,fontWeight:900,color:RD}}, "📒 Mi Agenda"),
                     React.createElement('div', {style:{fontSize:12,color:"#9CA3AF"}}, "Hola, "+(crmV?crmV.nombre.split(" ")[0]:"")+(" · ")+crmData.length+" cliente"+(crmData.length===1?"":"s"))
@@ -9020,6 +9459,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                     )
                 )
               )
+            ) // cierre sub-tab CRM
             : React.createElement(CrmLoginForm, {equipo:equipo, R:R, RD:RD, setCrmAcc:setCrmAcc, setCrmData:setCrmData, setCrmVid:setCrmVid})
           )
 
@@ -9482,6 +9922,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                     equipo: equipo, info: info, R: R, RD: RD
                   })
                 , supVista==="uflineales"&&React.createElement(UFLinealesView, { equipo: equipo, info: info })
+                , supVista==="bases"&&React.createElement(BasesAGVView, { equipo:equipo, info:info, R:R, RD:RD })
                 , supVista==="recordatorios"&&React.createElement(AgendaRecordatoriosView, { R: R, RD: RD })
                 , supVista==="notas"&&React.createElement(AgendaNotasView, { R: R, RD: RD })
                 , supVista==="config"&&React.createElement(ConfigEquipoView, { R: R, RD: RD })
