@@ -3585,10 +3585,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
   }
 
   // Datos para cards grandes y tabla — EXCLUSIVAMENTE desde Firebase (datosMes) para histórico
-  var equipoBase = esMesActual ? equipo : (datosMes && datosMes.equipo ? datosMes.equipo.filter(function(v){
-    var h=(v.historial||{})[mesKey]||{};
-    return (parseFloat(h.ufDig||h.uf)||0)>0 || (parseInt(h.dpsVenta)||0)>0 || (parseInt(h.dpsSinVenta)||0)>0 || (parseInt(h.dpsPendiente)||0)>0 || (parseInt(h.dpsRechazado)||0)>0;
-  }) : []);
+  var equipoBase = esMesActual ? equipo : (datosMes && datosMes.equipo ? datosMes.equipo : []);
   var sinMatchBase = (!esMesActual && datosMes && datosMes._sinMatch) ? datosMes._sinMatch : [];
 
   // Construir filas de datos
@@ -3620,7 +3617,9 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
   var totBenef=datos.reduce(function(s,d){return s+d.nBenef;},0);
   var totCttos=datos.reduce(function(s,d){return s+d.cttosDig;},0);
   var totConectaMes=datos.reduce(function(s,d){return s+(d.conecta||0);},0);
-  var agvEnCero=datos.filter(function(p){return (parseFloat(p.uf)||0)===0 && !String(p.id).startsWith("_sm");}).length;
+  var agvEnCero = esMesActual
+    ? datos.filter(function(p){return (parseFloat(p.uf)||0)===0 && !String(p.id).startsWith("_sm");}).length
+    : datos.filter(function(p){return (parseFloat(p.uf)||0)===0 && !String(p.id).startsWith("_sm");}).length;
   var totUF=parseFloat(datos.reduce(function(s,d){return s+d.uf;},0).toFixed(2));
 
   // Para BenchmarkComparativa usar mes actual
@@ -3722,7 +3721,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
     )
 
     // KPIs Fila 2
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:12,marginBottom:16}}
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:12,marginBottom:4}}
       ,[
         {k:"totUF",l:"Total UF",v:totUF.toFixed(2)+" UF",c:"#C9A84C",bg:"#FFF8E7",brd:"#FCD34D"},
         {k:"totBenef",l:"N° Beneficiarios",v:totBenef,c:"#0891B2",bg:"#F0FDFA",brd:"#A7F3D0"},
@@ -3730,11 +3729,44 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
         {k:"totConecta",l:"💚 Planes Conecta",v:totConectaMes,c:"#059669",bg:"#ECFDF5",brd:"#6EE7B7"},
         {k:"agvCero",l:"AGV en 0",v:agvEnCero,c:agvEnCero>0?"#DC2626":"#16A34A",bg:agvEnCero>0?"#FFF1F2":"#F0FDF4",brd:agvEnCero>0?"#FCA5A5":"#86EFAC"},
       ].map(function(k){
-        return React.createElement("div",{key:k.l,style:{background:k.bg,borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid "+k.brd}}
+        var isOpen=kpiDetalle===k.k;
+        return React.createElement("div",{key:k.l,onClick:function(){setKpiDetalle(isOpen?null:k.k);},style:{background:k.bg,borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid "+(isOpen?"#374151":k.brd),cursor:"pointer",boxShadow:isOpen?"0 2px 12px rgba(0,0,0,.12)":"none",transition:"all .15s"}}
           ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:k.c}},k.v)
           ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},k.l)
+          ,React.createElement("div",{style:{fontSize:9,color:"#9CA3AF",marginTop:3}},isOpen?"▲ cerrar":"👆 ver detalle")
         );
       })
+    )
+
+    // Detalle KPI fila 2
+    ,kpiDetalle&&["totUF","totBenef","totCttos","totConecta","agvCero"].indexOf(kpiDetalle)>=0&&React.createElement("div",{style:{background:"#F8FAFC",borderRadius:12,padding:"14px 16px",marginBottom:12,border:"1px solid #E5E7EB"}}
+      ,React.createElement("div",{style:{fontSize:12,fontWeight:700,color:"#374151",marginBottom:8}},
+        kpiDetalle==="totUF"?"💰 UF por ejecutivo":
+        kpiDetalle==="totBenef"?"👥 Beneficiarios por ejecutivo":
+        kpiDetalle==="totCttos"?"📋 Contratos por ejecutivo":
+        kpiDetalle==="totConecta"?"💚 Planes Conecta por ejecutivo":
+        "🔴 AGV en 0"
+      )
+      ,React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:8}}
+        ,(kpiDetalle==="agvCero"
+          ? datos.filter(function(d){return (parseFloat(d.uf)||0)===0&&!String(d.id).startsWith("_sm");})
+          : datos.filter(function(d){
+              var val = kpiDetalle==="totUF"?d.uf:kpiDetalle==="totBenef"?d.nBenef:kpiDetalle==="totCttos"?d.cttosDig:d.conecta;
+              return (parseFloat(val)||0)>0;
+            }).sort(function(a,b){
+              var ka=kpiDetalle==="totUF"?a.uf:kpiDetalle==="totBenef"?a.nBenef:kpiDetalle==="totCttos"?a.cttosDig:a.conecta;
+              var kb=kpiDetalle==="totUF"?b.uf:kpiDetalle==="totBenef"?b.nBenef:kpiDetalle==="totCttos"?b.cttosDig:b.conecta;
+              return kb-ka;
+            })
+        ).map(function(d){
+          var val = kpiDetalle==="totUF"?d.uf:kpiDetalle==="totBenef"?d.nBenef:kpiDetalle==="totCttos"?d.cttosDig:kpiDetalle==="totConecta"?d.conecta:0;
+          var nombre = d.nombre.split(" ").slice(-2).join(" ");
+          return React.createElement("div",{key:d.id,style:{background:"#fff",borderRadius:8,padding:"6px 12px",border:"1px solid #E5E7EB",fontSize:11}}
+            ,React.createElement("div",{style:{fontWeight:700,color:RD,fontSize:10}},nombre)
+            ,kpiDetalle!=="agvCero"&&React.createElement("div",{style:{fontWeight:900,color:"#374151"}},kpiDetalle==="totUF"?d.uf+" UF":val)
+          );
+        })
+      )
     )
 
     // Tabla ejecutivos
