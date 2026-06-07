@@ -6047,82 +6047,77 @@ function BasesAGVView({ equipo, info, R, RD }) {
 
   function handleExcelBase(e){
     var file=e.target.files[0]; if(!file) return;
-    var titulo=window.prompt("Nombre para esta base de datos (ej: H0C Julio 2026, Leads Feria Salud):");
+    var titulo=window.prompt("Nombre para esta base (ej: H0C Julio 2026, Leads Feria Salud):");
     if(!titulo||!titulo.trim()) return;
     setCargando(true); setMsg("Preparando...");
-    // Cargar SheetJS dinámicamente si no está disponible
-    function procesarConXLSX(){
-      if(!window.XLSX){setMsg("Error: librería Excel no disponible");setCargando(false);return;}
+    e.target.value="";
+    function leerArchivo(){
       setMsg("Leyendo Excel...");
-      doLeerExcel();
+      var reader=new FileReader();
+      reader.onload=function(ev){
+        try{
+          var wb=window.XLSX.read(ev.target.result,{type:"binary"});
+          var ws=wb.Sheets[wb.SheetNames[0]];
+          var raw=window.XLSX.utils.sheet_to_json(ws,{header:1,defval:""});
+          if(raw.length<2){setMsg("Excel vacío.");setCargando(false);return;}
+          var headers=raw[0].map(function(h){return String(h).trim().toUpperCase();});
+          function colIdx(posibles){for(var p=0;p<posibles.length;p++){var idx=headers.indexOf(posibles[p]);if(idx>=0)return idx;}return -1;}
+          var iRut=colIdx(["AFIL_NRUT","RUT","NRUT"]);
+          var iDv=colIdx(["D","DV","DIGITO","DÍGITO"]);
+          var iNombre=colIdx(["NOMBRE","NOMBRE COMPLETO","NAMES"]);
+          var iEmail=colIdx(["EMAIL","CORREO","MAIL","E-MAIL"]);
+          var iCel=colIdx(["CELULAR","CEL","TELEFONO","TELÉFONO","FONO","PHONE"]);
+          var iComuna=colIdx(["COMUNA","CITY","CIUDAD"]);
+          var filas=raw.slice(1).filter(function(r){return r[Math.max(iRut,0)]&&String(r[Math.max(iRut,0)]).trim()!="";});
+          if(filas.length===0){setMsg("No se encontraron datos.");setCargando(false);return;}
+          setMsg("Subiendo "+filas.length+" contactos a Firebase...");
+          var baseId="base_"+Date.now();
+          var baseMeta={id:baseId,titulo:titulo.trim(),total:filas.length,ts:Date.now(),cargadoPor:"supervisor"};
+          var batchSz=400; var bIdx=0;
+          function subirBatch(){
+            var chunk=filas.slice(bIdx,bIdx+batchSz);
+            var promises=chunk.map(function(row,ri){
+              var cId=baseId+"_"+(bIdx+ri);
+              var cData={
+                baseId:baseId,baseTitulo:titulo.trim(),
+                rut:iRut>=0?String(row[iRut]||"").trim():"",
+                dv:iDv>=0?String(row[iDv]||"").trim():"",
+                nombre:iNombre>=0?String(row[iNombre]||"").trim():"",
+                email:iEmail>=0?String(row[iEmail]||"").trim():"",
+                celular:iCel>=0?String(row[iCel]||"").trim():"",
+                comuna:iComuna>=0?String(row[iComuna]||"").trim():"",
+                estado:"sinContactar",agvId:null,agvNombre:null,
+                nota:"",fechaProxContacto:"",ts:Date.now()
+              };
+              return window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_contactos",cId),cData);
+            });
+            Promise.all(promises).then(function(){
+              bIdx+=batchSz;
+              if(bIdx<filas.length){setMsg("Subiendo... "+Math.min(bIdx,filas.length)+"/"+filas.length);subirBatch();}
+              else{
+                window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_bases",baseId),baseMeta).then(function(){
+                  setBases(function(prev){return [baseMeta].concat(prev);});
+                  setMsg("✅ Base '"+titulo+"' cargada con "+filas.length+" contactos.");
+                  setCargando(false);
+                });
+              }
+            }).catch(function(err){setMsg("Error: "+err.message);setCargando(false);});
+          }
+          subirBatch();
+        }catch(err){setMsg("Error: "+err.message);setCargando(false);}
+      };
+      reader.readAsBinaryString(file);
     }
-    function doLeerExcel(){
-    var reader=new FileReader();
-    reader.onload=function(ev){
-      try{
-        var wb=window.XLSX.read(ev.target.result,{type:"binary"});
-        var ws=wb.Sheets[wb.SheetNames[0]];
-        var raw=window.XLSX.utils.sheet_to_json(ws,{header:1,defval:""});
-        if(raw.length<2){setMsg("Excel vacío.");setCargando(false);return;}
-        var headers=raw[0].map(function(h){return String(h).trim().toUpperCase();});
-        function colIdx(posibles){for(var p=0;p<posibles.length;p++){var idx=headers.indexOf(posibles[p]);if(idx>=0)return idx;}return -1;}
-        var iRut=colIdx(["AFIL_NRUT","RUT","NRUT"]);
-        var iDv=colIdx(["D","DV","DIGITO","DÍGITO"]);
-        var iNombre=colIdx(["NOMBRE","NOMBRE COMPLETO","NAMES"]);
-        var iEmail=colIdx(["EMAIL","CORREO","MAIL","E-MAIL"]);
-        var iCel=colIdx(["CELULAR","CEL","TELEFONO","TELÉFONO","FONO","PHONE"]);
-        var iComuna=colIdx(["COMUNA","CITY","CIUDAD"]);
-        var filas=raw.slice(1).filter(function(r){return r[Math.max(iRut,0)]&&String(r[Math.max(iRut,0)]).trim()!="";});
-        if(filas.length===0){setMsg("No se encontraron datos.");setCargando(false);return;}
-        setMsg("Subiendo "+filas.length+" contactos a Firebase...");
-        var baseId="base_"+Date.now();
-        var baseMeta={id:baseId,titulo:titulo.trim(),total:filas.length,ts:Date.now(),cargadoPor:"supervisor"};
-        var batchSz=400; var idx=0;
-        function subirBatch(){
-          var chunk=filas.slice(idx,idx+batchSz);
-          var promises=chunk.map(function(row,ri){
-            var cId=baseId+"_"+(idx+ri);
-            var cData={
-              baseId:baseId,baseTitulo:titulo.trim(),
-              rut:iRut>=0?String(row[iRut]||"").trim():"",
-              dv:iDv>=0?String(row[iDv]||"").trim():"",
-              nombre:iNombre>=0?String(row[iNombre]||"").trim():"",
-              email:iEmail>=0?String(row[iEmail]||"").trim():"",
-              celular:iCel>=0?String(row[iCel]||"").trim():"",
-              comuna:iComuna>=0?String(row[iComuna]||"").trim():"",
-              estado:"sinContactar",agvId:null,agvNombre:null,
-              nota:"",fechaProxContacto:"",ts:Date.now()
-            };
-            return window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_contactos",cId),cData);
-          });
-          Promise.all(promises).then(function(){
-            idx+=batchSz;
-            if(idx<filas.length){setMsg("Subiendo... "+(Math.min(idx,filas.length))+"/"+filas.length);subirBatch();}
-            else{
-              window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_bases",baseId),baseMeta).then(function(){
-                setBases(function(prev){return [baseMeta].concat(prev);});
-                setMsg("✅ Base '"+titulo+"' cargada con "+filas.length+" contactos.");
-                setCargando(false);
-              });
-            }
-          }).catch(function(err){setMsg("Error: "+err.message);setCargando(false);});
-        }
-        subirBatch();
-      }catch(err){setMsg("Error: "+err.message);setCargando(false);}
-    };
-    reader.readAsBinaryString(file);
-    } // fin doLeerExcel
-    // Cargar SheetJS si no está disponible
-    if(window.XLSX){ procesarConXLSX(); }
-    else {
+    if(window.XLSX){ leerArchivo(); }
+    else{
       var s=document.createElement("script");
       s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
-      s.onload=function(){ procesarConXLSX(); };
+      s.onload=function(){ leerArchivo(); };
       s.onerror=function(){ setMsg("Error cargando librería Excel."); setCargando(false); };
       document.head.appendChild(s);
     }
-    e.target.value="";
   }
+
 
   function asignarContactos(){
     if(!asigAGV||asigCant<=0) return;
