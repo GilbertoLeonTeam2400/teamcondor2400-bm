@@ -6024,7 +6024,7 @@ function BasesAGVView({ equipo, info, R, RD }) {
 
   React.useEffect(function(){
     if(!window.__fbDb||!window.__fbCollection||!window.__fbGetDocs) return;
-    window.__fbGetDocs(window.__fbCollection(window.__fbDb,"hoc_bases")).then(function(snap){
+    window.__fbGetDocs(window.__fbCollection(window.__fbDb,"equipos")).then(function(snap){
       var arr=[];
       snap.forEach(function(d){ arr.push(Object.assign({id:d.id},typeof d.data==="function"?d.data():d.data)); });
       arr.sort(function(a,b){return (b.ts||0)-(a.ts||0);});
@@ -6036,7 +6036,7 @@ function BasesAGVView({ equipo, info, R, RD }) {
     if(!window.__fbDb||!window.__fbCollection||!window.__fbQuery||!window.__fbWhere||!window.__fbGetDocs) return;
     setCargando(true);
     window.__fbGetDocs(
-      window.__fbQuery(window.__fbCollection(window.__fbDb,"hoc_contactos"),window.__fbWhere("baseId","==",baseId))
+      window.__fbQuery(window.__fbCollection(window.__fbDb,"crm"),window.__fbWhere("baseId","==",baseId))
     ).then(function(snap){
       var arr=[];
       snap.forEach(function(d){ arr.push(Object.assign({id:d.id},typeof d.data==="function"?d.data():d.data)); });
@@ -6089,13 +6089,13 @@ function BasesAGVView({ equipo, info, R, RD }) {
                 estado:"sinContactar",agvId:null,agvNombre:null,
                 nota:"",fechaProxContacto:"",ts:Date.now()
               };
-              return window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_contactos",cId),cData);
+              return window.__fbSetDoc(window.__fbDoc(window.__fbDb,"crm",cId),cData);
             });
             Promise.all(promises).then(function(){
               bIdx+=batchSz;
               if(bIdx<filas.length){setMsg("Subiendo... "+Math.min(bIdx,filas.length)+"/"+filas.length);subirBatch();}
               else{
-                window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_bases",baseId),baseMeta).then(function(){
+                window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",baseId),baseMeta).then(function(){
                   setBases(function(prev){return [baseMeta].concat(prev);});
                   setMsg("✅ Base '"+titulo+"' cargada con "+filas.length+" contactos.");
                   setCargando(false);
@@ -6127,7 +6127,7 @@ function BasesAGVView({ equipo, info, R, RD }) {
     if(disponibles.length===0){setAsigMsg("⚠️ No hay contactos sin asignar.");return;}
     setAsigMsg("Asignando "+disponibles.length+"...");
     var promises=disponibles.map(function(c){
-      return window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_contactos",c.id),
+      return window.__fbSetDoc(window.__fbDoc(window.__fbDb,"crm",c.id),
         {agvId:String(agv.id),agvNombre:agv.nombre,estado:"sinContactar",tsAsignado:Date.now()},{merge:true});
     });
     Promise.all(promises).then(function(){
@@ -6140,7 +6140,7 @@ function BasesAGVView({ equipo, info, R, RD }) {
 
   function reasignar(contactoId,nuevoAgvId){
     var agv=equipo.find(function(v){return String(v.id)===String(nuevoAgvId);}); if(!agv) return;
-    window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_contactos",contactoId),
+    window.__fbSetDoc(window.__fbDoc(window.__fbDb,"crm",contactoId),
       {agvId:String(agv.id),agvNombre:agv.nombre,tsReasignado:Date.now()},{merge:true}
     ).then(function(){
       setContactos(function(prev){return prev.map(function(c){
@@ -6329,7 +6329,7 @@ function ProspectosAGVView({ vidStr, info, R, RD }) {
   React.useEffect(function(){
     if(!window.__fbDb||!window.__fbCollection||!window.__fbQuery||!window.__fbWhere||!window.__fbGetDocs){setCargando(false);return;}
     window.__fbGetDocs(
-      window.__fbQuery(window.__fbCollection(window.__fbDb,"hoc_contactos"),window.__fbWhere("agvId","==",vidStr))
+      window.__fbQuery(window.__fbCollection(window.__fbDb,"crm"),window.__fbWhere("agvId","==",vidStr))
     ).then(function(snap){
       var arr=[];
       snap.forEach(function(d){arr.push(Object.assign({id:d.id},typeof d.data==="function"?d.data():d.data));});
@@ -6339,13 +6339,13 @@ function ProspectosAGVView({ vidStr, info, R, RD }) {
   },[vidStr]);
 
   function cambiarEstado(cId,nuevoEstado){
-    window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_contactos",cId),{estado:nuevoEstado,tsUltMov:Date.now()},{merge:true})
+    window.__fbSetDoc(window.__fbDoc(window.__fbDb,"crm",cId),{estado:nuevoEstado,tsUltMov:Date.now()},{merge:true})
       .then(function(){setContactos(function(prev){return prev.map(function(c){return c.id===cId?Object.assign({},c,{estado:nuevoEstado}):c;});});});
   }
 
   function guardarEdit(){
     setGuardando(true);
-    window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_contactos",editId),
+    window.__fbSetDoc(window.__fbDoc(window.__fbDb,"crm",editId),
       {nota:editNota,fechaProxContacto:editFecha,tsUltMov:Date.now()},{merge:true}
     ).then(function(){
       setContactos(function(prev){return prev.map(function(c){return c.id===editId?Object.assign({},c,{nota:editNota,fechaProxContacto:editFecha}):c;});});
