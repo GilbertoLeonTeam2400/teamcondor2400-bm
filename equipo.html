@@ -2992,64 +2992,55 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
           // Leer como array y construir objetos manualmente
           var rawArr = window.XLSX.utils.sheet_to_json(ws, {header:1, defval:""});
 
-          // Buscar dinámicamente la sección "Sexo % Cttos" en las primeras 8 filas
-          // La estructura es: fila sección tiene "Sexo % Cttos", fila headers tiene "F", "F%", "M", "M%"
-          // El total CORRECTO se calcula sumando conteos F y M SOLO de filas CC=2400 (no fila 2 global)
-          var _colSexoFC = -1, _colSexoMC = -1; // índices de conteos F y M (para sumar por ejecutivo)
-          var _colSexoF  = -1, _colSexoM  = -1; // índices de F% y M% (para leer por ejecutivo)
-          var _sexoSeccionCol = -1;
-          for (var _si = 0; _si < Math.min(rawArr.length, 8); _si++) {
-            var _srow = rawArr[_si];
-            if (!_srow) continue;
-            for (var _sc = 0; _sc < _srow.length; _sc++) {
-              if (String(_srow[_sc]||"").trim().toLowerCase() === "sexo % cttos") {
-                _sexoSeccionCol = _sc; break;
+          // ── Buscar "Sexo % Cttos" SIN límite de fila ni columna ──────────────
+          // Estructura: fila sección="Sexo % Cttos", fila headers="F","F%","M","M%"
+          // Total = sumar conteos F y M SOLO de filas CC=2400 (no leer fila global)
+          var _colSexoFC=-1, _colSexoMC=-1, _colSexoF=-1, _colSexoM=-1;
+          var _sexoFila=-1, _sexoCol=-1;
+          // Paso 1: buscar "Sexo % Cttos" en TODO rawArr, sin límite de fila ni columna
+          for (var _sri=0; _sri<rawArr.length && _sexoFila<0; _sri++) {
+            var _sr=rawArr[_sri]; if (!_sr) continue;
+            for (var _sc2=0; _sc2<_sr.length; _sc2++) {
+              var _sv=String(_sr[_sc2]||"").trim().toLowerCase().replace(/\s+/g," ");
+              if (_sv==="sexo % cttos"||_sv==="sexo % ctos"||_sv==="sexo%cttos") {
+                _sexoFila=_sri; _sexoCol=_sc2; break;
               }
             }
-            if (_sexoSeccionCol >= 0) break;
           }
-          // Buscar F, F%, M, M% en la fila de headers siguiente a la sección
-          if (_sexoSeccionCol >= 0) {
-            for (var _hi2 = _si+1; _hi2 < Math.min(rawArr.length, _si+4); _hi2++) {
-              var _hrow = rawArr[_hi2];
-              if (!_hrow) continue;
-              for (var _hc = _sexoSeccionCol; _hc < Math.min(_hrow.length, _sexoSeccionCol+8); _hc++) {
-                var _hv = String(_hrow[_hc]||"").trim();
-                if (_hv === "F"  && _colSexoFC < 0) _colSexoFC = _hc;
-                if (_hv === "F%" && _colSexoF  < 0) _colSexoF  = _hc;
-                if (_hv === "M"  && _colSexoMC < 0) _colSexoMC = _hc;
-                if (_hv === "M%" && _colSexoM  < 0) _colSexoM  = _hc;
+          // Paso 2: buscar F, F%, M, M% en filas siguientes (sin límite de col)
+          if (_sexoFila>=0) {
+            for (var _hri=_sexoFila+1; _hri<Math.min(rawArr.length,_sexoFila+5); _hri++) {
+              var _hr=rawArr[_hri]; if (!_hr) continue;
+              for (var _hc2=_sexoCol; _hc2<_hr.length; _hc2++) {
+                var _hv2=String(_hr[_hc2]||"").trim();
+                if (_hv2==="F"  && _colSexoFC<0) _colSexoFC=_hc2;
+                if (_hv2==="F%" && _colSexoF <0) _colSexoF =_hc2;
+                if (_hv2==="M"  && _colSexoMC<0) _colSexoMC=_hc2;
+                if (_hv2==="M%" && _colSexoM <0) _colSexoM =_hc2;
               }
-              if (_colSexoFC >= 0 && _colSexoMC >= 0) break;
+              if (_colSexoFC>=0&&_colSexoMC>=0&&_colSexoF>=0&&_colSexoM>=0) break;
             }
           }
-          // Calcular total %F y %M sumando conteos F y M SOLO de las filas CC=2400
-          var _pctFTotal = 0, _pctMTotal = 0;
-          if (_colSexoFC >= 0 && _colSexoMC >= 0) {
-            var _totF = 0, _totM = 0;
-            rawArr.forEach(function(_rr2) {
-              if (!_rr2) return;
-              // Buscar CC en la misma fila usando el headerRow detectado más adelante
-              // Como aún no tenemos headerRow, buscamos en la fila por valor numérico == numeroCC
-              var _ccVal = null;
-              for (var _ci2 = 0; _ci2 < Math.min(_rr2.length, 20); _ci2++) {
-                if (parseInt(_rr2[_ci2]) === window.__CONFIG.numeroCC) { _ccVal = window.__CONFIG.numeroCC; break; }
+          // Paso 3: sumar F y M de filas CC=2400 y calcular % real del equipo
+          var _pctFTotal=0, _pctMTotal=0;
+          if (_colSexoFC>=0 && _colSexoMC>=0) {
+            var _totF=0, _totM=0;
+            for (var _tri=0; _tri<rawArr.length; _tri++) {
+              var _tr=rawArr[_tri]; if (!_tr||_tr.length<6) continue;
+              var _tieneCC=false;
+              for (var _tci=0; _tci<Math.min(15,_tr.length); _tci++) {
+                if (String(_tr[_tci]||"").trim()===String(window.__CONFIG.numeroCC)){_tieneCC=true;break;}
               }
-              if (_ccVal !== window.__CONFIG.numeroCC) return;
-              _totF += parseInt(_rr2[_colSexoFC])||0;
-              _totM += parseInt(_rr2[_colSexoMC])||0;
-            });
-            var _totFM = _totF + _totM;
-            if (_totFM > 0) {
-              _pctFTotal = Math.round((_totF/_totFM)*100);
-              _pctMTotal = Math.round((_totM/_totFM)*100);
+              if (!_tieneCC) continue;
+              if (_colSexoFC<_tr.length) _totF+=parseInt(_tr[_colSexoFC])||0;
+              if (_colSexoMC<_tr.length) _totM+=parseInt(_tr[_colSexoMC])||0;
             }
+            var _totFM=_totF+_totM;
+            if (_totFM>0){_pctFTotal=Math.round((_totF/_totFM)*100);_pctMTotal=Math.round((_totM/_totFM)*100);}
           }
-          console.log("[SEXO] col="+_sexoSeccionCol+" FC="+_colSexoFC+" MC="+_colSexoMC+" → %F="+_pctFTotal+" %M="+_pctMTotal);
-          pctFRef.current = _pctFTotal;
-          pctMRef.current = _pctMTotal;
-
-          // Buscar fila con "CC" y "NOMBRE EJECUTIVO" — buscar en las primeras 20 filas
+          console.log("[SEXO] fila="+_sexoFila+" col="+_sexoCol+" FC="+_colSexoFC+" FP="+_colSexoF+" MC="+_colSexoMC+" MP="+_colSexoM+" → %F="+_pctFTotal+" %M="+_pctMTotal);
+          pctFRef.current=_pctFTotal;
+          pctMRef.current=_pctMTotal;
           var headerRow = -1;
           for (var ri=0; ri<Math.min(rawArr.length,20); ri++) {
             var rowStr = rawArr[ri].map(function(c){return String(c||"").trim().toUpperCase();});
