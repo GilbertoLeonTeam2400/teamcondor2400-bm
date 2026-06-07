@@ -3023,40 +3023,21 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
           }
           // Paso 3: sumar F y M de filas CC=2400 y calcular % real del equipo
           var _pctFTotal=0, _pctMTotal=0;
-          // Paso 3: calcular total %F/%M para CC=2400
-          // Caso A: existen columnas F (conteo) y F% (pct) → sumar conteos y calcular %
-          // Caso B: solo F y M (son decimales/pct directo) → promediar ponderado por cttos
+          // Paso 3: leer total %F y %M desde la fila ANTERIOR a "Sexo % Cttos"
+          // Esa fila tiene los totales ya calculados por Excel (filtrados por CC=2400 en el sheet)
+          // Columnas a leer: F% (idx _colSexoF) y M% (idx _colSexoM)
+          // Si no existen F%/M%, leer F y M directamente (también son decimales)
           var _pctFTotal=0, _pctMTotal=0;
-          var _casoConConteo = (_colSexoF>=0 && _colSexoM>=0); // F% y M% existen → caso A
-          if (_colSexoFC>=0 && _colSexoMC>=0) {
-            var _totF=0, _totM=0, _sumPF=0, _sumPM=0, _nRows=0;
-            for (var _tri=0; _tri<rawArr.length; _tri++) {
-              var _tr=rawArr[_tri]; if (!_tr||_tr.length<6) continue;
-              var _tieneCC=false;
-              for (var _tci=0; _tci<Math.min(15,_tr.length); _tci++) {
-                if (String(_tr[_tci]||"").trim()===String(window.__CONFIG.numeroCC)){_tieneCC=true;break;}
-              }
-              if (!_tieneCC) continue;
-              if (_casoConConteo) {
-                // Caso A: F y M son conteos enteros → sumar y calcular %
-                if (_colSexoFC<_tr.length) _totF+=parseInt(_tr[_colSexoFC])||0;
-                if (_colSexoMC<_tr.length) _totM+=parseInt(_tr[_colSexoMC])||0;
-              } else {
-                // Caso B: F y M son decimales (0.75 = 75%) → acumular suma
-                var _fv=parseFloat(_tr[_colSexoFC])||0;
-                var _mv=parseFloat(_tr[_colSexoMC])||0;
-                _sumPF+=_fv; _sumPM+=_mv; _nRows++;
-              }
-            }
-            if (_casoConConteo) {
-              var _totFM=_totF+_totM;
-              if (_totFM>0){_pctFTotal=Math.round((_totF/_totFM)*100);_pctMTotal=Math.round((_totM/_totFM)*100);}
-            } else if (_nRows>0) {
-              // Promedio de % decimales
-              var _avgF=_sumPF/_nRows, _avgM=_sumPM/_nRows;
-              // Si son decimales <=1, convertir a entero
-              _pctFTotal=_avgF<=1?Math.round(_avgF*100):Math.round(_avgF);
-              _pctMTotal=_avgM<=1?Math.round(_avgM*100):Math.round(_avgM);
+          if (_sexoFila>0) {
+            var _filaTotal = rawArr[_sexoFila-1];
+            if (_filaTotal) {
+              // Preferir columna F% si existe, sino usar F (ambas son decimales en esa fila)
+              var _colTotalF = (_colSexoF>=0) ? _colSexoF : _colSexoFC;
+              var _colTotalM = (_colSexoM>=0) ? _colSexoM : _colSexoMC;
+              var _tfv = (_colTotalF>=0 && _colTotalF<_filaTotal.length) ? parseFloat(_filaTotal[_colTotalF]) : NaN;
+              var _tmv = (_colTotalM>=0 && _colTotalM<_filaTotal.length) ? parseFloat(_filaTotal[_colTotalM]) : NaN;
+              if (!isNaN(_tfv)) _pctFTotal = _tfv<=1 ? Math.round(_tfv*100) : Math.round(_tfv);
+              if (!isNaN(_tmv)) _pctMTotal = _tmv<=1 ? Math.round(_tmv*100) : Math.round(_tmv);
             }
           }
           console.log("[SEXO] fila="+_sexoFila+" col="+_sexoCol+" FC="+_colSexoFC+" FP="+_colSexoF+" MC="+_colSexoMC+" MP="+_colSexoM+" → %F="+_pctFTotal+" %M="+_pctMTotal);
