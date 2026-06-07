@@ -3643,30 +3643,83 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
 
   function saveEdit(vid, campo, valor) {
     setGuardando(true);
-    var campoHist=campo==="uf"?"ufDig":campo==="dpsConVenta"?"dpsVenta":campo==="dpsSinVenta"?"dpsSinVenta":campo==="dpsPendiente"?"dpsPendiente":campo==="dpsRechazado"?"dpsRechazado":campo==="nBenef"?"nBenef":"cttosDig";
-    var val=campo==="uf"?parseFloat(valor)||0:parseInt(valor)||0;
-    var nuevoEquipo=equipo.map(function(v){
-      if(v.id!==vid) return v;
-      var hist=Object.assign({},v.historial||{});
-      var mes=Object.assign({uf:0,dps:0,dpsVenta:0,dpsSinVenta:0,dpsPendiente:0,dpsRechazado:0,nBenef:0,cttosDig:0},hist[mesKey]||{});
-      mes[campoHist]=val;
-      mes.dps=(parseInt(mes.dpsVenta)||0)+(parseInt(mes.dpsSinVenta)||0)+(parseInt(mes.dpsPendiente)||0)+(parseInt(mes.dpsRechazado)||0);
-      hist[mesKey]=mes;
-      return Object.assign({},v,{historial:hist});
-    });
-    setEquipo(nuevoEquipo);
-    setEditCell(null);
-    if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey),esMesActual?{equipo:nuevoEquipo}:{historial:(function(){var d3={};nuevoEquipo.forEach(function(v){d3[String(v.id)]=(v.historial||{})[mesKey]||{};});return d3;})()})
-        .then(function(){setGuardando(false);}).catch(function(){setGuardando(false);});
-    } else {setGuardando(false);}
+    var campoHist = campo==="uf"?"ufDig":campo==="dpsConVenta"?"dpsVenta":campo==="dpsSinVenta"?"dpsSinVenta":campo==="dpsPendiente"?"dpsPendiente":campo==="dpsRechazado"?"dpsRechazado":campo==="nBenef"?"nBenef":campo==="cttosDig"?"cttosDig":"conecta";
+    var val = campo==="uf" ? parseFloat(valor)||0 : parseInt(valor)||0;
+
+    if (esMesActual) {
+      // Mes actual: actualizar equipo
+      var nuevoEquipo = equipo.map(function(v){
+        if(v.id!==vid) return v;
+        var hist=Object.assign({},v.historial||{});
+        var mes=Object.assign({uf:0,dps:0,dpsVenta:0,dpsSinVenta:0,dpsPendiente:0,dpsRechazado:0,nBenef:0,cttosDig:0,conecta:0},hist[mesKey]||{});
+        mes[campoHist]=val;
+        mes.dps=(parseInt(mes.dpsVenta)||0)+(parseInt(mes.dpsSinVenta)||0)+(parseInt(mes.dpsPendiente)||0)+(parseInt(mes.dpsRechazado)||0);
+        hist[mesKey]=mes;
+        return Object.assign({},v,{historial:hist});
+      });
+      setEquipo(nuevoEquipo);
+      setEditCell(null);
+      if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
+        window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey),{equipo:nuevoEquipo})
+          .then(function(){setGuardando(false);}).catch(function(){setGuardando(false);});
+      else setGuardando(false);
+    } else {
+      // Mes histórico: actualizar datosMes y guardar en equipos/mesKey
+      if (!datosMes || !datosMes.equipo) { setGuardando(false); return; }
+      var nuevoEquipoHist = datosMes.equipo.map(function(v){
+        if(v.id!==vid) return v;
+        var hist=Object.assign({},v.historial||{});
+        var mes=Object.assign({uf:0,dps:0,dpsVenta:0,dpsSinVenta:0,dpsPendiente:0,dpsRechazado:0,nBenef:0,cttosDig:0,conecta:0},hist[mesKey]||{});
+        mes[campoHist]=val;
+        mes.dps=(parseInt(mes.dpsVenta)||0)+(parseInt(mes.dpsSinVenta)||0)+(parseInt(mes.dpsPendiente)||0)+(parseInt(mes.dpsRechazado)||0);
+        hist[mesKey]=mes;
+        return Object.assign({},v,{historial:hist});
+      });
+      setDatosMes(function(prev){ return Object.assign({},prev,{equipo:nuevoEquipoHist}); });
+      setEditCell(null);
+      if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
+        window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey),
+          Object.assign({},datosMes,{equipo:nuevoEquipoHist}),{merge:false})
+          .then(function(){setGuardando(false);}).catch(function(){setGuardando(false);});
+      else setGuardando(false);
+    }
   }
 
   function EditableCell(props) {
-    var vid=props.vid,campo=props.campo,valor=props.valor,color=props.color;
+    var vid=props.vid, campo=props.campo, valor=props.valor, color=props.color;
     var isEditing=editCell&&editCell.vid===vid&&editCell.campo===campo;
-    if(isEditing){return React.createElement("td",{style:{padding:"4px 6px",textAlign:"center"}},React.createElement("input",{type:"number",autoFocus:true,value:editVal,onChange:function(e){setEditVal(e.target.value);},onBlur:function(){saveEdit(vid,campo,editVal);},onKeyDown:function(e){if(e.key==="Enter")saveEdit(vid,campo,editVal);if(e.key==="Escape")setEditCell(null);},onFocus:function(e){e.target.select();},style:{width:60,padding:"4px 6px",borderRadius:6,border:"2px solid "+R,textAlign:"center",fontSize:12,fontWeight:700,fontFamily:"inherit"}}));}
-    return React.createElement("td",{onClick:function(){setEditCell({vid:vid,campo:campo});setEditVal(String(valor));},style:{padding:"10px 12px",textAlign:"center",fontWeight:900,color:color||"#374151",cursor:"pointer",borderBottom:"1px dashed #E5E7EB"}},valor||"—",React.createElement("span",{style:{fontSize:8,color:"#D1D5DB",marginLeft:2}},"✏️"));
+    if(isEditing){
+      return React.createElement("td",{style:{padding:"4px 6px",textAlign:"center"},onClick:function(e){e.stopPropagation();}},
+        React.createElement("input",{
+          type:"number",
+          autoFocus:true,
+          value:editVal,
+          onChange:function(e){setEditVal(e.target.value);},
+          onBlur:function(e){
+            // Pequeño delay para evitar que onBlur cancele antes de procesar Enter
+            setTimeout(function(){saveEdit(vid,campo,editVal);},150);
+          },
+          onKeyDown:function(e){
+            e.stopPropagation();
+            if(e.key==="Enter"){e.preventDefault();saveEdit(vid,campo,editVal);}
+            if(e.key==="Escape"){e.preventDefault();setEditCell(null);}
+          },
+          onFocus:function(e){e.target.select();},
+          style:{width:70,padding:"6px 8px",borderRadius:6,border:"2px solid "+R,textAlign:"center",fontSize:13,fontWeight:700,fontFamily:"inherit",outline:"none",boxShadow:"0 0 0 3px rgba(233,7,41,0.15)"}
+        })
+      );
+    }
+    return React.createElement("td",{
+      onClick:function(e){
+        e.stopPropagation();
+        setEditCell({vid:vid,campo:campo});
+        setEditVal(String(valor||0));
+      },
+      style:{padding:"10px 12px",textAlign:"center",fontWeight:900,color:color||"#374151",cursor:"pointer",borderBottom:"1px dashed #E5E7EB",userSelect:"none"}
+    },
+      valor||"—",
+      React.createElement("span",{style:{fontSize:9,color:"#D1D5DB",marginLeft:3}},"✏️")
+    );
   }
 
   function thSort(col,label){return React.createElement("th",{key:col,onClick:function(){if(sortCol===col)setSortAsc(!sortAsc);else{setSortCol(col);setSortAsc(false);}},style:{padding:"10px 12px",textAlign:col==="nombre"?"left":"center",fontSize:11,color:"#6B7280",fontWeight:700,cursor:"pointer",userSelect:"none",whiteSpace:"nowrap"}},label+(sortCol===col?(sortAsc?" ↑":" ↓"):" ↕"));}
