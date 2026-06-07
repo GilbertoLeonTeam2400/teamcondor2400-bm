@@ -6049,8 +6049,14 @@ function BasesAGVView({ equipo, info, R, RD }) {
     var file=e.target.files[0]; if(!file) return;
     var titulo=window.prompt("Nombre para esta base de datos (ej: H0C Julio 2026, Leads Feria Salud):");
     if(!titulo||!titulo.trim()) return;
-    if(!window.XLSX){setMsg("Error: librería Excel no disponible");return;}
-    setCargando(true); setMsg("Leyendo Excel...");
+    setCargando(true); setMsg("Preparando...");
+    // Cargar SheetJS dinámicamente si no está disponible
+    function procesarConXLSX(){
+      if(!window.XLSX){setMsg("Error: librería Excel no disponible");setCargando(false);return;}
+      setMsg("Leyendo Excel...");
+      doLeerExcel();
+    }
+    function doLeerExcel(){
     var reader=new FileReader();
     reader.onload=function(ev){
       try{
@@ -6105,6 +6111,16 @@ function BasesAGVView({ equipo, info, R, RD }) {
       }catch(err){setMsg("Error: "+err.message);setCargando(false);}
     };
     reader.readAsBinaryString(file);
+    } // fin doLeerExcel
+    // Cargar SheetJS si no está disponible
+    if(window.XLSX){ procesarConXLSX(); }
+    else {
+      var s=document.createElement("script");
+      s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+      s.onload=function(){ procesarConXLSX(); };
+      s.onerror=function(){ setMsg("Error cargando librería Excel."); setCargando(false); };
+      document.head.appendChild(s);
+    }
     e.target.value="";
   }
 
