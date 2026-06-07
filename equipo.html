@@ -2638,33 +2638,65 @@ function SupervisorFotoCard() {
 
 // ── Clasificación AGV por Resultados ─────────────────────────────────────────
 function ClasificacionAGVView({ equipo, info, R, RD }) {
-  var [filtroAnt, setFiltroAnt] = React.useState("todos"); // todos | novato | desarrollo | veterano
+  var [filtroAnt, setFiltroAnt] = React.useState("todos");
+  // Cache Firebase: {mesKey -> doc} para los 3 meses históricos
+  var [fbCache, setFbCache] = React.useState({});
 
-  // Calcular promedio UF de los últimos 3 meses desde historial
-  function promedioUltimos3(v) {
+  // Generar los 3 últimos meses históricos (excluyendo mes actual)
+  var mesesHist = React.useMemo(function(){
     var ahora = new Date();
-    var meses = [];
+    var arr = [];
     for (var i = 1; i <= 3; i++) {
-      var d = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1);
-      var mk = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
-      meses.push({mk:mk, d:d});
+      var d = new Date(ahora.getFullYear(), ahora.getMonth()-i, 1);
+      var mk = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+      var nom = d.toLocaleString("es-CL",{month:"long"}).replace(/^./,function(c){return c.toUpperCase();});
+      var nomCorto = d.toLocaleString("es-CL",{month:"short"}).replace(".","").replace(/^./,function(c){return c.toUpperCase();});
+      arr.push({mk:mk, d:d, nom:nom, nomCorto:nomCorto});
     }
-    // Si tiene fecha de ingreso, excluir meses anteriores a su ingreso
-    var divisor = 3;
+    return arr;
+  },[]);
+
+  // Cargar docs Firebase al montar
+  React.useEffect(function(){
+    if(!window.__fbDb||!window.__fbDoc||!window.__fbGetDoc) return;
+    mesesHist.forEach(function(m){
+      window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos",m.mk)).then(function(snap){
+        var ex = typeof snap.exists==="function" ? snap.exists() : snap.exists;
+        var data = ex ? (typeof snap.data==="function" ? snap.data() : snap.data) : null;
+        setFbCache(function(prev){ var n=Object.assign({},prev); n[m.mk]=data||null; return n; });
+      }).catch(function(){
+        setFbCache(function(prev){ var n=Object.assign({},prev); n[m.mk]=null; return n; });
+      });
+    });
+  },[]);
+
+  // Obtener UF de un ejecutivo en un mes histórico desde Firebase
+  function getUFHist(v, mk) {
+    var doc = fbCache[mk];
+    if(!doc||!Array.isArray(doc.equipo)) return null;
+    var match = doc.equipo.find(function(e){ return String(e.id)===String(v.id); });
+    if(!match) return null;
+    var h = (match.historial||{})[mk]||{};
+    var uf = parseFloat(h.ufDig||h.uf)||0;
+    return uf > 0 ? uf : null;
+  }
+
+  // Calcular promedio UF de los últimos 3 meses desde Firebase
+  function promedioUltimos3(v) {
+    var meses = mesesHist.slice();
+    var divisor = meses.length;
     if (v.fechaIngreso) {
       var partsIng = v.fechaIngreso.split('-');
       if (partsIng.length >= 2) {
         var fechaIng = new Date(parseInt(partsIng[0]), parseInt(partsIng[1])-1, 1);
-        // Contar solo meses donde el ejecutivo ya trabajaba
         var mesesValidos = meses.filter(function(m){ return m.d >= fechaIng; });
-        divisor = mesesValidos.length > 0 ? mesesValidos.length : 3;
-        meses = mesesValidos; // solo calcular sobre meses válidos
+        if (mesesValidos.length > 0) { meses = mesesValidos; divisor = mesesValidos.length; }
       }
     }
     var total = 0;
     meses.forEach(function(m){
-      var h = (v.historial||{})[m.mk];
-      if (h && h.uf) total += (h.uf||0);
+      var uf = getUFHist(v, m.mk);
+      if (uf !== null) total += uf;
     });
     return { prom: divisor > 0 ? parseFloat((total/divisor).toFixed(2)) : 0, meses: divisor };
   }
@@ -2700,9 +2732,15 @@ function ClasificacionAGVView({ equipo, info, R, RD }) {
     var promMeses = result.meses;
     var ufMesActual = v.uf || 0;
     var m = mesesAnt(v);
-    var nivel = prom >= 25 ? "alto" : prom >= 12 ? "medio" : "bajo";
+    // Clasificación diferenciada por antigüedad:
+    // Veterano + En desarrollo (13m+): Alto ≥35, Medio 18-34.99, Bajo <18
+    // Novato (0-12m o sin fecha): Alto ≥25, Medio 18-24.99, Bajo <18
+    var esGrupo1 = (m !== null && m >= 13); // Veterano + En desarrollo
+    var nivel = esGrupo1
+      ? (prom >= 35 ? "alto" : prom >= 18 ? "medio" : "bajo")
+      : (prom >= 25 ? "alto" : prom >= 18 ? "medio" : "bajo");
     var tendencia = ufMesActual > prom ? "↗️" : ufMesActual < prom*0.8 ? "↘️" : "➡️";
-    return Object.assign({}, v, { prom:prom, promMeses:promMeses, ufMesActual:ufMesActual, nivel:nivel, tendencia:tendencia, mesesAnt:m, grupoAnt:grupoAnt(m) });
+    return Object.assign({}, v, { prom:prom, promMeses:promMeses, ufMesActual:ufMesActual, nivel:nivel, esGrupo1:esGrupo1, tendencia:tendencia, mesesAnt:m, grupoAnt:grupoAnt(m) });
   });
 
   // Aplicar filtro de antigüedad
@@ -2712,10 +2750,24 @@ function ClasificacionAGVView({ equipo, info, R, RD }) {
   var medios = filtrados.filter(function(v){ return v.nivel==="medio"; }).sort(function(a,b){return b.prom-a.prom;});
   var bajos  = filtrados.filter(function(v){ return v.nivel==="bajo"; }).sort(function(a,b){return b.prom-a.prom;});
 
+  // Sub-etiquetas dinámicas según composición del grupo filtrado
+  // Sub-etiquetas según filtro activo
+  // Grupo 1: Veterano + En desarrollo (13m+) → Alto ≥35, Medio 18-34.99
+  // Grupo 2: Novato (0-12m o sin fecha)      → Alto ≥25, Medio 18-24.99
+  var esFiltraNovato = (filtroAnt==="novato");
+  var esFiltraG1 = (filtroAnt==="veterano"||filtroAnt==="desarrollo");
+  var subAlto  = esFiltraNovato ? "Promedio ≥ 25 UF"
+                : esFiltraG1   ? "Promedio ≥ 35 UF"
+                : "Vet/Des: ≥ 35 UF · Nov: ≥ 25 UF";
+  var subMedio = esFiltraNovato ? "Promedio 18–24,99 UF"
+                : esFiltraG1   ? "Promedio 18–34,99 UF"
+                : "Vet/Des: 18–34,99 UF · Nov: 18–24,99 UF";
+  var subBajo  = "Promedio < 18 UF";
+
   var GRUPOS = [
-    { key:"alto",  label:"🟢 Alto Rendimiento", sub:"Promedio ≥ 25 UF", color:"#16A34A", bg:"#F0FDF4", border:"#86EFAC", lista:altos  },
-    { key:"medio", label:"🟡 Medio Rendimiento", sub:"Promedio 12-24,99 UF", color:"#D97706", bg:"#FFFBEB", border:"#FCD34D", lista:medios },
-    { key:"bajo",  label:"🔴 Bajo Rendimiento",  sub:"Promedio < 12 UF", color:"#DC2626", bg:"#FFF1F2", border:"#FCA5A5", lista:bajos  },
+    { key:"alto",  label:"🟢 Alto Rendimiento",  sub:subAlto,  color:"#16A34A", bg:"#F0FDF4", border:"#86EFAC", lista:altos  },
+    { key:"medio", label:"🟡 Medio Rendimiento", sub:subMedio, color:"#D97706", bg:"#FFFBEB", border:"#FCD34D", lista:medios },
+    { key:"bajo",  label:"🔴 Bajo Rendimiento",  sub:subBajo,  color:"#DC2626", bg:"#FFF1F2", border:"#FCA5A5", lista:bajos  },
   ];
 
   function fmtUF(n) {
@@ -2787,18 +2839,11 @@ function ClasificacionAGVView({ equipo, info, R, RD }) {
                         , React.createElement('div', { style:{fontWeight:800,color:"#1F2937",fontSize:14} }, v.nombre)
                         , React.createElement('div', { style:{fontSize:11,color:"#9CA3AF",marginTop:1} }, antLabel)
                       )
-                      // Evolución 3 meses — CENTRO
+                      // Evolución 3 meses — CENTRO (lee desde Firebase via fbCache)
                       , (function(){
-                          var ahora = new Date();
-                          var meses3 = [];
-                          for (var i = 3; i >= 1; i--) {
-                            var d = new Date(ahora.getFullYear(), ahora.getMonth()-i, 1);
-                            var mk = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
-                            var nomMes = d.toLocaleString("es-CL",{month:"short"}).replace(".","").replace(/^./,function(c){return c.toUpperCase();});
-                            var h = (v.historial||{})[mk];
-                            var uf = h && h.uf ? parseFloat(h.uf) : null;
-                            meses3.push({mk:mk, nom:nomMes, uf:uf});
-                          }
+                          var meses3 = mesesHist.slice().reverse().map(function(m){
+                            return {mk:m.mk, nom:m.nomCorto, uf:getUFHist(v, m.mk)};
+                          });
                           return React.createElement('div', { style:{display:"flex",alignItems:"center",gap:6,flexShrink:0} }
                             , meses3.map(function(m, mi){
                                 var prev = mi > 0 ? meses3[mi-1].uf : null;
@@ -2849,16 +2894,14 @@ function ClasificacionAGVView({ equipo, info, R, RD }) {
                 )
                 // ── CARD DE TOTALES DEL GRUPO ──
                 , g.lista.length > 0 && (function(){
-                    var ahora = new Date();
-                    var meses3Info = [];
-                    for (var i=3;i>=1;i--) {
-                      var d2=new Date(ahora.getFullYear(),ahora.getMonth()-i,1);
-                      var mk2=d2.getFullYear()+"-"+String(d2.getMonth()+1).padStart(2,"0");
-                      var nom2=d2.toLocaleString("es-CL",{month:"long"}).replace(/^./,function(c){return c.toUpperCase();});
-                      var totMk=g.lista.reduce(function(s,v2){var h=(v2.historial||{})[mk2];return s+(h&&h.uf?parseFloat(h.uf):0);},0);
-                      var promMk=parseFloat((totMk/g.lista.length).toFixed(2));
-                      meses3Info.push({nom:nom2,tot:totMk,prom:promMk});
-                    }
+                    // Totales por mes desde Firebase (fbCache)
+                    var meses3Info = mesesHist.slice().reverse().map(function(m){
+                      var totMk = g.lista.reduce(function(s,v2){
+                        var uf = getUFHist(v2, m.mk); return s+(uf!==null?uf:0);
+                      },0);
+                      var promMk = parseFloat((totMk/g.lista.length).toFixed(2));
+                      return {nom:m.nom, tot:totMk, prom:promMk};
+                    });
                     var totProm=g.lista.reduce(function(s,v2){return s+v2.prom;},0);
                     var promProm=parseFloat((totProm/g.lista.length).toFixed(2));
                     var totActual=g.lista.reduce(function(s,v2){return s+v2.ufMesActual;},0);
