@@ -6024,9 +6024,10 @@ function BasesAGVView({ equipo, info, R, RD }) {
 
   React.useEffect(function(){
     if(!window.__fbDb||!window.__fbCollection||!window.__fbGetDocs) return;
-    window.__fbGetDocs(window.__fbCollection(window.__fbDb,"equipos")).then(function(snap){
-      var arr=[];
-      snap.forEach(function(d){ arr.push(Object.assign({id:d.id},typeof d.data==="function"?d.data():d.data)); });
+    window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","__hoc_bases__")).then(function(snap){
+      var ex=typeof snap.exists==="function"?snap.exists():snap.exists;
+      var data=ex?(typeof snap.data==="function"?snap.data():snap.data):null;
+      var arr=(data&&Array.isArray(data.lista))?data.lista:[];
       arr.sort(function(a,b){return (b.ts||0)-(a.ts||0);});
       setBases(arr);
     }).catch(function(e){console.error("Bases:",e);});
@@ -6052,6 +6053,12 @@ function BasesAGVView({ equipo, info, R, RD }) {
     setCargando(true); setMsg("Preparando...");
     e.target.value="";
     function leerArchivo(){
+      // Verificar límite antes de leer
+      var totalActual=bases.reduce(function(s,b){return s+(b.total||0);},0);
+      if(totalActual>=3000){
+        setMsg("⚠️ Límite alcanzado: ya tienes "+totalActual+" contactos activos (máximo 3000 por supervisor). Archiva o elimina una base antes de cargar una nueva.");
+        setCargando(false); return;
+      }
       setMsg("Leyendo Excel...");
       var reader=new FileReader();
       reader.onload=function(ev){
@@ -6070,6 +6077,17 @@ function BasesAGVView({ equipo, info, R, RD }) {
           var iComuna=colIdx(["COMUNA","CITY","CIUDAD"]);
           var filas=raw.slice(1).filter(function(r){return r[Math.max(iRut,0)]&&String(r[Math.max(iRut,0)]).trim()!="";});
           if(filas.length===0){setMsg("No se encontraron datos.");setCargando(false);return;}
+          // Recortar si supera el límite del supervisor
+          var totalActual2=bases.reduce(function(s,b){return s+(b.total||0);},0);
+          var disponible=Math.max(0,3000-totalActual2);
+          if(disponible<=0){
+            setMsg("⚠️ Límite alcanzado (3000 contactos). Archiva una base antes de continuar.");
+            setCargando(false); return;
+          }
+          if(filas.length>disponible){
+            filas=filas.slice(0,disponible);
+            setMsg("⚠️ Base recortada a "+disponible+" contactos (límite de 3000 activos por supervisor).");
+          }
           setMsg("Subiendo "+filas.length+" contactos a Firebase...");
           var baseId="base_"+Date.now();
           var baseMeta={id:baseId,titulo:titulo.trim(),total:filas.length,ts:Date.now(),cargadoPor:"supervisor"};
@@ -6095,11 +6113,18 @@ function BasesAGVView({ equipo, info, R, RD }) {
               bIdx+=batchSz;
               if(bIdx<filas.length){setMsg("Subiendo... "+Math.min(bIdx,filas.length)+"/"+filas.length);subirBatch();}
               else{
-                window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",baseId),baseMeta).then(function(){
+                // Guardar metadata en array dentro de equipos/__hoc_bases__
+                window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","__hoc_bases__")).then(function(snap){
+                  var ex=typeof snap.exists==="function"?snap.exists():snap.exists;
+                  var data=ex?(typeof snap.data==="function"?snap.data():snap.data):null;
+                  var lista=(data&&Array.isArray(data.lista))?data.lista:[];
+                  lista.unshift(baseMeta);
+                  return window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","__hoc_bases__"),{lista:lista,ts:Date.now()});
+                }).then(function(){
                   setBases(function(prev){return [baseMeta].concat(prev);});
                   setMsg("✅ Base '"+titulo+"' cargada con "+filas.length+" contactos.");
                   setCargando(false);
-                });
+                }).catch(function(err){setMsg("Error guardando base: "+err.message);setCargando(false);});
               }
             }).catch(function(err){setMsg("Error: "+err.message);setCargando(false);});
           }
@@ -6171,6 +6196,22 @@ function BasesAGVView({ equipo, info, R, RD }) {
         ,React.createElement("input",{type:"file",accept:".xlsx,.xls,.csv",style:{display:"none"},onChange:handleExcelBase})
         ,"📂 Cargar nueva base de prospectos"
       )
+      // Indicador de cupo
+      ,(function(){
+        var totalUsado=bases.reduce(function(s,b){return s+(b.total||0);},0);
+        var pct=Math.min(100,Math.round((totalUsado/3000)*100));
+        var colorBarra=pct>=90?"#DC2626":pct>=70?"#D97706":"#16A34A";
+        return React.createElement("div",{style:{marginBottom:16,background:"#F8FAFC",borderRadius:10,padding:"10px 14px",border:"1px solid #E5E7EB"}}
+          ,React.createElement("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:4}}
+            ,React.createElement("span",{style:{fontSize:11,fontWeight:700,color:"#374151"}},"📊 Cupo utilizado")
+            ,React.createElement("span",{style:{fontSize:11,fontWeight:900,color:colorBarra}},totalUsado+" / 3000 contactos ("+pct+"%)")
+          )
+          ,React.createElement("div",{style:{background:"#E5E7EB",borderRadius:99,height:6,overflow:"hidden"}}
+            ,React.createElement("div",{style:{width:pct+"%",height:"100%",background:colorBarra,borderRadius:99,transition:"width .4s"}})
+          )
+          ,pct>=90&&React.createElement("div",{style:{fontSize:10,color:"#DC2626",marginTop:4,fontWeight:700}},"⚠️ Cupo casi agotado. Archiva o elimina bases para liberar espacio.")
+        );
+      })()
       ,msg&&React.createElement("div",{style:{background:"#F0FDF4",border:"1px solid #86EFAC",borderRadius:10,
           padding:"10px 14px",fontSize:12,fontWeight:700,color:"#16A34A",marginBottom:16}},msg)
       ,cargando&&React.createElement("div",{style:{textAlign:"center",padding:20,color:"#9CA3AF"}},"Procesando...")
