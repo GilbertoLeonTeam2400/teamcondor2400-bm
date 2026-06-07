@@ -6226,7 +6226,11 @@ function GestPremiosView({ premiosImgs, setPremiosImgs, info, R, RD, tablaPremio
         )
     // ── EDITOR DE TABLAS DE PREMIOS ──
     , (function(){
-        var grupos = [["novato","🟣 Novato (0-12 meses)"],["desarrollo","🔵 En desarrollo (13-35 meses)"],["veterano","🏅 Veterano (36+ meses)"]];
+        var grupos = [
+          ["novato",    "🟣 Novato (0-12 meses)",      "Con solo 5 UF ya estás dentro del juego",  "#7C3AED"],
+          ["desarrollo","🔵 En desarrollo (13-35 meses)","Con solo 8 UF ya estás dentro del juego",  "#1D4ED8"],
+          ["veterano",  "🏅 Veterano (36+ meses)",      "Con solo 25 UF ya estás dentro del juego · Requiere >60% titulares hombre", "#B45309"],
+        ];
         var filasTabs = grupos.map(function(grp){
           var gk=grp[0], gl=grp[1];
           var filas=(tablaPremios||{})[gk]||[];
@@ -6242,8 +6246,10 @@ function GestPremiosView({ premiosImgs, setPremiosImgs, info, R, RD, tablaPremio
               )
             );
           });
-          return React.createElement("div",{key:gk,style:{background:"#fff",borderRadius:12,padding:"14px 18px",marginBottom:12,border:"1px solid #E5E7EB"}},
-            React.createElement("div",{style:{fontWeight:800,color:"#374151",marginBottom:10,fontSize:14}},gl),
+          var gslogan=grp[2], gcolor=grp[3];
+          return React.createElement("div",{key:gk,style:{background:"#fff",borderRadius:12,padding:"14px 18px",marginBottom:12,border:"1.5px solid #E5E7EB"}},
+            React.createElement("div",{style:{fontWeight:800,color:gcolor,marginBottom:2,fontSize:14}},gl),
+            React.createElement("div",{style:{fontSize:10,color:"#6B7280",fontStyle:"italic",marginBottom:10}},"✨ "+gslogan),
             React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:12}},
               React.createElement("thead",null,
                 React.createElement("tr",{style:{background:"#F8FAFC"}},
@@ -7190,30 +7196,35 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
 
   // Tablas de premios por antigüedad (editables desde Supervisor → Gestionar Premios)
   const TABLA_DEFAULT = {
-    novato: [ // 0-12 meses
+    novato: [ // 0-12 meses — mínimo 5 UF — "Con solo 5 UF ya estás dentro del juego"
       {desde:0,    hasta:4.99,  monto:0},
-      {desde:5,    hasta:5.99,  monto:78400},
-      {desde:6,    hasta:7.99,  monto:117600},
-      {desde:8,    hasta:9.99,  monto:156800},
-      {desde:10,   hasta:11.99, monto:196000},
-      {desde:12,   hasta:14.99, monto:235200},
-      {desde:15,   hasta:17.99, monto:294000},
+      {desde:5,    hasta:5.99,  monto:150000},
+      {desde:6,    hasta:7.99,  monto:180000},
+      {desde:8,    hasta:9.99,  monto:220000},
+      {desde:10,   hasta:11.99, monto:250000},
+      {desde:12,   hasta:14.99, monto:290000},
+      {desde:15,   hasta:17.99, monto:320000},
       {desde:18,   hasta:21.99, monto:352800},
-      {desde:22,   hasta:24.99, monto:369600},
-      {desde:25,   hasta:9999,  monto:420000},
-    ],
-    desarrollo: [ // 13-35 meses
-      {desde:0,    hasta:11.99, monto:0},
-      {desde:12,   hasta:14.99, monto:201600},
-      {desde:15,   hasta:17.99, monto:252000},
-      {desde:18,   hasta:21.99, monto:302400},
       {desde:22,   hasta:24.99, monto:369600},
       {desde:25,   hasta:29.99, monto:420000},
       {desde:30,   hasta:34.99, monto:504000},
       {desde:35,   hasta:39.99, monto:539000},
       {desde:40,   hasta:9999,  monto:560000},
     ],
-    veterano: [ // 36+ meses
+    desarrollo: [ // 13-35 meses — mínimo 8 UF — "Con solo 8 UF ya estás dentro del juego"
+      {desde:0,    hasta:7.99,  monto:0},
+      {desde:8,    hasta:9.99,  monto:220000},
+      {desde:10,   hasta:11.99, monto:250000},
+      {desde:12,   hasta:14.99, monto:290000},
+      {desde:15,   hasta:17.99, monto:320000},
+      {desde:18,   hasta:21.99, monto:352800},
+      {desde:22,   hasta:24.99, monto:369600},
+      {desde:25,   hasta:29.99, monto:420000},
+      {desde:30,   hasta:34.99, monto:504000},
+      {desde:35,   hasta:39.99, monto:539000},
+      {desde:40,   hasta:9999,  monto:560000},
+    ],
+    veterano: [ // 36+ meses — mínimo 25 UF — "Con solo 25 UF ya estás dentro del juego"
       {desde:0,    hasta:24.99, monto:0},
       {desde:25,   hasta:29.99, monto:550000},
       {desde:30,   hasta:34.99, monto:600000},
@@ -7221,7 +7232,9 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
       {desde:40,   hasta:49.99, monto:800000},
       {desde:50,   hasta:59.99, monto:850000},
       {desde:60,   hasta:69.99, monto:900000},
-      {desde:70,   hasta:9999,  monto:1000000},
+      {desde:70,   hasta:79.99, monto:1000000},
+      {desde:80,   hasta:89.99, monto:1000000},
+      {desde:90,   hasta:9999,  monto:1000000},
     ],
   };
   const [tablaPremios, setTablaPremios] = useState(function(){
