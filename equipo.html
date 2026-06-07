@@ -6024,7 +6024,7 @@ function BasesAGVView({ equipo, info, R, RD }) {
 
   React.useEffect(function(){
     if(!window.__fbDb||!window.__fbCollection||!window.__fbGetDocs) return;
-    window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","__hoc_bases__")).then(function(snap){
+    window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","hoc-bases")).then(function(snap){
       var ex=typeof snap.exists==="function"?snap.exists():snap.exists;
       var data=ex?(typeof snap.data==="function"?snap.data():snap.data):null;
       var arr=(data&&Array.isArray(data.lista))?data.lista:[];
@@ -6114,12 +6114,12 @@ function BasesAGVView({ equipo, info, R, RD }) {
               if(bIdx<filas.length){setMsg("Subiendo... "+Math.min(bIdx,filas.length)+"/"+filas.length);subirBatch();}
               else{
                 // Guardar metadata en array dentro de equipos/__hoc_bases__
-                window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","__hoc_bases__")).then(function(snap){
+                window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","hoc-bases")).then(function(snap){
                   var ex=typeof snap.exists==="function"?snap.exists():snap.exists;
                   var data=ex?(typeof snap.data==="function"?snap.data():snap.data):null;
                   var lista=(data&&Array.isArray(data.lista))?data.lista:[];
                   lista.unshift(baseMeta);
-                  return window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","__hoc_bases__"),{lista:lista,ts:Date.now()});
+                  return window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","hoc-bases"),{lista:lista,ts:Date.now()});
                 }).then(function(){
                   setBases(function(prev){return [baseMeta].concat(prev);});
                   setMsg("✅ Base '"+titulo+"' cargada con "+filas.length+" contactos.");
