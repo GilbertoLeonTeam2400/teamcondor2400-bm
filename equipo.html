@@ -2992,9 +2992,11 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
           // Leer como array y construir objetos manualmente
           var rawArr = window.XLSX.utils.sheet_to_json(ws, {header:1, defval:""});
 
-          // Buscar dinámicamente la sección "Sexo % Cttos" buscando en filas 1-6
-          // La fila de sección tiene "Sexo % Cttos" y la fila de headers tiene "F%", "M%"
-          var _colSexoF = -1, _colSexoM = -1; // índices de F% y M% bajo "Sexo % Cttos"
+          // Buscar dinámicamente la sección "Sexo % Cttos" en las primeras 8 filas
+          // La estructura es: fila sección tiene "Sexo % Cttos", fila headers tiene "F", "F%", "M", "M%"
+          // El total CORRECTO se calcula sumando conteos F y M SOLO de filas CC=2400 (no fila 2 global)
+          var _colSexoFC = -1, _colSexoMC = -1; // índices de conteos F y M (para sumar por ejecutivo)
+          var _colSexoF  = -1, _colSexoM  = -1; // índices de F% y M% (para leer por ejecutivo)
           var _sexoSeccionCol = -1;
           for (var _si = 0; _si < Math.min(rawArr.length, 8); _si++) {
             var _srow = rawArr[_si];
@@ -3006,29 +3008,44 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
             }
             if (_sexoSeccionCol >= 0) break;
           }
-          // Si encontramos la sección, buscar "F%" y "M%" en la fila de headers (headerRow o headerRow-1)
+          // Buscar F, F%, M, M% en la fila de headers siguiente a la sección
           if (_sexoSeccionCol >= 0) {
-            // Buscar en las filas siguientes a la sección el header F%, M%
             for (var _hi2 = _si+1; _hi2 < Math.min(rawArr.length, _si+4); _hi2++) {
               var _hrow = rawArr[_hi2];
               if (!_hrow) continue;
-              for (var _hc = _sexoSeccionCol; _hc < Math.min(_hrow.length, _sexoSeccionCol+6); _hc++) {
+              for (var _hc = _sexoSeccionCol; _hc < Math.min(_hrow.length, _sexoSeccionCol+8); _hc++) {
                 var _hv = String(_hrow[_hc]||"").trim();
-                if (_hv === "F%") _colSexoF = _hc;
-                if (_hv === "M%") _colSexoM = _hc;
+                if (_hv === "F"  && _colSexoFC < 0) _colSexoFC = _hc;
+                if (_hv === "F%" && _colSexoF  < 0) _colSexoF  = _hc;
+                if (_hv === "M"  && _colSexoMC < 0) _colSexoMC = _hc;
+                if (_hv === "M%" && _colSexoM  < 0) _colSexoM  = _hc;
               }
-              if (_colSexoF >= 0 && _colSexoM >= 0) break;
+              if (_colSexoFC >= 0 && _colSexoMC >= 0) break;
             }
           }
-          // Leer total equipo desde fila 2 (índice 1) usando columnas detectadas
+          // Calcular total %F y %M sumando conteos F y M SOLO de las filas CC=2400
           var _pctFTotal = 0, _pctMTotal = 0;
-          if (_colSexoF >= 0 && rawArr[1]) {
-            var pf = parseFloat(rawArr[1][_colSexoF]);
-            var pm = _colSexoM >= 0 ? parseFloat(rawArr[1][_colSexoM]) : 0;
-            if (!isNaN(pf)) _pctFTotal = pf <= 1 ? Math.round(pf*100) : Math.round(pf);
-            if (!isNaN(pm)) _pctMTotal = pm <= 1 ? Math.round(pm*100) : Math.round(pm);
+          if (_colSexoFC >= 0 && _colSexoMC >= 0) {
+            var _totF = 0, _totM = 0;
+            rawArr.forEach(function(_rr2) {
+              if (!_rr2) return;
+              // Buscar CC en la misma fila usando el headerRow detectado más adelante
+              // Como aún no tenemos headerRow, buscamos en la fila por valor numérico == numeroCC
+              var _ccVal = null;
+              for (var _ci2 = 0; _ci2 < Math.min(_rr2.length, 20); _ci2++) {
+                if (parseInt(_rr2[_ci2]) === window.__CONFIG.numeroCC) { _ccVal = window.__CONFIG.numeroCC; break; }
+              }
+              if (_ccVal !== window.__CONFIG.numeroCC) return;
+              _totF += parseInt(_rr2[_colSexoFC])||0;
+              _totM += parseInt(_rr2[_colSexoMC])||0;
+            });
+            var _totFM = _totF + _totM;
+            if (_totFM > 0) {
+              _pctFTotal = Math.round((_totF/_totFM)*100);
+              _pctMTotal = Math.round((_totM/_totFM)*100);
+            }
           }
-          console.log("[SEXO] Sección col="+_sexoSeccionCol+" F%col="+_colSexoF+" M%col="+_colSexoM+" → %F="+_pctFTotal+" %M="+_pctMTotal);
+          console.log("[SEXO] col="+_sexoSeccionCol+" FC="+_colSexoFC+" MC="+_colSexoMC+" → %F="+_pctFTotal+" %M="+_pctMTotal);
           pctFRef.current = _pctFTotal;
           pctMRef.current = _pctMTotal;
 
