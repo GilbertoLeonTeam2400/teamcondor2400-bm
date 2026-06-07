@@ -2945,6 +2945,17 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
           // Headers están en fila 4 (rowNum=4), datos desde fila 5
           // Leer como array y construir objetos manualmente
           var rawArr = window.XLSX.utils.sheet_to_json(ws, {header:1, defval:""});
+
+          // Leer % F y % M totales del equipo desde fila 2 (índice 1), cols 38 y 39
+          var _pctFTotal = 0, _pctMTotal = 0;
+          if (rawArr[1] && rawArr[1][38] !== undefined && rawArr[1][38] !== "") {
+            var pf = parseFloat(rawArr[1][38]);
+            var pm = parseFloat(rawArr[1][39]);
+            if (!isNaN(pf)) _pctFTotal = pf <= 1 ? Math.round(pf*100) : Math.round(pf);
+            if (!isNaN(pm)) _pctMTotal = pm <= 1 ? Math.round(pm*100) : Math.round(pm);
+          }
+          console.log("[SEXO] %F="+_pctFTotal+" %M="+_pctMTotal);
+
           // Buscar fila con "CC" y "NOMBRE EJECUTIVO" — buscar en las primeras 20 filas
           var headerRow = -1;
           for (var ri=0; ri<Math.min(rawArr.length,20); ri++) {
@@ -3239,6 +3250,7 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
     var docData = {equipo:nuevoEquipo, metaEquipo:window.__metaEquipoActual||550};
     if (sinMatchData.length>0) docData._sinMatch = sinMatchData;
     docData._agvEnCero = agvEnCeroData;
+    if (_pctFTotal>0||_pctMTotal>0) { docData._pctF = _pctFTotal; docData._pctM = _pctMTotal; }
     if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
       window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey), docData, {merge:false})
         .then(function(){
@@ -3628,6 +3640,15 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
     ? agvEnCeroData.length
     : datos.filter(function(p){return (parseFloat(p.uf)||0)===0&&!String(p.id).startsWith("_sm");}).length;
   var totUF=parseFloat(datos.reduce(function(s,d){return s+d.uf;},0).toFixed(2));
+  // % F y % M: leer directo del doc Firebase (guardado al cargar Excel)
+  var _pctFMes = (!esMesActual && datosMes && datosMes._pctF) ? datosMes._pctF : 0;
+  var _pctMMes = (!esMesActual && datosMes && datosMes._pctM) ? datosMes._pctM : 0;
+  if (esMesActual) {
+    // Mes actual: calcular desde reportes de ejecutivos
+    var _totSexBase = datos.reduce(function(s,d){return s+(d.cttosDig||0);},0);
+    _pctFMes = _totSexBase>0 ? Math.round(datos.reduce(function(s,d){return s+(d.pctF*(d.cttosDig||0));},0)/_totSexBase) : 0;
+    _pctMMes = _totSexBase>0 ? Math.round(datos.reduce(function(s,d){return s+(d.pctM*(d.cttosDig||0));},0)/_totSexBase) : 0;
+  }
 
   // Para BenchmarkComparativa usar mes actual
   var datosActBench=equipo.map(function(v){var h=(v.historial||{})[info.mesKey]||{};return{uf:parseFloat(v.uf)||0,dpsConVenta:parseInt(h.dpsVenta)||0,dpsSinVenta:parseInt(h.dpsSinVenta)||0,dpsPendiente:parseInt(h.dpsPendiente)||0,dpsRechazado:parseInt(h.dpsRechazado)||0,nBenef:parseInt(h.nBenef)||0,cttosDig:parseInt(h.cttosDig)||0};});
@@ -3773,21 +3794,53 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
         {l:"Tasa Cierre DPS",k:"tasaCierre",v:tasaCierre+"%",c:tasaCierre>=50?"#16A34A":tasaCierre>=30?"#D97706":"#DC2626",bg:tasaCierre>=50?"#F0FDF4":tasaCierre>=30?"#FFFBEB":"#FFF1F2"},
       ].map(function(k){
         var isOpen=kpiDetalle===k.k;
-        return React.createElement("div",{key:k.l,onClick:function(){setKpiDetalle(isOpen?null:k.k);},style:{background:k.bg,borderRadius:12,padding:"12px 10px",textAlign:"center",border:"1px solid "+(isOpen?"#374151":"#E5E7EB"),cursor:"pointer",transition:"all .15s"}}
+        return React.createElement("div",{key:k.l,onClick:function(){setKpiDetalle(isOpen?null:k.k);},style:{background:k.bg,borderRadius:12,padding:"12px 10px",textAlign:"center",border:"1px solid "+(isOpen?"#374151":"#E5E7EB"),cursor:"pointer",boxShadow:isOpen?"0 2px 12px rgba(0,0,0,.12)":"none",transition:"all .15s"}}
           ,React.createElement("div",{style:{fontSize:22,fontWeight:900,color:k.c}},k.v)
           ,React.createElement("div",{style:{fontSize:10,color:"#6B7280",textTransform:"uppercase",marginTop:4}},k.l)
+          ,React.createElement("div",{style:{fontSize:9,color:"#9CA3AF",marginTop:3}},isOpen?"▲ cerrar":"👆 ver detalle")
         );
       })
     )
 
+    // Detalle KPI fila 1
+    ,kpiDetalle&&["totTotal","conVenta","sinVenta","pendiente","rechazado","tasaCierre"].indexOf(kpiDetalle)>=0&&React.createElement("div",{style:{background:"#F8FAFC",borderRadius:12,padding:"14px 16px",marginBottom:12,border:"1px solid #E5E7EB"}}
+      ,React.createElement("div",{style:{fontSize:12,fontWeight:700,color:"#374151",marginBottom:8}},
+        kpiDetalle==="totTotal"?"🔵 Total DPS por ejecutivo":
+        kpiDetalle==="conVenta"?"✅ DPS Con Venta por ejecutivo":
+        kpiDetalle==="sinVenta"?"🔵 DPS Sin Venta por ejecutivo":
+        kpiDetalle==="pendiente"?"🟡 DPS Pendientes por ejecutivo":
+        kpiDetalle==="rechazado"?"🔴 DPS Rechazadas por ejecutivo":
+        "📊 Tasa de Cierre por ejecutivo"
+      )
+      ,React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:8}}
+        ,datos.filter(function(d){
+          var val = kpiDetalle==="totTotal"?d.dpsTotal:kpiDetalle==="conVenta"?d.dpsConVenta:kpiDetalle==="sinVenta"?d.dpsSinVenta:kpiDetalle==="pendiente"?d.dpsPendiente:kpiDetalle==="rechazado"?d.dpsRechazado:d.dpsTotal;
+          return (parseFloat(val)||0)>0;
+        }).sort(function(a,b){
+          var ka = kpiDetalle==="totTotal"?a.dpsTotal:kpiDetalle==="conVenta"?a.dpsConVenta:kpiDetalle==="sinVenta"?a.dpsSinVenta:kpiDetalle==="pendiente"?a.dpsPendiente:kpiDetalle==="rechazado"?a.dpsRechazado:a.dpsTotal>0?Math.round(a.dpsConVenta/a.dpsTotal*100):0;
+          var kb = kpiDetalle==="totTotal"?b.dpsTotal:kpiDetalle==="conVenta"?b.dpsConVenta:kpiDetalle==="sinVenta"?b.dpsSinVenta:kpiDetalle==="pendiente"?b.dpsPendiente:kpiDetalle==="rechazado"?b.dpsRechazado:b.dpsTotal>0?Math.round(b.dpsConVenta/b.dpsTotal*100):0;
+          return kb-ka;
+        }).map(function(d){
+          var val = kpiDetalle==="totTotal"?d.dpsTotal:kpiDetalle==="conVenta"?d.dpsConVenta:kpiDetalle==="sinVenta"?d.dpsSinVenta:kpiDetalle==="pendiente"?d.dpsPendiente:kpiDetalle==="rechazado"?d.dpsRechazado:d.dpsTotal>0?Math.round(d.dpsConVenta/d.dpsTotal*100)+"%":0;
+          var nombre=(d.nombre||"").split(" ").slice(-2).join(" ");
+          return React.createElement("div",{key:d.id||d.nombre,style:{background:"#fff",borderRadius:8,padding:"6px 12px",border:"1px solid #E5E7EB",fontSize:11}}
+            ,React.createElement("div",{style:{fontWeight:700,color:RD,fontSize:10}},nombre)
+            ,React.createElement("div",{style:{fontWeight:900,color:"#374151"}},val)
+          );
+        })
+      )
+    )
+
     // KPIs Fila 2
-    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:12,marginBottom:4}}
+    ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:12,marginBottom:4}}
       ,[
         {k:"totUF",l:"Total UF",v:totUF.toFixed(2)+" UF",c:"#C9A84C",bg:"#FFF8E7",brd:"#FCD34D"},
         {k:"totBenef",l:"N° Beneficiarios",v:totBenef,c:"#0891B2",bg:"#F0FDFA",brd:"#A7F3D0"},
         {k:"totCttos",l:"Contratos Digitados",v:totCttos,c:"#059669",bg:"#F0FDF4",brd:"#86EFAC"},
         {k:"totConecta",l:"💚 Planes Conecta",v:totConectaMes,c:"#059669",bg:"#ECFDF5",brd:"#6EE7B7"},
         {k:"agvCero",l:"AGV en 0",v:agvEnCero,c:agvEnCero>0?"#DC2626":"#16A34A",bg:agvEnCero>0?"#FFF1F2":"#F0FDF4",brd:agvEnCero>0?"#FCA5A5":"#86EFAC"},
+        {k:"pctF",l:"👩 % Mujer",v:_pctFMes+"%",c:"#EC4899",bg:"#FDF2F8",brd:"#F9A8D4"},
+        {k:"pctM",l:"👨 % Hombre",v:_pctMMes+"%",c:"#3B82F6",bg:"#EFF6FF",brd:"#93C5FD"},
       ].map(function(k){
         var isOpen=kpiDetalle===k.k;
         return React.createElement("div",{key:k.l,onClick:function(){setKpiDetalle(isOpen?null:k.k);},style:{background:k.bg,borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid "+(isOpen?"#374151":k.brd),cursor:"pointer",boxShadow:isOpen?"0 2px 12px rgba(0,0,0,.12)":"none",transition:"all .15s"}}
@@ -3799,33 +3852,35 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
     )
 
     // Detalle KPI fila 2
-    ,kpiDetalle&&["totUF","totBenef","totCttos","totConecta","agvCero"].indexOf(kpiDetalle)>=0&&React.createElement("div",{style:{background:"#F8FAFC",borderRadius:12,padding:"14px 16px",marginBottom:12,border:"1px solid #E5E7EB"}}
+    ,kpiDetalle&&["totUF","totBenef","totCttos","totConecta","agvCero","pctF","pctM"].indexOf(kpiDetalle)>=0&&React.createElement("div",{style:{background:"#F8FAFC",borderRadius:12,padding:"14px 16px",marginBottom:12,border:"1px solid #E5E7EB"}}
       ,React.createElement("div",{style:{fontSize:12,fontWeight:700,color:"#374151",marginBottom:8}},
         kpiDetalle==="totUF"?"💰 UF por ejecutivo":
         kpiDetalle==="totBenef"?"👥 Beneficiarios por ejecutivo":
         kpiDetalle==="totCttos"?"📋 Contratos por ejecutivo":
         kpiDetalle==="totConecta"?"💚 Planes Conecta por ejecutivo":
+        kpiDetalle==="pctF"?"👩 % Mujer — Total equipo: "+_pctFMes+"%":
+        kpiDetalle==="pctM"?"👨 % Hombre — Total equipo: "+_pctMMes+"%":
         "🔴 AGV en 0"
       )
       ,React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:8}}
-        ,(kpiDetalle==="agvCero"
-          ? (agvEnCeroData
-              ? agvEnCeroData
-              : datos.filter(function(d){return (parseFloat(d.uf)||0)===0&&!String(d.id).startsWith("_sm");}))
-          : datos.filter(function(d){
-              var val = kpiDetalle==="totUF"?d.uf:kpiDetalle==="totBenef"?d.nBenef:kpiDetalle==="totCttos"?d.cttosDig:d.conecta;
-              return (parseFloat(val)||0)>0;
-            }).sort(function(a,b){
-              var ka=kpiDetalle==="totUF"?a.uf:kpiDetalle==="totBenef"?a.nBenef:kpiDetalle==="totCttos"?a.cttosDig:a.conecta;
-              var kb=kpiDetalle==="totUF"?b.uf:kpiDetalle==="totBenef"?b.nBenef:kpiDetalle==="totCttos"?b.cttosDig:b.conecta;
-              return kb-ka;
-            })
+        ,((kpiDetalle==="pctF"||kpiDetalle==="pctM")
+          ? datos.filter(function(d){return (kpiDetalle==="pctF"?d.pctF:d.pctM)>0;}).sort(function(a,b){return (kpiDetalle==="pctF"?b.pctF-a.pctF:b.pctM-a.pctM);})
+          : kpiDetalle==="agvCero"
+            ? (agvEnCeroData || datos.filter(function(d){return (parseFloat(d.uf)||0)===0&&!String(d.id).startsWith("_sm");}))
+            : datos.filter(function(d){
+                var val=kpiDetalle==="totUF"?d.uf:kpiDetalle==="totBenef"?d.nBenef:kpiDetalle==="totCttos"?d.cttosDig:d.conecta;
+                return (parseFloat(val)||0)>0;
+              }).sort(function(a,b){
+                var ka=kpiDetalle==="totUF"?a.uf:kpiDetalle==="totBenef"?a.nBenef:kpiDetalle==="totCttos"?a.cttosDig:a.conecta;
+                var kb=kpiDetalle==="totUF"?b.uf:kpiDetalle==="totBenef"?b.nBenef:kpiDetalle==="totCttos"?b.cttosDig:b.conecta;
+                return kb-ka;
+              })
         ).map(function(d){
-          var val = kpiDetalle==="totUF"?d.uf:kpiDetalle==="totBenef"?d.nBenef:kpiDetalle==="totCttos"?d.cttosDig:kpiDetalle==="totConecta"?d.conecta:0;
-          var nombre = d.nombre.split(" ").slice(-2).join(" ");
-          return React.createElement("div",{key:d.id,style:{background:"#fff",borderRadius:8,padding:"6px 12px",border:"1px solid #E5E7EB",fontSize:11}}
+          var val = kpiDetalle==="totUF"?d.uf+" UF":kpiDetalle==="totBenef"?d.nBenef:kpiDetalle==="totCttos"?d.cttosDig:kpiDetalle==="totConecta"?d.conecta:kpiDetalle==="pctF"?d.pctF+"%":kpiDetalle==="pctM"?d.pctM+"%":"";
+          var nombre=(d.nombre||"").split(" ").slice(-2).join(" ");
+          return React.createElement("div",{key:d.id||d.nombre,style:{background:"#fff",borderRadius:8,padding:"6px 12px",border:"1px solid #E5E7EB",fontSize:11}}
             ,React.createElement("div",{style:{fontWeight:700,color:RD,fontSize:10}},nombre)
-            ,kpiDetalle!=="agvCero"&&React.createElement("div",{style:{fontWeight:900,color:"#374151"}},kpiDetalle==="totUF"?d.uf+" UF":val)
+            ,kpiDetalle!=="agvCero"&&React.createElement("div",{style:{fontWeight:900,color:"#374151"}},val)
           );
         })
       )
