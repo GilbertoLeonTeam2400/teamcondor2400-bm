@@ -3227,14 +3227,10 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
               nBenef:p.nBenef, cttosDig:p.cttosDig, conecta:p.conecta};
     });
 
-    // Calcular AGV en 0 exactamente desde el Excel (solo los que tienen UF=0 en el preview)
+    // AGV en 0: exactamente los que en el Excel tienen UF=0, sin cruzar con nada más
     var agvEnCeroData = resultados
-      .filter(function(r){ return r.equipo && (parseFloat(r.equipo.uf)||0)===0; })
-      .map(function(r){ return {id:r.equipo.id, nombre:r.equipo.nombre}; });
-    // Sumar sinMatch con UF=0
-    sinMatch.forEach(function(r){
-      if ((parseFloat(r.excel.uf)||0)===0) agvEnCeroData.push({id:"_sm_"+r.excel.nombre, nombre:r.excel.nombre});
-    });
+      .filter(function(r){ return (parseFloat(r.excel.uf)||0)===0; })
+      .map(function(r){ return {id:r.excel.nombre, nombre:r.excel.nombre}; });
 
     if(window.skipSnapshotRef) window.skipSnapshotRef.current=true;
     if (esMesActual) setEquipo(nuevoEquipo);
