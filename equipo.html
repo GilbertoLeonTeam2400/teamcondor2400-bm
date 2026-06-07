@@ -3227,12 +3227,22 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
               nBenef:p.nBenef, cttosDig:p.cttosDig, conecta:p.conecta};
     });
 
+    // Calcular AGV en 0 exactamente desde el Excel (solo los que tienen UF=0 en el preview)
+    var agvEnCeroData = resultados
+      .filter(function(r){ return r.equipo && (parseFloat(r.equipo.uf)||0)===0; })
+      .map(function(r){ return {id:r.equipo.id, nombre:r.equipo.nombre}; });
+    // Sumar sinMatch con UF=0
+    sinMatch.forEach(function(r){
+      if ((parseFloat(r.excel.uf)||0)===0) agvEnCeroData.push({id:"_sm_"+r.excel.nombre, nombre:r.excel.nombre});
+    });
+
     if(window.skipSnapshotRef) window.skipSnapshotRef.current=true;
     if (esMesActual) setEquipo(nuevoEquipo);
     setPreview([]);
     var _nm=mesesOpciones.find(function(m){return m.mk===mesKey;});
     var docData = {equipo:nuevoEquipo, metaEquipo:window.__metaEquipoActual||550};
     if (sinMatchData.length>0) docData._sinMatch = sinMatchData;
+    docData._agvEnCero = agvEnCeroData;
     if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
       window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey), docData, {merge:false})
         .then(function(){
@@ -3617,9 +3627,10 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
   var totBenef=datos.reduce(function(s,d){return s+d.nBenef;},0);
   var totCttos=datos.reduce(function(s,d){return s+d.cttosDig;},0);
   var totConectaMes=datos.reduce(function(s,d){return s+(d.conecta||0);},0);
-  var agvEnCero = esMesActual
-    ? datos.filter(function(p){return (parseFloat(p.uf)||0)===0 && !String(p.id).startsWith("_sm");}).length
-    : datos.filter(function(p){return (parseFloat(p.uf)||0)===0 && !String(p.id).startsWith("_sm");}).length;
+  var agvEnCeroData = (!esMesActual && datosMes && datosMes._agvEnCero) ? datosMes._agvEnCero : null;
+  var agvEnCero = agvEnCeroData
+    ? agvEnCeroData.length
+    : datos.filter(function(p){return (parseFloat(p.uf)||0)===0&&!String(p.id).startsWith("_sm");}).length;
   var totUF=parseFloat(datos.reduce(function(s,d){return s+d.uf;},0).toFixed(2));
 
   // Para BenchmarkComparativa usar mes actual
@@ -3749,7 +3760,9 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
       )
       ,React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:8}}
         ,(kpiDetalle==="agvCero"
-          ? datos.filter(function(d){return (parseFloat(d.uf)||0)===0&&!String(d.id).startsWith("_sm");})
+          ? (agvEnCeroData
+              ? agvEnCeroData
+              : datos.filter(function(d){return (parseFloat(d.uf)||0)===0&&!String(d.id).startsWith("_sm");}))
           : datos.filter(function(d){
               var val = kpiDetalle==="totUF"?d.uf:kpiDetalle==="totBenef"?d.nBenef:kpiDetalle==="totCttos"?d.cttosDig:d.conecta;
               return (parseFloat(val)||0)>0;
