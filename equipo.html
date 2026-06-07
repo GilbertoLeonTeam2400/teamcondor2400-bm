@@ -3585,7 +3585,10 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
   }
 
   // Datos para cards grandes y tabla — EXCLUSIVAMENTE desde Firebase (datosMes) para histórico
-  var equipoBase = esMesActual ? equipo : (datosMes && datosMes.equipo ? datosMes.equipo : []);
+  var equipoBase = esMesActual ? equipo : (datosMes && datosMes.equipo ? datosMes.equipo.filter(function(v){
+    var h=(v.historial||{})[mesKey]||{};
+    return (parseFloat(h.ufDig||h.uf)||0)>0 || (parseInt(h.dpsVenta)||0)>0 || (parseInt(h.dpsSinVenta)||0)>0 || (parseInt(h.dpsPendiente)||0)>0 || (parseInt(h.dpsRechazado)||0)>0;
+  }) : []);
   var sinMatchBase = (!esMesActual && datosMes && datosMes._sinMatch) ? datosMes._sinMatch : [];
 
   // Construir filas de datos
