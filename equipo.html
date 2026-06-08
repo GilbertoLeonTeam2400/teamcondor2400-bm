@@ -6384,14 +6384,16 @@ function ProspectosAGVView({ vidStr, info, R, RD }) {
 
   React.useEffect(function(){
     if(!window.__fbDb||!window.__fbCollection||!window.__fbQuery||!window.__fbWhere||!window.__fbGetDocs){setCargando(false);return;}
+    console.log("[PROSPECTOS] vidStr=",vidStr,"tipo=",typeof vidStr);
     window.__fbGetDocs(
       window.__fbQuery(window.__fbCollection(window.__fbDb,"hoc_contactos"),window.__fbWhere("agvId","==",vidStr))
     ).then(function(snap){
       var arr=[];
+      console.log("[PROSPECTOS] encontrados:",snap.size);
       snap.forEach(function(d){arr.push(Object.assign({id:d.id},typeof d.data==="function"?d.data():d.data));});
       arr.sort(function(a,b){var ord={sinContactar:0,contactado:1,interesado:2,cerrado:3,noInteresa:4};return (ord[a.estado]||0)-(ord[b.estado]||0);});
       setContactos(arr);setCargando(false);
-    }).catch(function(){setCargando(false);});
+    }).catch(function(e){setCargando(false);console.error("[PROSPECTOS] error:",e.message);});
   },[vidStr]);
 
   function cambiarEstado(cId,nuevoEstado){
