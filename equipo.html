@@ -9309,7 +9309,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                         fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}, "🗂️ Mis Prospectos")
                 )
                 // Sub-pestaña Prospectos
-                ,crmSubTab==="prospectos" && React.createElement(ProspectosAGVView, {vidStr:String(form.vid),info:info,R:R,RD:RD})
+                ,crmSubTab==="prospectos" && React.createElement(ProspectosAGVView, {vidStr:String(crmVid||form.vid||""),info:info,R:R,RD:RD})
                 // Sub-pestaña CRM (contenido original)
                 ,(!crmSubTab||crmSubTab==="crm") && React.createElement('div', null
                 ,React.createElement('div', {style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}},
