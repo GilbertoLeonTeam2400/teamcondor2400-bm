@@ -6034,30 +6034,20 @@ function BasesAGVView({ equipo, info, R, RD }) {
   },[]);
 
   function cargarContactos(baseId){
-    if(!window.__fbDb||!window.__fbCollection||!window.__fbGetDocs) return;
+    if(!window.__fbDb||!window.__fbCollection||!window.__fbQuery||!window.__fbWhere||!window.__fbGetDocs) return;
     setCargando(true);
-    // Traer TODOS los docs de hoc_contactos y crm, filtrar en memoria por baseId
-    // Evita necesidad de índices compuestos en Firestore
-    var p1=window.__fbGetDocs(window.__fbCollection(window.__fbDb,"hoc_contactos"));
-    var p2=window.__fbGetDocs(window.__fbCollection(window.__fbDb,"crm"));
-    Promise.all([p1,p2]).then(function(snaps){
+    // Query con índice compuesto baseId+agvId (habilitado en Firebase Console)
+    window.__fbGetDocs(
+      window.__fbQuery(window.__fbCollection(window.__fbDb,"hoc_contactos"),window.__fbWhere("baseId","==",baseId))
+    ).then(function(snap){
       var arr=[];
-      var ids={};
-      snaps.forEach(function(snap){
-        snap.forEach(function(d){
-          var data=typeof d.data==="function"?d.data():d.data;
-          if(data.baseId===baseId && !ids[d.id]){
-            ids[d.id]=true;
-            arr.push(Object.assign({id:d.id},data));
-          }
-        });
-      });
+      snap.forEach(function(d){ arr.push(Object.assign({id:d.id},typeof d.data==="function"?d.data():d.data)); });
       arr.sort(function(a,b){return (a.nombre||"").localeCompare(b.nombre||"");});
       setContactos(arr); setCargando(false);
-      console.log("[HOC] Contactos cargados:",arr.length,"para base",baseId);
+      console.log("[HOC] Contactos cargados:",arr.length);
     }).catch(function(e){
       setCargando(false);
-      setMsg("Error cargando: "+e.message);
+      setMsg("Error: "+e.message);
       console.error("[HOC]",e);
     });
   }
