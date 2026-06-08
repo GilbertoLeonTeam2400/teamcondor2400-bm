@@ -63,6 +63,10 @@
     window.__fbSetDoc=function(ref,data){return ref.set(data);};
     window.__fbOnSnapshot=function(ref,onNext,onErr){return ref.onSnapshot(function(snap){onNext({exists:function(){return snap.exists;},data:function(){return snap.data();}});},onErr);};
     window.__fbGetDoc=function(ref){return ref.get().then(function(snap){return {exists:snap.exists,data:function(){return snap.data();}}; });};
+    window.__fbCollection=function(db,col){return db.collection(col);};
+    window.__fbGetDocs=function(ref){return ref.get();};
+    window.__fbQuery=function(col){var q=col;for(var i=1;i<arguments.length;i++){var c=arguments[i];if(c&&c.__type==="where"){q=q.where(c.field,c.op,c.val);}}return q;};
+    window.__fbWhere=function(field,op,val){return {__type:"where",field:field,op:op,val:val};};
     console.log("Firebase conectado");}catch(e){console.warn("Firebase no disponible:",e);}
   </script>
   <script>/* código principal cargado abajo */</script>
@@ -77,6 +81,10 @@
     window.__fbSetDoc=function(ref,data){return ref.set(data);};
     window.__fbOnSnapshot=function(ref,onNext,onErr){return ref.onSnapshot(function(snap){onNext({exists:function(){return snap.exists;},data:function(){return snap.data();}});},onErr);};
     window.__fbGetDoc=function(ref){return ref.get().then(function(snap){return {exists:snap.exists,data:function(){return snap.data();}}; });};
+    window.__fbCollection=function(db,col){return db.collection(col);};
+    window.__fbGetDocs=function(ref){return ref.get();};
+    window.__fbQuery=function(col){var q=col;for(var i=1;i<arguments.length;i++){var c=arguments[i];if(c&&c.__type==="where"){q=q.where(c.field,c.op,c.val);}}return q;};
+    window.__fbWhere=function(field,op,val){return {__type:"where",field:field,op:op,val:val};};
     console.log("Firebase conectado");}catch(e){console.warn("Firebase no disponible:",e);}
   </script>
   <script>const { useState, useMemo, useEffect } = React;
