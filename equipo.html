@@ -6023,7 +6023,7 @@ function BasesAGVView({ equipo, info, R, RD }) {
   ];
 
   React.useEffect(function(){
-    if(!window.__fbDb||!window.__fbCollection||!window.__fbGetDocs) return;
+    if(!window.__fbDb||!window.__fbDoc||!window.__fbGetDoc) return;
     window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","hoc-bases")).then(function(snap){
       var ex=typeof snap.exists==="function"?snap.exists():snap.exists;
       var data=ex?(typeof snap.data==="function"?snap.data():snap.data):null;
