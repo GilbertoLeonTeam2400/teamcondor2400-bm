@@ -6037,13 +6037,18 @@ function BasesAGVView({ equipo, info, R, RD }) {
     if(!window.__fbDb||!window.__fbCollection||!window.__fbQuery||!window.__fbWhere||!window.__fbGetDocs) return;
     setCargando(true);
     window.__fbGetDocs(
-      window.__fbQuery(window.__fbCollection(window.__fbDb,"crm"),window.__fbWhere("baseId","==",baseId))
+      window.__fbQuery(window.__fbCollection(window.__fbDb,"hoc_contactos"),window.__fbWhere("baseId","==",baseId))
     ).then(function(snap){
       var arr=[];
       snap.forEach(function(d){ arr.push(Object.assign({id:d.id},typeof d.data==="function"?d.data():d.data)); });
       arr.sort(function(a,b){return (a.nombre||"").localeCompare(b.nombre||"");});
       setContactos(arr); setCargando(false);
-    }).catch(function(e){ setCargando(false); console.error(e); });
+      console.log("[HOC] Contactos cargados:", arr.length);
+    }).catch(function(e){ 
+      setCargando(false); 
+      setMsg("Error cargando contactos: "+e.message);
+      console.error("[HOC] Error:", e); 
+    });
   }
 
   function handleExcelBase(e){
@@ -6107,7 +6112,7 @@ function BasesAGVView({ equipo, info, R, RD }) {
                 estado:"sinContactar",agvId:null,agvNombre:null,
                 nota:"",fechaProxContacto:"",ts:Date.now()
               };
-              return window.__fbSetDoc(window.__fbDoc(window.__fbDb,"crm",cId),cData);
+              return window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_contactos",cId),cData);
             });
             Promise.all(promises).then(function(){
               bIdx+=batchSz;
@@ -6152,7 +6157,7 @@ function BasesAGVView({ equipo, info, R, RD }) {
     if(disponibles.length===0){setAsigMsg("⚠️ No hay contactos sin asignar.");return;}
     setAsigMsg("Asignando "+disponibles.length+"...");
     var promises=disponibles.map(function(c){
-      return window.__fbSetDoc(window.__fbDoc(window.__fbDb,"crm",c.id),
+      return window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_contactos",c.id),
         {agvId:String(agv.id),agvNombre:agv.nombre,estado:"sinContactar",tsAsignado:Date.now()},{merge:true});
     });
     Promise.all(promises).then(function(){
@@ -6165,7 +6170,7 @@ function BasesAGVView({ equipo, info, R, RD }) {
 
   function reasignar(contactoId,nuevoAgvId){
     var agv=equipo.find(function(v){return String(v.id)===String(nuevoAgvId);}); if(!agv) return;
-    window.__fbSetDoc(window.__fbDoc(window.__fbDb,"crm",contactoId),
+    window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_contactos",contactoId),
       {agvId:String(agv.id),agvNombre:agv.nombre,tsReasignado:Date.now()},{merge:true}
     ).then(function(){
       setContactos(function(prev){return prev.map(function(c){
@@ -6370,7 +6375,7 @@ function ProspectosAGVView({ vidStr, info, R, RD }) {
   React.useEffect(function(){
     if(!window.__fbDb||!window.__fbCollection||!window.__fbQuery||!window.__fbWhere||!window.__fbGetDocs){setCargando(false);return;}
     window.__fbGetDocs(
-      window.__fbQuery(window.__fbCollection(window.__fbDb,"crm"),window.__fbWhere("agvId","==",vidStr))
+      window.__fbQuery(window.__fbCollection(window.__fbDb,"hoc_contactos"),window.__fbWhere("agvId","==",vidStr))
     ).then(function(snap){
       var arr=[];
       snap.forEach(function(d){arr.push(Object.assign({id:d.id},typeof d.data==="function"?d.data():d.data));});
@@ -6380,13 +6385,13 @@ function ProspectosAGVView({ vidStr, info, R, RD }) {
   },[vidStr]);
 
   function cambiarEstado(cId,nuevoEstado){
-    window.__fbSetDoc(window.__fbDoc(window.__fbDb,"crm",cId),{estado:nuevoEstado,tsUltMov:Date.now()},{merge:true})
+    window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_contactos",cId),{estado:nuevoEstado,tsUltMov:Date.now()},{merge:true})
       .then(function(){setContactos(function(prev){return prev.map(function(c){return c.id===cId?Object.assign({},c,{estado:nuevoEstado}):c;});});});
   }
 
   function guardarEdit(){
     setGuardando(true);
-    window.__fbSetDoc(window.__fbDoc(window.__fbDb,"crm",editId),
+    window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_contactos",editId),
       {nota:editNota,fechaProxContacto:editFecha,tsUltMov:Date.now()},{merge:true}
     ).then(function(){
       setContactos(function(prev){return prev.map(function(c){return c.id===editId?Object.assign({},c,{nota:editNota,fechaProxContacto:editFecha}):c;});});
