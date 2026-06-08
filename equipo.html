@@ -6036,18 +6036,27 @@ function BasesAGVView({ equipo, info, R, RD }) {
   function cargarContactos(baseId){
     if(!window.__fbDb||!window.__fbCollection||!window.__fbQuery||!window.__fbWhere||!window.__fbGetDocs) return;
     setCargando(true);
-    window.__fbGetDocs(
-      window.__fbQuery(window.__fbCollection(window.__fbDb,"hoc_contactos"),window.__fbWhere("baseId","==",baseId))
-    ).then(function(snap){
+    // Buscar en hoc_contactos Y en crm (por compatibilidad con cargas anteriores)
+    var q1=window.__fbGetDocs(window.__fbQuery(window.__fbCollection(window.__fbDb,"hoc_contactos"),window.__fbWhere("baseId","==",baseId)));
+    var q2=window.__fbGetDocs(window.__fbQuery(window.__fbCollection(window.__fbDb,"crm"),window.__fbWhere("baseId","==",baseId)));
+    Promise.all([q1,q2]).then(function(snaps){
       var arr=[];
-      snap.forEach(function(d){ arr.push(Object.assign({id:d.id},typeof d.data==="function"?d.data():d.data)); });
+      var ids={};
+      snaps.forEach(function(snap){
+        snap.forEach(function(d){
+          if(!ids[d.id]){
+            ids[d.id]=true;
+            arr.push(Object.assign({id:d.id},typeof d.data==="function"?d.data():d.data));
+          }
+        });
+      });
       arr.sort(function(a,b){return (a.nombre||"").localeCompare(b.nombre||"");});
       setContactos(arr); setCargando(false);
-      console.log("[HOC] Contactos cargados:", arr.length);
+      console.log("[HOC] Contactos cargados:", arr.length, "(hoc+crm)");
     }).catch(function(e){ 
       setCargando(false); 
-      setMsg("Error cargando contactos: "+e.message);
-      console.error("[HOC] Error:", e); 
+      setMsg("Error: "+e.message);
+      console.error("[HOC]",e); 
     });
   }
 
