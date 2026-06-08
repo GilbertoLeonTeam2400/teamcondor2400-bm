@@ -60,7 +60,7 @@
     try{var cfg={apiKey:"AIzaSyDQf7ItrnYsMK9ThyMr6DRB39XvnQCwiYc",authDomain:"gestion-ventas-equipo-bm-2400.firebaseapp.com",projectId:"gestion-ventas-equipo-bm-2400",storageBucket:"gestion-ventas-equipo-bm-2400.firebasestorage.app",messagingSenderId:"396886347303",appId:"1:396886347303:web:8dc1660cc079c74c2b4802"};
     var app=firebase.initializeApp(cfg),db=firebase.firestore();
     window.__fbDb=db;window.__fbDoc=function(db,col,id){return db.collection(col).doc(id);};
-    window.__fbSetDoc=function(ref,data){return ref.set(data);};
+    window.__fbSetDoc=function(ref,data,opts){return opts&&opts.merge?ref.set(data,{merge:true}):ref.set(data);};
     window.__fbOnSnapshot=function(ref,onNext,onErr){return ref.onSnapshot(function(snap){onNext({exists:function(){return snap.exists;},data:function(){return snap.data();}});},onErr);};
     window.__fbGetDoc=function(ref){return ref.get().then(function(snap){return {exists:snap.exists,data:function(){return snap.data();}}; });};
     window.__fbCollection=function(db,col){return db.collection(col);};
@@ -78,7 +78,7 @@
     try{var cfg={apiKey:"AIzaSyDQf7ItrnYsMK9ThyMr6DRB39XvnQCwiYc",authDomain:"gestion-ventas-equipo-bm-2400.firebaseapp.com",projectId:"gestion-ventas-equipo-bm-2400",storageBucket:"gestion-ventas-equipo-bm-2400.firebasestorage.app",messagingSenderId:"396886347303",appId:"1:396886347303:web:8dc1660cc079c74c2b4802"};
     var app=firebase.initializeApp(cfg),db=firebase.firestore();
     window.__fbDb=db;window.__fbDoc=function(db,col,id){return db.collection(col).doc(id);};
-    window.__fbSetDoc=function(ref,data){return ref.set(data);};
+    window.__fbSetDoc=function(ref,data,opts){return opts&&opts.merge?ref.set(data,{merge:true}):ref.set(data);};
     window.__fbOnSnapshot=function(ref,onNext,onErr){return ref.onSnapshot(function(snap){onNext({exists:function(){return snap.exists;},data:function(){return snap.data();}});},onErr);};
     window.__fbGetDoc=function(ref){return ref.get().then(function(snap){return {exists:snap.exists,data:function(){return snap.data();}}; });};
     window.__fbCollection=function(db,col){return db.collection(col);};
@@ -6121,6 +6121,7 @@ function BasesAGVView({ equipo, info, R, RD }) {
                 estado:"sinContactar",agvId:null,agvNombre:null,
                 nota:"",fechaProxContacto:"",ts:Date.now()
               };
+              console.log("[UPLOAD] Guardando en hoc_contactos:",cId);
               return window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_contactos",cId),cData);
             });
             Promise.all(promises).then(function(){
