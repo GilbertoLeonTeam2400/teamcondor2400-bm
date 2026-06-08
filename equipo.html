@@ -3301,13 +3301,23 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
       var dpsPen = p.dpsPendiente !== null ? p.dpsPendiente : 0;
       var dpsRec = p.dpsRechazado !== null ? p.dpsRechazado : 0;
       var dpsTotal = p.dpsTotal || (dpsCV+dpsSV+dpsPen+dpsRec);
-      // UF: si viene 0 en un mes anterior, sí sobreescribir (es el total final)
-      // En mes actual: solo actualizar si > 0 (el daily no siempre trae UF)
-      var ufNueva = (!esMesActual) ? p.uf : (p.uf > 0 ? p.uf : (mesExistente.uf||0));
+      // UF para historial: mes histórico → viene del Excel (es el total oficial).
+      // Mes actual → viene de los rep[] del ejecutivo (fuente de verdad de cierres diarios).
+      // NUNCA usar uf del Excel para el mes actual — puede traer 0 o valor parcial.
+      var ufParaHistorial;
+      if (!esMesActual) {
+        ufParaHistorial = p.uf; // mes histórico: el Excel ES la fuente oficial
+      } else {
+        // mes actual: calcular desde rep[] del ejecutivo (lo que registraron)
+        var _repsActuales = v.rep || [];
+        ufParaHistorial = _repsActuales.length > 0
+          ? truncUF3(_repsActuales.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0))
+          : (mesExistente.uf||0); // si no hay reps, conservar lo que había en historial
+      }
       // Para meses históricos: sobreescribir completamente con datos del Excel
       // Para mes actual: conservar conecta de cierres diarios, mezclar resto
       hist[mesKey] = {
-        uf:          ufNueva,
+        uf:          ufParaHistorial,
         dps:         dpsTotal,
         dpsVenta:    dpsCV,
         dpsSinVenta: dpsSV,
@@ -3320,7 +3330,11 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
         ufDig:       p.uf !== null ? p.uf         : (mesExistente.ufDig||0),
         conecta:     esMesActual ? (mesExistente.conecta||0) : (p.conecta||0),
       };
-      var extra = esMesActual ? {dps:dpsTotal, uf:ufNueva} : {};
+      // FIX: En mes actual, NUNCA sobreescribir v.uf desde el Excel.
+      // v.uf del mes actual es SAGRADO — solo puede modificarse via rep[] (cierres diarios).
+      // El Excel solo actualiza DPS y el historial snapshot. Si se permite uf:ufNueva aquí,
+      // un Excel con UF=0 destruye todos los cierres diarios registrados.
+      var extra = esMesActual ? {dps:dpsTotal} : {};
       return Object.assign({}, v, {historial:hist}, extra);
     });
 
@@ -3362,15 +3376,18 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
     if (sinMatchData.length>0) docData._sinMatch = sinMatchData;
     docData._agvEnCero = agvEnCeroData;
     if (pctFRef.current>0||pctMRef.current>0) { docData._pctF = pctFRef.current; docData._pctM = pctMRef.current; }
-    if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey), docData, {merge:false})
+    if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc) {
+      // FIX CRÍTICO: mes actual usa merge:true para NO destruir rep[] y v.uf de cierres diarios.
+      // Meses históricos usan merge:false (correcto: reemplaza el snapshot completo del mes).
+      var mergeOpt = esMesActual ? {merge:true} : {merge:false};
+      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey), docData, mergeOpt)
         .then(function(){
           var extra2 = sinMatchData.length>0?" ("+sinMatchData.length+" sin match guardados igualmente)":"";
           setMsg("✅ ¡Guardado! "+(_nm?_nm.nom:mesKey)+" actualizado."+extra2);
           setTimeout(function(){if(window.skipSnapshotRef)window.skipSnapshotRef.current=false;},4000);
         })
         .catch(function(e){ setMsg("⚠️ Error Firebase: "+e.message); if(window.skipSnapshotRef)window.skipSnapshotRef.current=false; });
-    else { setMsg("✅ Actualizado localmente."); if(window.skipSnapshotRef)window.skipSnapshotRef.current=false; }
+    } else { setMsg("✅ Actualizado localmente."); if(window.skipSnapshotRef)window.skipSnapshotRef.current=false; }
   }
 
   return React.createElement('div', {style:{background:"#fff",borderRadius:18,padding:"24px 22px",boxShadow:"0 4px 20px rgba(233,7,41,.09)"}}
@@ -3393,6 +3410,7 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
             return React.createElement('option',{key:m.mk,value:m.mk}, m.nom+(m.mk===info.mesKey?" (mes actual)":""));
           })
       )
+
     )
     // Subir archivo
     , React.createElement('label', {style:{display:"inline-flex",alignItems:"center",gap:8,background:R,color:"#fff",borderRadius:10,padding:"12px 22px",cursor:"pointer",fontWeight:700,fontSize:14,marginBottom:16}}
@@ -7379,8 +7397,12 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
               var hDpsTot=(parseInt(hNow.dpsVenta)||0)+(parseInt(hNow.dpsSinVenta)||0)+(parseInt(hNow.dpsPendiente)||0)+(parseInt(hNow.dpsRechazado)||0);
               var dpsDesdeReps=reps.reduce(function(s,r){return s+(parseInt(r.dps)||0);},0);
               var dpsFinal=hDpsTot>0?hDpsTot:(reps.length>0?dpsDesdeReps:(parseInt(x.dps)||0));
+              // FIX #2: v.uf del mes actual SIEMPRE viene de rep[].
+              // Si rep[] está vacío, uf = 0 — nunca confiar en v.uf huérfano de Firebase
+              // (puede ser residuo de un Excel upload que escribió uf sin crear rep[]).
+              var ufFinal = reps.length > 0 ? ufDesdeReps : 0;
               return Object.assign({rep:[]}, x, {
-                uf:  reps.length > 0 ? ufDesdeReps : (parseFloat(x.uf)||0),
+                uf:  ufFinal,
                 dps: dpsFinal,
                 metaUF: parseFloat(x.metaUF) || 0,
                 metaDPS: (parseInt(x.metaDPS)||0)===30 ? 0 : (x.metaDPS !== undefined ? parseInt(x.metaDPS)||0 : 0)
