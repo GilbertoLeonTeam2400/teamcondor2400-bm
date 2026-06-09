@@ -3372,7 +3372,10 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
     if (esMesActual) setEquipo(nuevoEquipo);
     setPreview([]);
     var _nm=mesesOpciones.find(function(m){return m.mk===mesKey;});
-    var docData = {equipo:nuevoEquipo, metaEquipo:window.__metaEquipoActual||550};
+    // FIX CRÍTICO: mes actual usa merge:true — NO incluir metaEquipo en docData.
+    // Firebase preserva el valor existente con merge:true, así el Excel NUNCA pisa la meta.
+    // mes histórico usa merge:false — no incluir metaEquipo tampoco (el Excel no define la meta).
+    var docData = {equipo:nuevoEquipo};
     if (sinMatchData.length>0) docData._sinMatch = sinMatchData;
     docData._agvEnCero = agvEnCeroData;
     if (pctFRef.current>0||pctMRef.current>0) { docData._pctF = pctFRef.current; docData._pctM = pctMRef.current; }
