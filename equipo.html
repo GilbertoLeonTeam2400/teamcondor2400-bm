@@ -6136,8 +6136,11 @@ function BasesAGVView({ equipo, info, R, RD }) {
                 email:iEmail>=0?String(row[iEmail]||"").trim():"",
                 celular:iCel>=0?String(row[iCel]||"").trim():"",
                 comuna:iComuna>=0?String(row[iComuna]||"").trim():"",
-                estado:"sinContactar",agvId:null,agvNombre:null,
-                nota:"",fechaProxContacto:"",ts:Date.now()
+                estado:"nuevo",agvId:null,agvNombre:null,
+                nota:"",fechaProxContacto:"",canalContacto:"",
+                ts:Date.now(),
+                fechaAsignacion:new Date().toLocaleDateString("es-CL"),
+                histMovimientos:[{estado:"nuevo",fecha:new Date().toLocaleDateString("es-CL"),ts:Date.now()}]
               };
               console.log("[UPLOAD] Guardando en hoc_contactos:",cId);
               return window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_contactos",cId),cData);
@@ -6186,11 +6189,11 @@ function BasesAGVView({ equipo, info, R, RD }) {
     setAsigMsg("Asignando "+disponibles.length+"...");
     var promises=disponibles.map(function(c){
       return window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_contactos",c.id),
-        {agvId:String(agv.id),agvNombre:agv.nombre,estado:"sinContactar",tsAsignado:Date.now()},{merge:true});
+        {agvId:String(agv.id),agvNombre:agv.nombre,estado:"nuevo",tsAsignado:Date.now(),fechaAsignacion:new Date().toLocaleDateString("es-CL"),histMovimientos:[{estado:"nuevo",fecha:new Date().toLocaleDateString("es-CL"),ts:Date.now()}]},{merge:true});
     });
     Promise.all(promises).then(function(){
       setContactos(function(prev){return prev.map(function(c){
-        return disponibles.find(function(d){return d.id===c.id;})?Object.assign({},c,{agvId:String(agv.id),agvNombre:agv.nombre,estado:"sinContactar"}):c;
+        return disponibles.find(function(d){return d.id===c.id;})?Object.assign({},c,{agvId:String(agv.id),agvNombre:agv.nombre,estado:"nuevo",fechaAsignacion:new Date().toLocaleDateString("es-CL")}):c;
       });});
       setAsigMsg("✅ "+disponibles.length+" contactos asignados a "+agv.nombre.split(" ")[0]+".");
     }).catch(function(e){setAsigMsg("Error: "+e.message);});
@@ -6384,131 +6387,352 @@ function BasesAGVView({ equipo, info, R, RD }) {
 
 // ── Prospectos — Vista AGV ────────────────────────────────────────────────────
 function ProspectosAGVView({ vidStr, info, R, RD }) {
-  var [contactos,setContactos]=React.useState([]);
-  var [cargando,setCargando]=React.useState(true);
-  var [filtro,setFiltro]=React.useState("todos");
-  var [editId,setEditId]=React.useState(null);
-  var [editNota,setEditNota]=React.useState("");
-  var [editFecha,setEditFecha]=React.useState("");
-  var [guardando,setGuardando]=React.useState(false);
+  var [contactos,  setContactos]  = React.useState([]);
+  var [cargando,   setCargando]   = React.useState(true);
+  var [filtro,     setFiltro]     = React.useState("todos");
+  var [editId,     setEditId]     = React.useState(null);
+  var [editNota,   setEditNota]   = React.useState("");
+  var [editFecha,  setEditFecha]  = React.useState("");
+  var [editCanal,  setEditCanal]  = React.useState("llamada");
+  var [editEstado, setEditEstado] = React.useState("");
+  var [errFecha,   setErrFecha]   = React.useState(false);
+  var [guardando,  setGuardando]  = React.useState(false);
 
-  var ESTADOS=[
-    {k:"sinContactar",l:"Sin contactar",color:"#6B7280",bg:"#F3F4F6",emoji:"⬜"},
-    {k:"contactado",  l:"Contactado",   color:"#2563EB",bg:"#EFF6FF",emoji:"📞"},
-    {k:"interesado",  l:"Interesado",   color:"#D97706",bg:"#FFFBEB",emoji:"⭐"},
-    {k:"cerrado",     l:"Cerrado",      color:"#16A34A",bg:"#F0FDF4",emoji:"✅"},
-    {k:"noInteresa",  l:"No interesa",  color:"#DC2626",bg:"#FFF1F2",emoji:"❌"},
+  // ── Estados del pipeline ──────────────────────────────────────────────────
+  var ESTADOS = [
+    { k:"nuevo",           l:"Nuevo Prospecto",    color:"#6B7280", bg:"#F3F4F6", emoji:"🆕" },
+    { k:"contactadoLlam",  l:"Contacto Llamada",   color:"#2563EB", bg:"#EFF6FF", emoji:"📞" },
+    { k:"contactadoWsp",   l:"Contacto WhatsApp",  color:"#16A34A", bg:"#F0FDF4", emoji:"💬" },
+    { k:"contactadoEmail", l:"Contacto Email",     color:"#7C3AED", bg:"#F5F3FF", emoji:"✉️" },
+    { k:"cotEnviada",      l:"Cotización Enviada", color:"#0891B2", bg:"#ECFEFF", emoji:"📄" },
+    { k:"cerrado",         l:"Cerrado",            color:"#15803D", bg:"#DCFCE7", emoji:"🏆" },
+    { k:"noInteresa",      l:"No Interesa",        color:"#9CA3AF", bg:"#F9FAFB", emoji:"❌" },
   ];
 
+  // Estados que NO requieren fecha próxima contactabilidad
+  var SIN_FECHA_OBLIGATORIA = { cerrado: true, noInteresa: true };
+
+  // ── Lógica de "Seguimiento Atrasado" ─────────────────────────────────────
+  // Un contacto está atrasado si:
+  //   a) Estado "nuevo" y han pasado más de 1 día desde fechaAsignacion sin ningún movimiento
+  //   b) Cualquier otro estado activo y la fechaProxContacto ya venció (es anterior a hoy)
+  function esAtrasado(c) {
+    if (c.estado === "cerrado" || c.estado === "noInteresa") return false;
+    var hoy = new Date(); hoy.setHours(0,0,0,0);
+    if (c.estado === "nuevo") {
+      // Sin gestión: contar desde tsAsignado o ts de creación
+      var tsBase = c.tsAsignado || c.ts || 0;
+      if (!tsBase) return false;
+      var dAsig = new Date(tsBase); dAsig.setHours(0,0,0,0);
+      return (hoy - dAsig) > 1 * 24 * 3600 * 1000; // más de 1 día
+    }
+    // Con clasificación: vencimiento de fechaProxContacto
+    if (!c.fechaProxContacto) return true; // sin fecha = atrasado
+    var partes = c.fechaProxContacto.split("-");
+    // Soportar tanto YYYY-MM-DD (input date) como DD/MM/YYYY (display es-CL)
+    var dProx;
+    if (partes.length === 3 && partes[0].length === 4) {
+      dProx = new Date(c.fechaProxContacto);
+    } else {
+      // Puede venir como DD/MM/YYYY
+      var p2 = c.fechaProxContacto.split("/");
+      dProx = p2.length === 3 ? new Date(p2[2]+"-"+p2[1]+"-"+p2[0]) : new Date(c.fechaProxContacto);
+    }
+    dProx.setHours(0,0,0,0);
+    return hoy > dProx;
+  }
+
+  // ── Carga desde Firebase ──────────────────────────────────────────────────
   React.useEffect(function(){
     if(!window.__fbDb||!window.__fbCollection||!window.__fbQuery||!window.__fbWhere||!window.__fbGetDocs){setCargando(false);return;}
-    console.log("[PROSPECTOS] vidStr=",vidStr,"tipo=",typeof vidStr);
     window.__fbGetDocs(
       window.__fbQuery(window.__fbCollection(window.__fbDb,"hoc_contactos"),window.__fbWhere("agvId","==",vidStr))
     ).then(function(snap){
       var arr=[];
-      console.log("[PROSPECTOS] encontrados:",snap.size);
       snap.forEach(function(d){arr.push(Object.assign({id:d.id},typeof d.data==="function"?d.data():d.data));});
-      arr.sort(function(a,b){var ord={sinContactar:0,contactado:1,interesado:2,cerrado:3,noInteresa:4};return (ord[a.estado]||0)-(ord[b.estado]||0);});
-      setContactos(arr);setCargando(false);
+      var orden={nuevo:0,contactadoLlam:1,contactadoWsp:1,contactadoEmail:1,cotEnviada:2,cerrado:3,noInteresa:4};
+      arr.sort(function(a,b){
+        // Atrasados primero dentro de cada grupo
+        var aAt=esAtrasado(a)?-1:0, bAt=esAtrasado(b)?-1:0;
+        var diff=(orden[a.estado]||0)-(orden[b.estado]||0);
+        if(diff!==0) return diff;
+        if(aAt!==bAt) return aAt-bAt;
+        return (b.tsUltMov||0)-(a.tsUltMov||0);
+      });
+      setContactos(arr); setCargando(false);
     }).catch(function(e){setCargando(false);console.error("[PROSPECTOS] error:",e.message);});
   },[vidStr]);
 
-  function cambiarEstado(cId,nuevoEstado){
-    window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_contactos",cId),{estado:nuevoEstado,tsUltMov:Date.now()},{merge:true})
-      .then(function(){setContactos(function(prev){return prev.map(function(c){return c.id===cId?Object.assign({},c,{estado:nuevoEstado}):c;});});});
+  // ── Abrir formulario de edición ───────────────────────────────────────────
+  // Se abre cuando el AGV quiere cambiar estado: obligatorio poner fecha próx. contacto
+  function abrirEdit(c, nuevoEstadoOpcional) {
+    setEditId(c.id);
+    setEditNota(c.nota||"");
+    setEditFecha(c.fechaProxContacto||"");
+    setEditCanal(c.canalContacto||"llamada");
+    setEditEstado(nuevoEstadoOpcional||c.estado);
+    setErrFecha(false);
   }
 
+  // ── Guardar cambio de estado + nota + fecha + canal ───────────────────────
   function guardarEdit(){
+    var requiereFecha = !SIN_FECHA_OBLIGATORIA[editEstado];
+    if(requiereFecha && !editFecha){ setErrFecha(true); return; }
+    setErrFecha(false);
     setGuardando(true);
-    window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_contactos",editId),
-      {nota:editNota,fechaProxContacto:editFecha,tsUltMov:Date.now()},{merge:true}
-    ).then(function(){
-      setContactos(function(prev){return prev.map(function(c){return c.id===editId?Object.assign({},c,{nota:editNota,fechaProxContacto:editFecha}):c;});});
-      setEditId(null);setGuardando(false);
-    }).catch(function(){setGuardando(false);});
+    var ahora = Date.now();
+    var fechaStr = new Date(ahora).toLocaleDateString("es-CL");
+    var cActual = contactos.find(function(c){return c.id===editId;})||{};
+    var histMovs = (cActual.histMovimientos||[]).concat([{
+      estado: editEstado, canal: editCanal, fecha: fechaStr, ts: ahora
+    }]);
+    var update = {
+      estado: editEstado,
+      nota: editNota,
+      fechaProxContacto: editFecha,
+      canalContacto: editCanal,
+      tsUltMov: ahora,
+      fechaUltMov: fechaStr,
+      histMovimientos: histMovs,
+    };
+    // Primer contacto real (saliendo de "nuevo")
+    if(cActual.estado==="nuevo" && editEstado!=="nuevo"){
+      update.fechaPrimerContacto = fechaStr;
+      update.tsPrimerContacto = ahora;
+    }
+    window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_contactos",editId),update,{merge:true})
+      .then(function(){
+        setContactos(function(prev){return prev.map(function(c){return c.id===editId?Object.assign({},c,update):c;});});
+        setEditId(null); setGuardando(false);
+      }).catch(function(){setGuardando(false);});
   }
 
-  var filtrados=filtro==="todos"?contactos:contactos.filter(function(c){return c.estado===filtro;});
-  var totales={};
-  ESTADOS.forEach(function(e){totales[e.k]=contactos.filter(function(c){return c.estado===e.k;}).length;});
+  // ── Contadores ────────────────────────────────────────────────────────────
+  var totales = {};
+  ESTADOS.forEach(function(e){ totales[e.k]=contactos.filter(function(c){return c.estado===e.k;}).length; });
+  var totContactados = (totales.contactadoLlam||0)+(totales.contactadoWsp||0)+(totales.contactadoEmail||0);
+  var totAtrasados   = contactos.filter(esAtrasado).length;
+
+  // ── Filtrado ──────────────────────────────────────────────────────────────
+  function pasaFiltro(c){
+    if(filtro==="todos")        return true;
+    if(filtro==="atrasado")     return esAtrasado(c);
+    if(filtro==="contactados")  return c.estado==="contactadoLlam"||c.estado==="contactadoWsp"||c.estado==="contactadoEmail";
+    return c.estado===filtro;
+  }
+  var filtrados = contactos.filter(pasaFiltro);
+
+  // ── Historial label ───────────────────────────────────────────────────────
+  function labelMov(mov){
+    var est=ESTADOS.find(function(x){return x.k===mov.estado;})||{emoji:"•",l:mov.estado||"?"};
+    var canalLabel={llamada:"📞 Llamada",whatsapp:"💬 WhatsApp",email:"✉️ Email"};
+    var cStr=mov.canal?(" · "+(canalLabel[mov.canal]||mov.canal)):"";
+    return est.emoji+" "+est.l+cStr+" — "+mov.fecha;
+  }
+
+  // ── Definición de filtros de la barra ─────────────────────────────────────
+  var FILTROS = [
+    { k:"todos",        l:"Todos",           emoji:"📋",  cnt:contactos.length },
+    { k:"nuevo",        l:"Nuevos",          emoji:"🆕",  cnt:totales.nuevo||0 },
+    { k:"atrasado",     l:"Atrasados",       emoji:"⚠️", cnt:totAtrasados,    alerta:true },
+    { k:"contactadoLlam", l:"Llamada",       emoji:"📞",  cnt:totales.contactadoLlam||0 },
+    { k:"contactadoWsp",  l:"WhatsApp",      emoji:"💬",  cnt:totales.contactadoWsp||0 },
+    { k:"contactadoEmail",l:"Email",         emoji:"✉️", cnt:totales.contactadoEmail||0 },
+    { k:"cotEnviada",   l:"Cotiz. Enviada",  emoji:"📄",  cnt:totales.cotEnviada||0 },
+    { k:"cerrado",      l:"Cerrados",        emoji:"🏆",  cnt:totales.cerrado||0 },
+    { k:"noInteresa",   l:"No Interesa",     emoji:"❌",  cnt:totales.noInteresa||0 },
+  ];
 
   return React.createElement("div",{style:{background:"#fff",borderRadius:18,padding:"20px 18px",boxShadow:"0 4px 16px rgba(0,0,0,.06)"}}
     ,React.createElement("div",{style:{fontSize:16,fontWeight:900,color:RD,marginBottom:2}},"📋 Mis Prospectos")
     ,React.createElement("div",{style:{fontSize:11,color:"#9CA3AF",marginBottom:14}},contactos.length+" contactos asignados por tu supervisor")
-    ,React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}
-      ,ESTADOS.map(function(e){
-        return React.createElement("div",{key:e.k,style:{background:e.bg,borderRadius:10,padding:"6px 12px",textAlign:"center",border:"1px solid #E5E7EB"}}
-          ,React.createElement("div",{style:{fontSize:16,fontWeight:900,color:e.color}},totales[e.k]||0)
-          ,React.createElement("div",{style:{fontSize:9,color:e.color,textTransform:"uppercase"}},e.emoji+" "+e.l)
+
+    // ── Contadores resumen ──
+    ,React.createElement("div",{style:{display:"flex",gap:5,flexWrap:"wrap",marginBottom:14}}
+      // Atrasados — destacado si hay alguno
+      ,React.createElement("div",{style:{background:totAtrasados>0?"#FFF1F2":"#F9FAFB",borderRadius:10,padding:"6px 12px",textAlign:"center",border:"1.5px solid "+(totAtrasados>0?"#FECDD3":"#E5E7EB"),minWidth:54}}
+        ,React.createElement("div",{style:{fontSize:16,fontWeight:900,color:totAtrasados>0?"#DC2626":"#9CA3AF"}},totAtrasados)
+        ,React.createElement("div",{style:{fontSize:9,color:totAtrasados>0?"#DC2626":"#9CA3AF",textTransform:"uppercase"}},"⚠️ Atrasados")
+      )
+      ,React.createElement("div",{style:{background:"#F3F4F6",borderRadius:10,padding:"6px 12px",textAlign:"center",border:"1px solid #E5E7EB",minWidth:54}}
+        ,React.createElement("div",{style:{fontSize:16,fontWeight:900,color:"#6B7280"}},totales.nuevo||0)
+        ,React.createElement("div",{style:{fontSize:9,color:"#6B7280",textTransform:"uppercase"}},"🆕 Nuevos")
+      )
+      ,React.createElement("div",{style:{background:"#EFF6FF",borderRadius:10,padding:"6px 12px",textAlign:"center",border:"1px solid #BFDBFE",minWidth:54}}
+        ,React.createElement("div",{style:{fontSize:16,fontWeight:900,color:"#2563EB"}},totContactados)
+        ,React.createElement("div",{style:{fontSize:9,color:"#2563EB",textTransform:"uppercase"}},"📡 Contactados")
+      )
+      ,React.createElement("div",{style:{background:"#ECFEFF",borderRadius:10,padding:"6px 12px",textAlign:"center",border:"1px solid #A5F3FC",minWidth:54}}
+        ,React.createElement("div",{style:{fontSize:16,fontWeight:900,color:"#0891B2"}},totales.cotEnviada||0)
+        ,React.createElement("div",{style:{fontSize:9,color:"#0891B2",textTransform:"uppercase"}},"📄 Cotiz.")
+      )
+      ,React.createElement("div",{style:{background:"#DCFCE7",borderRadius:10,padding:"6px 12px",textAlign:"center",border:"1px solid #86EFAC",minWidth:54}}
+        ,React.createElement("div",{style:{fontSize:16,fontWeight:900,color:"#15803D"}},totales.cerrado||0)
+        ,React.createElement("div",{style:{fontSize:9,color:"#15803D",textTransform:"uppercase"}},"🏆 Cerrados")
+      )
+      ,React.createElement("div",{style:{background:"#F9FAFB",borderRadius:10,padding:"6px 12px",textAlign:"center",border:"1px solid #E5E7EB",minWidth:54}}
+        ,React.createElement("div",{style:{fontSize:16,fontWeight:900,color:"#9CA3AF"}},totales.noInteresa||0)
+        ,React.createElement("div",{style:{fontSize:9,color:"#9CA3AF",textTransform:"uppercase"}},"❌ No interesa")
+      )
+    )
+
+    // ── Barra de filtros ──
+    ,React.createElement("div",{style:{display:"flex",gap:5,flexWrap:"wrap",marginBottom:14}}
+      ,FILTROS.map(function(g){
+        var activo=filtro===g.k;
+        var esAlerta=g.alerta&&g.cnt>0;
+        var bgActivo=esAlerta?"#DC2626":RD;
+        var borderColor=activo?bgActivo:esAlerta&&g.cnt>0?"#FECDD3":"#E5E7EB";
+        return React.createElement("button",{key:g.k,onClick:function(){setFiltro(g.k);},
+          style:{padding:"5px 11px",borderRadius:20,border:"1.5px solid "+(activo?bgActivo:borderColor),
+            background:activo?bgActivo:"#fff",color:activo?"#fff":esAlerta&&g.cnt>0?"#DC2626":"#374151",
+            fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:4}}
+          ,g.emoji+" "+g.l
+          ,React.createElement("span",{style:{background:activo?"rgba(255,255,255,.25)":"#F3F4F6",borderRadius:99,
+              padding:"1px 6px",fontSize:9,fontWeight:900,color:activo?"#fff":esAlerta&&g.cnt>0?"#DC2626":"#6B7280"}},g.cnt)
         );
       })
     )
-    ,React.createElement("div",{style:{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}
-      ,["todos"].concat(ESTADOS.map(function(e){return e.k;})).map(function(ek){
-        var info=ESTADOS.find(function(x){return x.k===ek;})||{l:"Todos",emoji:"📋"};
-        return React.createElement("button",{key:ek,onClick:function(){setFiltro(ek);},
-          style:{padding:"4px 10px",borderRadius:20,border:"1.5px solid "+(filtro===ek?RD:"#E5E7EB"),
-            background:filtro===ek?RD:"#fff",color:filtro===ek?"#fff":"#374151",
-            fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}
-          ,ek==="todos"?"📋 Todos":info.emoji+" "+info.l);
-      })
-    )
-    ,cargando?React.createElement("div",{style:{textAlign:"center",padding:30,color:"#9CA3AF"}},"Cargando prospectos...")
-    :filtrados.length===0
-      ?React.createElement("div",{style:{textAlign:"center",padding:30,color:"#9CA3AF",fontSize:13}},
-          contactos.length===0?"Tu supervisor aún no te ha asignado prospectos.":"Sin resultados.")
-      :filtrados.map(function(c){
-        var est=ESTADOS.find(function(x){return x.k===c.estado;})||ESTADOS[0];
-        var esEdit=editId===c.id;
-        return React.createElement("div",{key:c.id,
-            style:{borderRadius:12,padding:"12px 14px",marginBottom:8,
-              border:"1.5px solid "+(esEdit?"#93C5FD":"#E5E7EB"),background:esEdit?"#EFF6FF":est.bg}}
-          ,React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}
-            ,React.createElement("div",{style:{fontWeight:800,fontSize:13,color:"#1F2937"}},c.nombre||"Sin nombre")
-            ,React.createElement("select",{value:c.estado,onChange:function(e){cambiarEstado(c.id,e.target.value);},
-                style:{fontSize:11,padding:"4px 8px",borderRadius:8,border:"1.5px solid "+est.color,
-                  background:est.bg,color:est.color,fontWeight:700,fontFamily:"inherit",cursor:"pointer"}}
-              ,ESTADOS.map(function(e){return React.createElement("option",{key:e.k,value:e.k},e.emoji+" "+e.l);})
-            )
-          )
-          ,React.createElement("div",{style:{display:"flex",gap:10,flexWrap:"wrap",marginBottom:6}}
-            ,c.rut&&React.createElement("span",{style:{fontSize:11,color:"#6B7280"}},"🪪 "+(c.rut+(c.dv?"-"+c.dv:"")))
-            ,c.celular&&React.createElement("a",{href:"tel:"+c.celular,style:{fontSize:11,color:"#1D4ED8",fontWeight:700,textDecoration:"none"}},"📱 "+c.celular)
-            ,c.email&&React.createElement("a",{href:"mailto:"+c.email,style:{fontSize:11,color:"#1D4ED8",textDecoration:"none"}},"✉️ "+c.email)
-            ,c.comuna&&React.createElement("span",{style:{fontSize:11,color:"#6B7280"}},"📍 "+c.comuna)
-            ,c.baseTitulo&&React.createElement("span",{style:{fontSize:10,color:"#9CA3AF",background:"#F3F4F6",borderRadius:8,padding:"1px 8px"}},c.baseTitulo)
-          )
-          ,!esEdit&&React.createElement("div",{style:{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}
-            ,c.nota&&React.createElement("span",{style:{fontSize:11,color:"#374151",flex:1}},"💬 "+c.nota)
-            ,c.fechaProxContacto&&React.createElement("span",{style:{fontSize:11,color:"#D97706",fontWeight:700}},"📅 "+c.fechaProxContacto)
-            ,React.createElement("button",{onClick:function(){setEditId(c.id);setEditNota(c.nota||"");setEditFecha(c.fechaProxContacto||"");},
-                style:{background:"none",border:"1px solid #D1D5DB",borderRadius:8,padding:"3px 10px",
-                  fontSize:11,cursor:"pointer",color:"#6B7280",fontFamily:"inherit"}},"✏️ Editar")
-          )
-          ,esEdit&&React.createElement("div",{style:{marginTop:8,display:"flex",flexDirection:"column",gap:6}}
-            ,React.createElement("textarea",{value:editNota,onChange:function(e){setEditNota(e.target.value);},
-                placeholder:"Nota sobre este prospecto...",rows:2,
-                style:{padding:"6px 10px",borderRadius:8,border:"1.5px solid #93C5FD",fontSize:12,fontFamily:"inherit",resize:"vertical"}})
-            ,React.createElement("div",{style:{display:"flex",gap:8,alignItems:"center"}}
-              ,React.createElement("label",{style:{fontSize:11,color:"#6B7280"}},"📅 Próximo contacto:")
-              ,React.createElement("input",{type:"date",value:editFecha,onChange:function(e){setEditFecha(e.target.value);},
-                  style:{padding:"4px 8px",borderRadius:8,border:"1.5px solid #D1D5DB",fontSize:12,fontFamily:"inherit"}})
-            )
-            ,React.createElement("div",{style:{display:"flex",gap:8}}
-              ,React.createElement("button",{onClick:guardarEdit,disabled:guardando,
-                  style:{background:"#16A34A",color:"#fff",border:"none",borderRadius:8,padding:"6px 16px",
-                    fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}},guardando?"Guardando...":"💾 Guardar")
-              ,React.createElement("button",{onClick:function(){setEditId(null);},
-                  style:{background:"#F3F4F6",color:"#6B7280",border:"none",borderRadius:8,padding:"6px 14px",
-                    fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}},"Cancelar")
-            )
-          )
-        );
-      })
+
+    // ── Lista ──
+    ,cargando
+      ? React.createElement("div",{style:{textAlign:"center",padding:30,color:"#9CA3AF"}},"Cargando prospectos...")
+      : filtrados.length===0
+        ? React.createElement("div",{style:{textAlign:"center",padding:30,color:"#9CA3AF",fontSize:13}},
+            contactos.length===0?"Tu supervisor aún no te ha asignado prospectos.":"Sin resultados para este filtro.")
+        : filtrados.map(function(c){
+            var est     = ESTADOS.find(function(x){return x.k===c.estado;})||ESTADOS[0];
+            var atrasado= esAtrasado(c);
+            var esEdit  = editId===c.id;
+            var histMovs= c.histMovimientos||[];
+            var reqFecha= !SIN_FECHA_OBLIGATORIA[editEstado];
+
+            // Colores de la tarjeta: atrasado override todo
+            var cardBg     = esEdit?"#EFF6FF":atrasado?"#FFF1F2":est.bg;
+            var cardBorder = esEdit?"#93C5FD":atrasado?"#FECDD3":"#E5E7EB";
+
+            return React.createElement("div",{key:c.id,
+                style:{borderRadius:12,padding:"12px 14px",marginBottom:8,
+                  border:"1.5px solid "+cardBorder,background:cardBg}}
+
+              // Fila superior: nombre + badge atrasado + selector estado
+              ,React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6,gap:8}}
+                ,React.createElement("div",null
+                  ,React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6}}
+                    ,React.createElement("div",{style:{fontWeight:800,fontSize:13,color:"#1F2937"}},c.nombre||"Sin nombre")
+                    ,atrasado&&React.createElement("span",{style:{background:"#DC2626",color:"#fff",borderRadius:99,
+                        padding:"1px 7px",fontSize:9,fontWeight:900}},"⚠️ ATRASADO")
+                  )
+                  ,c.fechaAsignacion&&React.createElement("div",{style:{fontSize:10,color:"#9CA3AF",marginTop:1}},"📥 Recibido: "+c.fechaAsignacion)
+                )
+                ,React.createElement("select",{value:c.estado,
+                    onChange:function(ev){ abrirEdit(c, ev.target.value); },
+                    style:{fontSize:11,padding:"4px 8px",borderRadius:8,border:"1.5px solid "+est.color,
+                      background:est.bg,color:est.color,fontWeight:700,fontFamily:"inherit",cursor:"pointer",flexShrink:0}}
+                  ,ESTADOS.map(function(e){return React.createElement("option",{key:e.k,value:e.k},e.emoji+" "+e.l);})
+                )
+              )
+
+              // Datos de contacto
+              ,React.createElement("div",{style:{display:"flex",gap:10,flexWrap:"wrap",marginBottom:6}}
+                ,c.rut&&React.createElement("span",{style:{fontSize:11,color:"#6B7280"}},"🪪 "+(c.rut+(c.dv?"-"+c.dv:"")))
+                ,c.celular&&React.createElement("a",{href:"tel:"+c.celular,style:{fontSize:11,color:"#1D4ED8",fontWeight:700,textDecoration:"none"}},"📱 "+c.celular)
+                ,c.email&&React.createElement("a",{href:"mailto:"+c.email,style:{fontSize:11,color:"#1D4ED8",textDecoration:"none"}},"✉️ "+c.email)
+                ,c.comuna&&React.createElement("span",{style:{fontSize:11,color:"#6B7280"}},"📍 "+c.comuna)
+                ,c.baseTitulo&&React.createElement("span",{style:{fontSize:10,color:"#9CA3AF",background:"#F3F4F6",borderRadius:8,padding:"1px 8px"}},c.baseTitulo)
+              )
+
+              // Fechas y canal
+              ,React.createElement("div",{style:{display:"flex",gap:10,flexWrap:"wrap",marginBottom:4}}
+                ,c.fechaPrimerContacto&&React.createElement("span",{style:{fontSize:10,color:"#6B7280"}},"📡 1er contacto: "+c.fechaPrimerContacto)
+                ,c.fechaUltMov&&React.createElement("span",{style:{fontSize:10,color:"#6B7280"}},"🕐 Últ. mov: "+c.fechaUltMov)
+                ,c.canalContacto&&React.createElement("span",{style:{fontSize:10,fontWeight:700,
+                    color:{llamada:"#2563EB",whatsapp:"#16A34A",email:"#7C3AED"}[c.canalContacto]||"#6B7280"}}
+                  ,{llamada:"📞 Llamada",whatsapp:"💬 WhatsApp",email:"✉️ Email"}[c.canalContacto]||c.canalContacto)
+                ,c.fechaProxContacto&&React.createElement("span",{
+                    style:{fontSize:10,fontWeight:700,color:atrasado?"#DC2626":"#D97706"}}
+                  ,"📅 Próx: "+c.fechaProxContacto+(atrasado?" ⚠️":""))
+              )
+
+              // Vista normal: nota + botón editar
+              ,!esEdit&&React.createElement("div",{style:{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginTop:4}}
+                ,c.nota&&React.createElement("span",{style:{fontSize:11,color:"#374151",flex:1}},"💬 "+c.nota)
+                ,React.createElement("button",{onClick:function(){abrirEdit(c);},
+                    style:{background:"none",border:"1px solid #D1D5DB",borderRadius:8,padding:"3px 10px",
+                      fontSize:11,cursor:"pointer",color:"#6B7280",fontFamily:"inherit",marginLeft:"auto"}},"✏️ Editar")
+              )
+
+              // Historial colapsable
+              ,!esEdit&&histMovs.length>0&&React.createElement("details",{style:{marginTop:6}}
+                ,React.createElement("summary",{style:{fontSize:10,color:"#9CA3AF",cursor:"pointer",userSelect:"none"}},
+                  "🕒 Historial ("+histMovs.length+" movimiento"+(histMovs.length!==1?"s":"")+")")
+                ,React.createElement("div",{style:{marginTop:4,paddingLeft:8,borderLeft:"2px solid #E5E7EB"}}
+                  ,histMovs.slice().reverse().map(function(m,i){
+                    return React.createElement("div",{key:i,style:{fontSize:10,color:"#6B7280",marginBottom:2}},labelMov(m));
+                  })
+                )
+              )
+
+              // ── Formulario de edición (se abre al cambiar estado O al presionar Editar) ──
+              ,esEdit&&React.createElement("div",{style:{marginTop:8,display:"flex",flexDirection:"column",gap:8}}
+
+                // Estado selector dentro del form
+                ,React.createElement("div",null
+                  ,React.createElement("div",{style:{fontSize:11,fontWeight:700,color:"#374151",marginBottom:4}},"Estado:")
+                  ,React.createElement("select",{value:editEstado,onChange:function(e){setEditEstado(e.target.value);setErrFecha(false);},
+                      style:{width:"100%",padding:"7px 10px",borderRadius:8,border:"1.5px solid #D1D5DB",
+                        fontSize:12,fontFamily:"inherit",fontWeight:700}}
+                    ,ESTADOS.map(function(e){return React.createElement("option",{key:e.k,value:e.k},e.emoji+" "+e.l);})
+                  )
+                )
+
+                // Canal (solo si el estado nuevo es un contactado)
+                ,(editEstado==="contactadoLlam"||editEstado==="contactadoWsp"||editEstado==="contactadoEmail")&&
+                  React.createElement("div",null
+                    ,React.createElement("div",{style:{fontSize:11,fontWeight:700,color:"#374151",marginBottom:4}},"Canal de contacto:")
+                    ,React.createElement("div",{style:{display:"flex",gap:6}}
+                      ,[{k:"llamada",l:"📞 Llamada"},{k:"whatsapp",l:"💬 WhatsApp"},{k:"email",l:"✉️ Email"}].map(function(canal){
+                        var activo=editCanal===canal.k;
+                        return React.createElement("button",{key:canal.k,onClick:function(){setEditCanal(canal.k);},
+                          style:{padding:"5px 12px",borderRadius:20,border:"1.5px solid "+(activo?RD:"#D1D5DB"),
+                            background:activo?RD:"#fff",color:activo?"#fff":"#374151",
+                            fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}},canal.l);
+                      })
+                    )
+                  )
+
+                // Fecha próxima contactabilidad — OBLIGATORIA salvo Cerrado/No Interesa
+                ,React.createElement("div",null
+                  ,React.createElement("div",{style:{fontSize:11,fontWeight:700,
+                      color:errFecha?"#DC2626":"#374151",marginBottom:4}}
+                    ,"📅 Fecha próxima contactabilidad"+(reqFecha?" *":"")+":")
+                  ,React.createElement("input",{type:"date",value:editFecha,
+                      onChange:function(e){setEditFecha(e.target.value);setErrFecha(false);},
+                      style:{width:"100%",padding:"7px 10px",borderRadius:8,fontSize:12,fontFamily:"inherit",
+                        border:"1.5px solid "+(errFecha?"#DC2626":"#D1D5DB"),boxSizing:"border-box"}})
+                  ,errFecha&&React.createElement("div",{style:{fontSize:11,color:"#DC2626",marginTop:3,fontWeight:700}},
+                    "⚠️ La fecha de próxima contactabilidad es obligatoria.")
+                )
+
+                // Nota
+                ,React.createElement("textarea",{value:editNota,onChange:function(e){setEditNota(e.target.value);},
+                    placeholder:"Nota sobre este prospecto...",rows:2,
+                    style:{padding:"6px 10px",borderRadius:8,border:"1.5px solid #93C5FD",fontSize:12,fontFamily:"inherit",resize:"vertical"}})
+
+                // Botones
+                ,React.createElement("div",{style:{display:"flex",gap:8}}
+                  ,React.createElement("button",{onClick:guardarEdit,disabled:guardando,
+                      style:{background:"#16A34A",color:"#fff",border:"none",borderRadius:8,padding:"6px 16px",
+                        fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}},guardando?"Guardando...":"💾 Guardar")
+                  ,React.createElement("button",{onClick:function(){setEditId(null);setErrFecha(false);},
+                      style:{background:"#F3F4F6",color:"#6B7280",border:"none",borderRadius:8,padding:"6px 14px",
+                        fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}},"Cancelar")
+                )
+              )
+            );
+          })
   );
 }
-
 // ── Alertas del Equipo ───────────────────────────────────────────────────────
 function AlertasView({ equipo, info, R, RD }) {
   var hoy = new Date().toISOString().split("T")[0];
