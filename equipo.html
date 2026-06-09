@@ -6399,15 +6399,21 @@ function ProspectosAGVView({ vidStr, info, R, RD }) {
   var [guardando,  setGuardando]  = React.useState(false);
 
   // ── Estados del pipeline ──────────────────────────────────────────────────
+  // ESTADOS DEL SELECTOR — "contactado" es uno solo en el dropdown.
+  // El canal (llamada/wsp/email) se elige en el formulario y se guarda en canalContacto.
+  // En Firebase el estado queda como "contactado" (unificado).
   var ESTADOS = [
-    { k:"nuevo",           l:"Nuevo Prospecto",    color:"#6B7280", bg:"#F3F4F6", emoji:"🆕" },
-    { k:"contactadoLlam",  l:"Contacto Llamada",   color:"#2563EB", bg:"#EFF6FF", emoji:"📞" },
-    { k:"contactadoWsp",   l:"Contacto WhatsApp",  color:"#16A34A", bg:"#F0FDF4", emoji:"💬" },
-    { k:"contactadoEmail", l:"Contacto Email",     color:"#7C3AED", bg:"#F5F3FF", emoji:"✉️" },
-    { k:"cotEnviada",      l:"Cotización Enviada", color:"#0891B2", bg:"#ECFEFF", emoji:"📄" },
-    { k:"cerrado",         l:"Cerrado",            color:"#15803D", bg:"#DCFCE7", emoji:"🏆" },
-    { k:"noInteresa",      l:"No Interesa",        color:"#9CA3AF", bg:"#F9FAFB", emoji:"❌" },
+    { k:"nuevo",      l:"Nuevo Prospecto",    color:"#6B7280", bg:"#F3F4F6", emoji:"🆕" },
+    { k:"contactado", l:"Contactado",         color:"#2563EB", bg:"#EFF6FF", emoji:"📡" },
+    { k:"cotEnviada", l:"Cotización Enviada", color:"#0891B2", bg:"#ECFEFF", emoji:"📄" },
+    { k:"cerrado",    l:"Cerrado",            color:"#15803D", bg:"#DCFCE7", emoji:"🏆" },
+    { k:"noInteresa", l:"No Interesa",        color:"#9CA3AF", bg:"#F9FAFB", emoji:"❌" },
   ];
+  // Mapa de compatibilidad: estados viejos → nuevo estado unificado
+  function normalizarEstado(k) {
+    if(k==="contactadoLlam"||k==="contactadoWsp"||k==="contactadoEmail") return "contactado";
+    return k||"nuevo";
+  }
 
   // Estados que NO requieren fecha próxima contactabilidad
   var SIN_FECHA_OBLIGATORIA = { cerrado: true, noInteresa: true };
@@ -6449,8 +6455,13 @@ function ProspectosAGVView({ vidStr, info, R, RD }) {
       window.__fbQuery(window.__fbCollection(window.__fbDb,"hoc_contactos"),window.__fbWhere("agvId","==",vidStr))
     ).then(function(snap){
       var arr=[];
-      snap.forEach(function(d){arr.push(Object.assign({id:d.id},typeof d.data==="function"?d.data():d.data));});
-      var orden={nuevo:0,contactadoLlam:1,contactadoWsp:1,contactadoEmail:1,cotEnviada:2,cerrado:3,noInteresa:4};
+      snap.forEach(function(d){
+        var raw=Object.assign({id:d.id},typeof d.data==="function"?d.data():d.data);
+        // Normalizar estados viejos al nuevo esquema unificado
+        raw.estado=normalizarEstado(raw.estado);
+        arr.push(raw);
+      });
+      var orden={nuevo:0,contactado:1,cotEnviada:2,cerrado:3,noInteresa:4};
       arr.sort(function(a,b){
         // Atrasados primero dentro de cada grupo
         var aAt=esAtrasado(a)?-1:0, bAt=esAtrasado(b)?-1:0;
@@ -6484,13 +6495,16 @@ function ProspectosAGVView({ vidStr, info, R, RD }) {
     var fechaStr = new Date(ahora).toLocaleDateString("es-CL");
     var cActual = contactos.find(function(c){return c.id===editId;})||{};
     var histMovs = (cActual.histMovimientos||[]).concat([{
-      estado: editEstado, canal: editCanal, fecha: fechaStr, ts: ahora
+      estado: editEstado,
+      canal: editEstado==="contactado" ? editCanal : "",
+      fecha: fechaStr, ts: ahora
     }]);
     var update = {
       estado: editEstado,
       nota: editNota,
       fechaProxContacto: editFecha,
-      canalContacto: editCanal,
+      // Canal de contacto: aplica cuando el estado es "contactado"
+      canalContacto: editEstado==="contactado" ? editCanal : (cActual.canalContacto||""),
       tsUltMov: ahora,
       fechaUltMov: fechaStr,
       histMovimientos: histMovs,
@@ -6510,21 +6524,22 @@ function ProspectosAGVView({ vidStr, info, R, RD }) {
   // ── Contadores ────────────────────────────────────────────────────────────
   var totales = {};
   ESTADOS.forEach(function(e){ totales[e.k]=contactos.filter(function(c){return c.estado===e.k;}).length; });
-  var totContactados = (totales.contactadoLlam||0)+(totales.contactadoWsp||0)+(totales.contactadoEmail||0);
+  var totContactados = totales.contactado||0;
   var totAtrasados   = contactos.filter(esAtrasado).length;
 
   // ── Filtrado ──────────────────────────────────────────────────────────────
   function pasaFiltro(c){
     if(filtro==="todos")        return true;
     if(filtro==="atrasado")     return esAtrasado(c);
-    if(filtro==="contactados")  return c.estado==="contactadoLlam"||c.estado==="contactadoWsp"||c.estado==="contactadoEmail";
+    if(filtro==="contactados")  return c.estado==="contactado";
     return c.estado===filtro;
   }
   var filtrados = contactos.filter(pasaFiltro);
 
   // ── Historial label ───────────────────────────────────────────────────────
   function labelMov(mov){
-    var est=ESTADOS.find(function(x){return x.k===mov.estado;})||{emoji:"•",l:mov.estado||"?"};
+    var estadoNorm=normalizarEstado(mov.estado);
+    var est=ESTADOS.find(function(x){return x.k===estadoNorm;})||{emoji:"•",l:mov.estado||"?"};
     var canalLabel={llamada:"📞 Llamada",whatsapp:"💬 WhatsApp",email:"✉️ Email"};
     var cStr=mov.canal?(" · "+(canalLabel[mov.canal]||mov.canal)):"";
     return est.emoji+" "+est.l+cStr+" — "+mov.fecha;
@@ -6535,9 +6550,7 @@ function ProspectosAGVView({ vidStr, info, R, RD }) {
     { k:"todos",        l:"Todos",           emoji:"📋",  cnt:contactos.length },
     { k:"nuevo",        l:"Nuevos",          emoji:"🆕",  cnt:totales.nuevo||0 },
     { k:"atrasado",     l:"Atrasados",       emoji:"⚠️", cnt:totAtrasados,    alerta:true },
-    { k:"contactadoLlam", l:"Llamada",       emoji:"📞",  cnt:totales.contactadoLlam||0 },
-    { k:"contactadoWsp",  l:"WhatsApp",      emoji:"💬",  cnt:totales.contactadoWsp||0 },
-    { k:"contactadoEmail",l:"Email",         emoji:"✉️", cnt:totales.contactadoEmail||0 },
+    { k:"contactados",    l:"Contactados",   emoji:"📡",  cnt:totContactados },
     { k:"cotEnviada",   l:"Cotiz. Enviada",  emoji:"📄",  cnt:totales.cotEnviada||0 },
     { k:"cerrado",      l:"Cerrados",        emoji:"🏆",  cnt:totales.cerrado||0 },
     { k:"noInteresa",   l:"No Interesa",     emoji:"❌",  cnt:totales.noInteresa||0 },
@@ -6646,7 +6659,7 @@ function ProspectosAGVView({ vidStr, info, R, RD }) {
               ,React.createElement("div",{style:{display:"flex",gap:10,flexWrap:"wrap",marginBottom:4}}
                 ,c.fechaPrimerContacto&&React.createElement("span",{style:{fontSize:10,color:"#6B7280"}},"📡 1er contacto: "+c.fechaPrimerContacto)
                 ,c.fechaUltMov&&React.createElement("span",{style:{fontSize:10,color:"#6B7280"}},"🕐 Últ. mov: "+c.fechaUltMov)
-                ,c.canalContacto&&React.createElement("span",{style:{fontSize:10,fontWeight:700,
+                ,c.estado==="contactado"&&c.canalContacto&&React.createElement("span",{style:{fontSize:10,fontWeight:700,
                     color:{llamada:"#2563EB",whatsapp:"#16A34A",email:"#7C3AED"}[c.canalContacto]||"#6B7280"}}
                   ,{llamada:"📞 Llamada",whatsapp:"💬 WhatsApp",email:"✉️ Email"}[c.canalContacto]||c.canalContacto)
                 ,c.fechaProxContacto&&React.createElement("span",{
@@ -6687,7 +6700,7 @@ function ProspectosAGVView({ vidStr, info, R, RD }) {
                 )
 
                 // Canal (solo si el estado nuevo es un contactado)
-                ,(editEstado==="contactadoLlam"||editEstado==="contactadoWsp"||editEstado==="contactadoEmail")&&
+                ,editEstado==="contactado"&&
                   React.createElement("div",null
                     ,React.createElement("div",{style:{fontSize:11,fontWeight:700,color:"#374151",marginBottom:4}},"Canal de contacto:")
                     ,React.createElement("div",{style:{display:"flex",gap:6}}
