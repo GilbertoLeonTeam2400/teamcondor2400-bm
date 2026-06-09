@@ -9196,11 +9196,39 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                 if(!e.fechaNac) return false;
                 var parts = e.fechaNac.split('-');
                 if(parts.length<2) return false;
+                // Formato fechaNac: "DD-MM" — mes está en parts[1]
                 return parseInt(parts[1])===mesActual;
+              }).map(function(e){
+                // Detectar día y mes del cumpleaños
+                // Formato en Firebase: "DD-MM" (ej: "09-06") — día en parts[0], mes en parts[1]
+                var parts = (e.fechaNac||"").split('-');
+                var diaCumple = parts.length>=1 && parts[0] ? parseInt(parts[0]) : null;
+                var mesCumple = parts.length>=2 && parts[1] ? parseInt(parts[1]) : null;
+                var MESES_CORTOS = ["","Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+                var MESES_LARGOS = ["","Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+                var fechaLabel = diaCumple && mesCumple ? diaCumple+" de "+MESES_LARGOS[mesCumple] : null;
+                // Detectar sexo: si tiene campo sexo usarlo, si no, detectar por nombre
+                // Los nombres femeninos típicos terminan en A o tienen terminaciones femeninas
+                var sexo = e.sexo || null;
+                if (!sexo) {
+                  var primerNombre = ((e.nombre||"").trim().split(" ")[0]||"").toUpperCase();
+                  // Heurística simple: nombres que terminan en A, pero excepciones comunes
+                  var excepcionesM = ["NICOLAS","TOMAS","LUCAS","MATIAS","ELIAS","TOBIAS","JEREMIAS","ISAIAS","JOSE","JORGE","JORGE","ANDRE","CARLOS","MARCOS","PABLO","ALBERTO","ROBERTO","MARIO","SERGIO","IGNACIO"];
+                  if (excepcionesM.indexOf(primerNombre) >= 0) {
+                    sexo = "M";
+                  } else if (primerNombre.charAt(primerNombre.length-1) === "A" || primerNombre.charAt(primerNombre.length-1) === "E") {
+                    // Nombres que terminan en A o E suelen ser femeninos, pero hay excepciones
+                    var excepcionesMascA = ["JOSHUA","EZRA","ELISHA","BARBA","GARCIA"];
+                    sexo = excepcionesMascA.indexOf(primerNombre) >= 0 ? "M" : "F";
+                  } else {
+                    sexo = "M"; // default masculino si no hay señal clara
+                  }
+                }
+                return Object.assign({}, e, {_diaCumple:diaCumple, _fechaLabel:fechaLabel, _sexo:sexo});
               });
               // Agregar cumpleaños del supervisor (24 de Noviembre)
               if(mesActual===11) {
-                cumpleMes = [{nombre:"Supervisor", fotoUrl:null, esSupervisor:true}].concat(cumpleMes);
+                cumpleMes = [{nombre:"Supervisor", fotoUrl:null, esSupervisor:true, _diaCumple:24, _fechaLabel:"24 de Nov", _sexo:"M"}].concat(cumpleMes);
               }
 
               return React.createElement('div', { style: {width:"100%",boxSizing:"border-box",overflow:"hidden"} },
@@ -9210,7 +9238,20 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                     ? React.createElement('div', { style: {textAlign:"center"} },
                         React.createElement('div', { style: {fontSize:32,marginBottom:8} }, "🎂🎉🎊"),
                         React.createElement('div', { style: {fontSize:13,fontWeight:700,color:"rgba(201,168,76,.9)",marginBottom:8,letterSpacing:"0.02em",lineHeight:1.5} },
-                          "Este mes celebramos la vida de "+(cumpleMes.length===1?"un CRACK":"estos CRACKS")+" del TEAM!"
+                          (function(){
+                            var n = cumpleMes.length;
+                            if (n === 1) {
+                              var c = cumpleMes[0];
+                              return "Este mes celebramos la vida de "+(c._sexo==="F"?"una CRACK":"un CRACK")+" del TEAM!";
+                            } else {
+                              // Plural: ver si todos son del mismo sexo
+                              var todosF = cumpleMes.every(function(c){return c._sexo==="F";});
+                              var todosM = cumpleMes.every(function(c){return c._sexo==="M";});
+                              if (todosF) return "Este mes celebramos la vida de estas CRACKS del TEAM!";
+                              if (todosM) return "Este mes celebramos la vida de estos CRACKS del TEAM!";
+                              return "Este mes celebramos la vida de estos CRACKS del TEAM!";
+                            }
+                          })()
                         ),
                         React.createElement('div', { style: {fontSize:cumpleMes.length===1?"22px":"18px",fontWeight:900,color:"#FCD34D",marginBottom:16,letterSpacing:"0.04em",textTransform:"uppercase",textShadow:"0 2px 12px rgba(201,168,76,.6), 0 0 30px rgba(201,168,76,.3)"} },
                           "🌟 ¡Feliz Cumpleaños!! 🌟"
@@ -9225,10 +9266,20 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                                   : React.createElement('span', { style: {fontSize:24,fontWeight:900,color:"#C9A84C"} }, initials)
                               ),
                               React.createElement('div', { style: {fontSize:11,fontWeight:900,color:"#FCD34D",maxWidth:80} }, c.nombre)
+                              ,c._fechaLabel && React.createElement('div', { style: {fontSize:10,color:"rgba(201,168,76,.8)",marginTop:2,fontWeight:700} }, "🗓 "+c._fechaLabel)
                             );
                           })
                         ),
-                        React.createElement('div', { style: {fontSize:13,color:"rgba(201,168,76,.75)"} }, "¡El "+cfg("nombreEquipo")+" los celebra este mes! 🥳")
+                        React.createElement('div', { style: {fontSize:13,color:"rgba(201,168,76,.75)"} },
+                          (function(){
+                            var n = cumpleMes.length;
+                            var todosF = cumpleMes.every(function(c){return c._sexo==="F";});
+                            if (n === 1) {
+                              return "¡"+cfg("nombreEquipo")+" "+(todosF?"la":"lo")+" celebra con todo! 🥳";
+                            }
+                            return "¡"+cfg("nombreEquipo")+" los celebra este mes! 🥳";
+                          })()
+                        )
                       )
                     : React.createElement('div', { style: {textAlign:"center",padding:"10px 0"} },
                         React.createElement('div', { style: {fontSize:28,marginBottom:6} }, "🎂"),
