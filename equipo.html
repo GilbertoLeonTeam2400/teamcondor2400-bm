@@ -56,6 +56,7 @@
   <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script>
     try{var cfg={apiKey:"AIzaSyDQf7ItrnYsMK9ThyMr6DRB39XvnQCwiYc",authDomain:"gestion-ventas-equipo-bm-2400.firebaseapp.com",projectId:"gestion-ventas-equipo-bm-2400",storageBucket:"gestion-ventas-equipo-bm-2400.firebasestorage.app",messagingSenderId:"396886347303",appId:"1:396886347303:web:8dc1660cc079c74c2b4802"};
     var app=firebase.initializeApp(cfg),db=firebase.firestore();
@@ -74,6 +75,7 @@
   <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script>
     try{var cfg={apiKey:"AIzaSyDQf7ItrnYsMK9ThyMr6DRB39XvnQCwiYc",authDomain:"gestion-ventas-equipo-bm-2400.firebaseapp.com",projectId:"gestion-ventas-equipo-bm-2400",storageBucket:"gestion-ventas-equipo-bm-2400.firebasestorage.app",messagingSenderId:"396886347303",appId:"1:396886347303:web:8dc1660cc079c74c2b4802"};
     var app=firebase.initializeApp(cfg),db=firebase.firestore();
@@ -85,7 +87,43 @@
     window.__fbGetDocs=function(ref){return ref.get();};
     window.__fbQuery=function(col){var q=col;for(var i=1;i<arguments.length;i++){var c=arguments[i];if(c&&c.__type==="where"){q=q.where(c.field,c.op,c.val);}}return q;};
     window.__fbWhere=function(field,op,val){return {__type:"where",field:field,op:op,val:val};};
-    console.log("Firebase conectado");}catch(e){console.warn("Firebase no disponible:",e);}
+    console.log("Firebase conectado");
+    // ── Firebase Auth ────────────────────────────────────────────────────────
+    var auth = firebase.auth();
+    window.__fbAuth = auth;
+
+    // Autenticación anónima silenciosa — protege Firestore de acceso externo
+    // Los AGVs operan con este token. El supervisor se autentica con email/pass.
+    auth.signInAnonymously().catch(function(e){
+      console.warn("[Auth] Anon sign-in failed:", e.message);
+    });
+
+    // Estado de auth accesible globalmente
+    auth.onAuthStateChanged(function(user){
+      window.__fbAuthUser = user;
+      if(user){ console.log("[Auth] uid:", user.uid, user.isAnonymous?"(anónimo)":"(supervisor)"); }
+    });
+
+    // Login supervisor: email + contraseña → Firebase Auth real
+    window.__supLogin = function(email, password){
+      return auth.signInWithEmailAndPassword(email, password);
+    };
+
+    // Logout supervisor: vuelve a anónimo para que los AGVs sigan operando
+    window.__supLogout = function(){
+      auth.signOut().then(function(){
+        auth.signInAnonymously().catch(function(){});
+        if(window.__onSupLogout) window.__onSupLogout();
+      });
+    };
+
+    // ¿Está autenticado como supervisor (no anónimo)?
+    window.__isSupAuth = function(){
+      var u = auth.currentUser;
+      return u && !u.isAnonymous;
+    };
+
+    }catch(e){console.warn("Firebase no disponible:",e);}
   </script>
   <script>const { useState, useMemo, useEffect } = React;
 const _jsxFileName = "";
@@ -7913,9 +7951,11 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
   const [selId,    setSelId]    = useState(null);
   const [metaMod,  setMetaMod]  = useState(null);
   // Supervisor
-  const [pin,      setPin]      = useState("");
-  const [acceso,   setAcceso]   = useState(false);
-  const [pinErr,   setPinErr]   = useState(false);
+  const [pin,        setPin]        = useState("");
+  const [emailSup,   setEmailSup]   = useState("");
+  const [authLoading,setAuthLoading] = useState(false);
+  const [acceso,     setAcceso]     = useState(false);
+  const [pinErr,     setPinErr]     = useState(false);
   const [supVista, setSupVista] = useState("dashboard");
   const [supGrupo, setSupGrupo] = useState("rendimiento");
   // Map group -> sub-tabs
@@ -8223,9 +8263,28 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
   }, [equipo, loaded]);
 
   //  Handlers 
+  // ── Login supervisor con Firebase Auth email/password ─────────────────────
   function entrar() {
-    if (pin===__supPinActual){setAcceso(true);setPinErr(false);const init={};equipo.forEach(function(v){init[v.id]={uf:v.uf>0?String(v.uf):"",dps:v.dps>0?String(v.dps):""};});setBulk(init);}
-    else{setPinErr(true);setPin("");}
+    if(!pin || !emailSup){ setPinErr(true); return; }
+    if(window.__supLogin){
+      window.__supLogin(emailSup, pin)
+        .then(function(){
+          setAcceso(true); setPinErr(false); setAuthLoading(false);
+          var init={}; equipo.forEach(function(v){init[v.id]={uf:v.uf>0?String(v.uf):"",dps:v.dps>0?String(v.dps):""};});
+          setBulk(init);
+          // Registrar callback de logout para resetear estado React
+          window.__onSupLogout = function(){ setAcceso(false); setPin(""); setEmailSup(""); };
+        })
+        .catch(function(e){
+          setPinErr(true); setPin(""); setAuthLoading(false);
+          console.warn("[Auth] Login fallido:", e.code);
+        });
+      setAuthLoading(true);
+    } else {
+      // Fallback sin Firebase (modo offline/demo)
+      if(pin===__supPinActual){setAcceso(true);setPinErr(false);const init={};equipo.forEach(function(v){init[v.id]={uf:v.uf>0?String(v.uf):"",dps:v.dps>0?String(v.dps):""};});setBulk(init);}
+      else{setPinErr(true);setPin("");}
+    }
   }
   function abrirCarga(){setSupVista("carga");const init={};equipo.forEach(function(v){init[v.id]={uf:v.uf>0?String(v.uf):"",dps:v.dps>0?String(v.dps):""};});setBulk(init);}
   function guardarBulk(){
@@ -9852,12 +9911,46 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
         , tab==="supervisor" && (
           React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3658}}
             , !acceso?(
-              React.createElement('div', { style: {maxWidth:360,margin:"40px auto",background:"#fff",borderRadius:20,padding:40,boxShadow:"0 4px 28px rgba(233,7,41,.14)",textAlign:"center",border:"1px solid rgba(233,7,41,.15)"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3660}}
-                , React.createElement('div', { style: {fontSize:22,fontWeight:900,color:RD,marginBottom:6}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3661}}, "Acceso Supervisor" )
-                , React.createElement('div', { style: {color:"#9CA3AF",fontSize:14,marginBottom:24}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3662}}, "Ingresa el PIN para acceder al dashboard individual"       )
-                , React.createElement('input', { type: "password", value: pin, onChange: function(e){setPin(e.target.value);}, onKeyDown: function(e){if(e.key==="Enter")entrar();}, style: Object.assign({},INP,{textAlign:"center",fontSize:28,letterSpacing:"0.4em",marginBottom:14,padding:"14px"}), placeholder: "******", __self: this, __source: {fileName: _jsxFileName, lineNumber: 3663}} )
-                , pinErr&&React.createElement('div', { style: {color:R,fontSize:14,marginBottom:12,fontWeight:600}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3664}}, "PIN incorrecto." )
-                , React.createElement('button', { onClick: entrar, style: Object.assign({},BTN,{width:"100%",fontSize:16}), __self: this, __source: {fileName: _jsxFileName, lineNumber: 3665}}, "Ingresar")
+              React.createElement('div', { style: {maxWidth:380,margin:"40px auto",background:"#fff",borderRadius:20,padding:40,boxShadow:"0 4px 28px rgba(233,7,41,.14)",textAlign:"center",border:"1px solid rgba(233,7,41,.15)"}}
+                , React.createElement('div', { style: {fontSize:22,fontWeight:900,color:RD,marginBottom:6}}, "Acceso Supervisor" )
+                , React.createElement('div', { style: {color:"#9CA3AF",fontSize:13,marginBottom:24}}, "Ingresa tus credenciales de acceso" )
+                // Email
+                , React.createElement('div', { style: {textAlign:"left",marginBottom:6}}
+                  , React.createElement('label', { style: {fontSize:11,fontWeight:700,color:"#6B7280",letterSpacing:"0.05em"}}, "CORREO ELECTRÓNICO")
+                )
+                , React.createElement('input', {
+                    type: "email",
+                    value: emailSup,
+                    onChange: function(e){setEmailSup(e.target.value); setPinErr(false);},
+                    onKeyDown: function(e){if(e.key==="Enter")entrar();},
+                    style: Object.assign({},INP,{marginBottom:12,padding:"12px 14px",fontSize:14}),
+                    placeholder: "supervisor@ejemplo.com"
+                  }
+                )
+                // Contraseña
+                , React.createElement('div', { style: {textAlign:"left",marginBottom:6}}
+                  , React.createElement('label', { style: {fontSize:11,fontWeight:700,color:"#6B7280",letterSpacing:"0.05em"}}, "CONTRASEÑA")
+                )
+                , React.createElement('input', {
+                    type: "password",
+                    value: pin,
+                    onChange: function(e){setPin(e.target.value); setPinErr(false);},
+                    onKeyDown: function(e){if(e.key==="Enter")entrar();},
+                    style: Object.assign({},INP,{marginBottom:14,padding:"12px 14px",fontSize:15,letterSpacing:"0.15em"}),
+                    placeholder: "••••••••"
+                  }
+                )
+                , pinErr && React.createElement('div', { style: {color:R,fontSize:13,marginBottom:12,fontWeight:600,background:"#FFF1F2",borderRadius:8,padding:"8px 12px"}},
+                    "❌ Credenciales incorrectas. Verifica tu email y contraseña."
+                  )
+                , React.createElement('button', {
+                    onClick: entrar,
+                    disabled: authLoading,
+                    style: Object.assign({},BTN,{width:"100%",fontSize:15,opacity:authLoading?0.7:1})
+                  }, authLoading ? "Verificando..." : "Ingresar" )
+                , React.createElement('div', { style: {marginTop:16,fontSize:11,color:"#9CA3AF"}},
+                    "🔒 Acceso protegido con Firebase Authentication"
+                  )
               )
             ):(
               React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 3668}}
@@ -9880,8 +9973,12 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                             background:supVista===item[0]?"#374151":"#F3F4F6",color:supVista===item[0]?"#fff":"#6B7280"} }, item[1]);
                       })
                   )
-                  , React.createElement('div', { className:"btn-row", style: {display:"flex",gap:8,alignItems:"center"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3675}}
-                    , React.createElement('button', { onClick: exportarCSV, style: {background:"#DCFCE7",color:"#15803D",border:"1px solid #86EFAC",borderRadius:10,padding:"8px 16px",fontSize:13,cursor:"pointer",fontFamily:"inherit",fontWeight:700,display:"flex",alignItems:"center",gap:6}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3676}}, "↓ Exportar CSV")
+                  , React.createElement('div', { className:"btn-row", style: {display:"flex",gap:8,alignItems:"center"}}
+                    , React.createElement('button', { onClick: exportarCSV, style: {background:"#DCFCE7",color:"#15803D",border:"1px solid #86EFAC",borderRadius:10,padding:"8px 16px",fontSize:13,cursor:"pointer",fontFamily:"inherit",fontWeight:700,display:"flex",alignItems:"center",gap:6}}, "↓ Exportar CSV")
+                    , React.createElement('button', {
+                        onClick: function(){ if(window.__supLogout) window.__supLogout(); else { setAcceso(false); setPin(""); } },
+                        style: {background:"#F3F4F6",color:"#6B7280",border:"1px solid #E5E7EB",borderRadius:10,padding:"8px 14px",fontSize:12,cursor:"pointer",fontFamily:"inherit",fontWeight:700}
+                      }, "🔒 Cerrar sesión" )
                     , React.createElement('button', { onClick: function() {
                         // Recopilar TODOS los backups disponibles
                         var mesKey = info.mesKey;
