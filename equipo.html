@@ -61,6 +61,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
   <script>
     try{var cfg={apiKey:"AIzaSyDQf7ItrnYsMK9ThyMr6DRB39XvnQCwiYc",authDomain:"gestion-ventas-equipo-bm-2400.firebaseapp.com",projectId:"gestion-ventas-equipo-bm-2400",storageBucket:"gestion-ventas-equipo-bm-2400.firebasestorage.app",messagingSenderId:"396886347303",appId:"1:396886347303:web:8dc1660cc079c74c2b4802"};
     var app=firebase.initializeApp(cfg),db=firebase.firestore();
@@ -73,9 +74,24 @@
     window.__fbQuery=function(col){var q=col;for(var i=1;i<arguments.length;i++){var c=arguments[i];if(c&&c.__type==="where"){q=q.where(c.field,c.op,c.val);}}return q;};
     window.__fbWhere=function(field,op,val){return {__type:"where",field:field,op:op,val:val};};
     console.log("Firebase conectado");
-    // ── Firebase Auth ────────────────────────────────────────────────────────
+    // ── Firebase Auth + Storage ─────────────────────────────────────────────
     var auth = firebase.auth();
     window.__fbAuth = auth;
+    // Firebase Storage — para guardar fotos de AGVs (evita límite 1MB de Firestore)
+    try {
+      var storage = firebase.storage();
+      window.__fbStorage = storage;
+      // Helper: subir foto a Storage y devolver URL de descarga
+      window.__subirFotoStorage = function(path, dataUrl, onOk, onFail) {
+        try {
+          var ref = storage.ref(path);
+          ref.putString(dataUrl, "data_url", {contentType:"image/jpeg"})
+            .then(function(snap){ return snap.ref.getDownloadURL(); })
+            .then(function(url){ onOk(url); })
+            .catch(function(e){ console.warn("[Storage] Error subiendo foto:", e.message); if(onFail) onFail(e); });
+        } catch(e) { console.warn("[Storage] No disponible:", e.message); if(onFail) onFail(e); }
+      };
+    } catch(e) { console.warn("[Storage] No disponible:", e.message); }
 
     // Autenticación anónima silenciosa — protege Firestore de acceso externo
     // Los AGVs operan con este token. El supervisor se autentica con email/pass.
@@ -2665,7 +2681,24 @@ function SupervisorFotoCard() {
                 var dataUrl = canvas.toDataURL("image/jpeg",0.82);
                 window.__supFotoGlobal = dataUrl;
                 setSupFotoState(dataUrl);
-                if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc) {
+                // Guardar en Storage primero, luego URL en Firestore
+                if(window.__subirFotoStorage) {
+                  window.__subirFotoStorage(
+                    "fotos/supervisor.jpg",
+                    dataUrl,
+                    function(url) {
+                      window.__supFotoGlobal = url;
+                      setSupFotoState(url);
+                      if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
+                        window.__fbSetDoc(window.__fbDoc(window.__fbDb,"supervisor","perfil"),{fotoUrl:url}).catch(function(){});
+                    },
+                    function() {
+                      // Fallback: base64 en Firestore
+                      if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
+                        window.__fbSetDoc(window.__fbDoc(window.__fbDb,"supervisor","perfil"),{fotoUrl:dataUrl}).catch(function(){});
+                    }
+                  );
+                } else if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc) {
                   window.__fbSetDoc(window.__fbDoc(window.__fbDb,"supervisor","perfil"),{fotoUrl:dataUrl}).catch(function(){});
                 }
               };
@@ -10312,13 +10345,30 @@ function App() {
                                               var canvas = document.createElement("canvas"); canvas.width=w; canvas.height=h;
                                               canvas.getContext("2d").drawImage(img,0,0,w,h);
                                               var dataUrl = canvas.toDataURL("image/jpeg",0.65); // calidad 65% ~ 8-15KB
+                                              // Actualizar UI inmediatamente con base64 (mientras sube a Storage)
                                               var newEquipo = equipo.map(function(eq){ return eq.id===v.id ? Object.assign({},eq,{fotoUrl:dataUrl}) : eq; });
                                               setEquipo(newEquipo);
-                                              // Guardar foto en doc separado "fotos/{id}" para no saturar el doc principal
-                                              if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc) {
-                                                window.__fbSetDoc(window.__fbDoc(window.__fbDb,"fotos",String(v.id)),{fotoUrl:dataUrl,nombre:v.nombre,ts:Date.now()})
-                                                  .then(function(){ console.log("[Foto] Guardada en colección fotos"); })
-                                                  .catch(function(err){ console.warn("[Foto] Error guardando foto:", err); });
+                                              // Guardar en Firebase Storage (evita límite 1MB de Firestore)
+                                              if(window.__subirFotoStorage) {
+                                                window.__subirFotoStorage(
+                                                  "fotos/agv_"+String(v.id)+".jpg",
+                                                  dataUrl,
+                                                  function(url) {
+                                                    // Guardar solo la URL en Firestore (mucho más liviano)
+                                                    var eqConUrl = equipo.map(function(eq){ return eq.id===v.id ? Object.assign({},eq,{fotoUrl:url}) : eq; });
+                                                    setEquipo(eqConUrl);
+                                                    if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
+                                                      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"fotos",String(v.id)),{fotoUrl:url,nombre:v.nombre,ts:Date.now()}).catch(function(){});
+                                                  },
+                                                  function() {
+                                                    // Fallback: guardar base64 en Firestore si Storage falla
+                                                    if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
+                                                      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"fotos",String(v.id)),{fotoUrl:dataUrl,nombre:v.nombre,ts:Date.now()}).catch(function(){});
+                                                  }
+                                                );
+                                              } else if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc) {
+                                                // Sin Storage: fallback a Firestore base64
+                                                window.__fbSetDoc(window.__fbDoc(window.__fbDb,"fotos",String(v.id)),{fotoUrl:dataUrl,nombre:v.nombre,ts:Date.now()}).catch(function(){});
                                               }
                                             };
                                             img.src = ev.target.result;
