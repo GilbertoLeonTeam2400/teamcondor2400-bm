@@ -3873,8 +3873,9 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
       setDatosMes(function(prev){ return Object.assign({},prev,{equipo:nuevoEquipoHist}); });
       setEditCell(null);
       if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
+        // FIX: merge:true para no destruir rep[] si es mes actual
         window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey),
-          Object.assign({},datosMes,{equipo:nuevoEquipoHist}),{merge:false})
+          Object.assign({},datosMes,{equipo:nuevoEquipoHist}),{merge:true})
           .then(function(){setGuardando(false);}).catch(function(){setGuardando(false);});
       else setGuardando(false);
     }
@@ -7223,6 +7224,12 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
   React.useEffect(function(){
     if(!window.__fbDb||!window.__fbDoc||!window.__fbGetDoc) return;
     if(premiosImgs.length===0){
+      // FIX: intentar cargar también con clave antigua por compatibilidad
+      try{
+        var oldKey="PREMIOS_"+new Date().getFullYear()+"-"+String(new Date().getMonth()+1).padStart(2,"0");
+        var oldCache=JSON.parse(localStorage.getItem(oldKey)||"[]");
+        if(oldCache.length>0){ setPremiosImgs(oldCache); localStorage.setItem("PREMIOS_config",JSON.stringify(oldCache)); }
+      }catch(e){}
       // Cargar índice primero, luego cada imagen individual
       window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_config"))
         .then(function(snap){
@@ -7779,6 +7786,12 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
           try {
             var cached = JSON.parse(localStorage.getItem("PREMIOS_config")||"[]");
             if (cached.length > 0) { setPremiosImgs(cached); return; }
+            // FIX: intentar clave antigua si la nueva está vacía
+            try{
+              var oldKey="PREMIOS_"+new Date().getFullYear()+"-"+String(new Date().getMonth()+1).padStart(2,"0");
+              var oldCached=JSON.parse(localStorage.getItem(oldKey)||"[]");
+              if(oldCached.length>0){ setPremiosImgs(oldCached); localStorage.setItem("PREMIOS_config",JSON.stringify(oldCached)); return; }
+            }catch(e){}
           } catch(e) {}
           // Si no hay cache, cargar desde Firebase
           if (!window.__fbGetDoc || !window.__fbDoc || !window.__fbDb) return;
@@ -8064,7 +8077,8 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
   // ── Info y Docs Importantes ──
   const [infoDocsVista, setInfoDocsVista] = useState("premios");
   const [premiosImgs,   setPremiosImgs]   = useState(function(){
-    try{ return JSON.parse(localStorage.getItem("PREMIOS_"+new Date().getFullYear()+"-"+String(new Date().getMonth()+1).padStart(2,"0"))||"[]"); }catch(e){return[];}
+    // FIX: usar clave fija "PREMIOS_config" — no incluir mes para que persista entre meses
+    try{ return JSON.parse(localStorage.getItem("PREMIOS_config")||"[]"); }catch(e){return[];}
   });
   const [docsGestion,   setDocsGestion]   = useState(function(){
     try{ return JSON.parse(localStorage.getItem("DOCS_GESTION")||"[]"); }catch(e){return[];}
