@@ -3831,7 +3831,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
   // Construir filas de datos
   var datos = equipoBase.map(function(v){
     var h=(v.historial||{})[mesKey]||{};
-    var uf = esMesActual ? (parseFloat(v.uf)||0) : (parseFloat(h.ufDig||h.uf)||0);
+    var uf = esMesActual ? (parseFloat(h.ufDig||h.uf)||parseFloat(v.uf)||0) : (parseFloat(h.ufDig||h.uf)||0);
     var dpsCV=parseInt(h.dpsVenta)||0, dpsSV=parseInt(h.dpsSinVenta)||0;
     var dpsP=parseInt(h.dpsPendiente)||0, dpsR=parseInt(h.dpsRechazado)||0;
     var dpsT=dpsCV+dpsSV+dpsP+dpsR||(esMesActual?(parseInt(v.dps)||0):0);
@@ -7856,7 +7856,12 @@ function App() {
 
       const unsub = window.__fbOnSnapshot(ref, function(snap) {
         fbRespondio = true;
-        if (skipSnapshot.current) { skipSnapshot.current = false; setLoaded(true); setSincronizado(true); return; }
+        if (skipSnapshot.current) {
+          skipSnapshot.current = false;
+          // Leer metaEquipo incluso en skip — evita que useEffect se active con el valor inicial 550
+          if (snap.exists()) { var _skMeta = snap.data().metaEquipo; if (_skMeta && typeof _skMeta === 'number' && !isNaN(_skMeta) && _skMeta > 0) setMetaEquipo(_skMeta); }
+          setLoaded(true); setSincronizado(true); return;
+        }
         if (snap.exists()) {
           const snapData = snap.data();
           const d = snapData.equipo;
@@ -7912,15 +7917,8 @@ function App() {
           const m = snapData.metaEquipo;
           if (m && typeof m === "number" && !isNaN(m) && m > 0) {
             setMetaEquipo(m);
-          } else if (m !== undefined && (isNaN(m) || m <= 0)) {
-            // Valor corrupto en Firebase — corregir automáticamente a 550
-            console.warn("[FIX] metaEquipo corrupto en Firebase (" + m + "), restaurando a 550");
-            setMetaEquipo(550);
-            if (window.__fbDb && window.__fbDoc && window.__fbSetDoc) {
-              window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",key), Object.assign({}, snapData, {metaEquipo: 550}))
-                .then(function(){ console.log("[FIX] metaEquipo corregido en Firebase"); })
-                .catch(function(e){ console.warn("[FIX] No se pudo corregir en Firebase:", e); });
-            }
+          } else if (!m && m !== 0) {
+            // No hay metaEquipo en Firebase — no sobreescribir con 550, mantener lo que hay en estado
           }
           // Cargar PIN supervisor desde este mismo documento (tiene permisos)
           if (snapData.supPin && /^\d{6}$/.test(snapData.supPin)) {
