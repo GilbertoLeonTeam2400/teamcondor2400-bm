@@ -95,9 +95,14 @@
 
     // Autenticación anónima silenciosa — protege Firestore de acceso externo
     // Los AGVs operan con este token. El supervisor se autentica con email/pass.
-    auth.signInAnonymously().catch(function(e){
-      console.warn("[Auth] Anon sign-in failed:", e.message);
-    });
+    // CRÍTICO: señalizar cuando auth esté lista para que onSnapshot no arranque antes
+    window.__authLista = false;
+    auth.signInAnonymously()
+      .then(function(){ window.__authLista = true; })
+      .catch(function(e){
+        console.warn("[Auth] Anon sign-in failed:", e.message);
+        window.__authLista = true; // Aun si falla, permitir que la app cargue
+      });
 
     // Estado de auth accesible globalmente
     auth.onAuthStateChanged(function(user){
@@ -2028,6 +2033,17 @@ window.__saveInProgress = false;
 // Guardado atómico con merge:true — evita sobreescribir datos de otros
 // Acepta {equipo, metaEquipo} o cualquier objeto parcial
 window.__saveSeguro = function(mesKey, data, opts) {
+  // PROTECCIÓN: si el equipo tiene todos uf=0 y rep=[] (estado inicial vacío), NO guardar
+  // Esto previene que el estado de carga inicial sobreescriba datos reales en Firebase
+  if (data && data.equipo && Array.isArray(data.equipo)) {
+    var tieneData = data.equipo.some(function(v){
+      return (parseFloat(v.uf)||0) > 0 || (v.rep && v.rep.length > 0);
+    });
+    if (!tieneData && data.equipo.length > 0) {
+      console.warn("[saveSeguro] BLOQUEADO — equipo sin datos, no se sobreescribe Firebase");
+      return;
+    }
+  }
   opts = opts || {};
   var maxRetries = opts.retries || 3;
   var intento = opts._intento || 1;
@@ -7876,12 +7892,10 @@ function App() {
               var hDpsTot=(parseInt(hNow.dpsVenta)||0)+(parseInt(hNow.dpsSinVenta)||0)+(parseInt(hNow.dpsPendiente)||0)+(parseInt(hNow.dpsRechazado)||0);
               var dpsDesdeReps=reps.reduce(function(s,r){return s+(parseInt(r.dps)||0);},0);
               var dpsFinal=hDpsTot>0?hDpsTot:(reps.length>0?dpsDesdeReps:(parseInt(x.dps)||0));
-              // FIX #2: v.uf del mes actual SIEMPRE viene de rep[].
-              // Si rep[] está vacío, uf = 0 — nunca confiar en v.uf huérfano de Firebase
-              // (puede ser residuo de un Excel upload que escribió uf sin crear rep[]).
-              var ufFinal = reps.length > 0 ? ufDesdeReps : 0;
+              // uf: si hay rep[] usar suma de reps; si no, usar x.uf de Firebase como fallback
+              // (Fix #2 revertido — forzar 0 era demasiado agresivo y borraba datos válidos)
               return Object.assign({rep:[]}, x, {
-                uf:  ufFinal,
+                uf:  reps.length > 0 ? ufDesdeReps : (parseFloat(x.uf)||0),
                 dps: dpsFinal,
                 metaUF: parseFloat(x.metaUF) || 0,
                 metaDPS: (parseInt(x.metaDPS)||0)===30 ? 0 : (x.metaDPS !== undefined ? parseInt(x.metaDPS)||0 : 0)
