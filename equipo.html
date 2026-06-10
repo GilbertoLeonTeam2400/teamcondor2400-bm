@@ -4831,7 +4831,11 @@ function PlanAGVView({ equipo, info, R, RD }) {
     var metaV=v.metaUF||0;
     // Pipeline activo (DPS sin venta + pendientes)
     var pipeline=dpsSinVenta+dpsPendiente;
-    var nivel=prom>=25?"alto":prom>=12?"medio":"bajo";
+    // FIX: mismos umbrales diferenciados que Clasificación AGV
+    // Veterano+En Desarrollo (13m+): Alto≥35 / Medio 18-34.99 / Bajo<18
+    // Novato (0-12m): Alto≥25 / Medio 18-24.99 / Bajo<18
+    var _esVetDes=(ma!==null&&ma>=13);
+    var nivel=_esVetDes?(prom>=35?"alto":prom>=18?"medio":"bajo"):(prom>=25?"alto":prom>=18?"medio":"bajo");
     var diags=[], acciones=[];
 
     if(nivel==="bajo"){
@@ -4911,7 +4915,8 @@ function PlanAGVView({ equipo, info, R, RD }) {
   }
 
   var ESTADO_OPTS=[{k:"pendiente",l:"⏳ Pendiente",c:"#9CA3AF",bg:"#F3F4F6"},{k:"en_proceso",l:"🔄 En proceso",c:"#D97706",bg:"#FEF9C3"},{k:"comprometido",l:"✅ Comprometido",c:"#16A34A",bg:"#DCFCE7"},{k:"seguimiento",l:"🚨 Requiere seguimiento",c:"#DC2626",bg:"#FEE2E2"}];
-  var GC={alto:{color:"#16A34A",bg:"#F0FDF4",border:"#86EFAC",label:"🟢 Alto Rendimiento"},medio:{color:"#D97706",bg:"#FFFBEB",border:"#FCD34D",label:"🟡 En Desarrollo"},bajo:{color:"#DC2626",bg:"#FFF1F2",border:"#FCA5A5",label:"🔴 Atención — Oportunidad de Mejora"}};
+  // FIX: labels deben coincidir con Clasificación AGV — "En Desarrollo" es antigüedad, no rendimiento
+  var GC={alto:{color:"#16A34A",bg:"#F0FDF4",border:"#86EFAC",label:"🟢 Alto Rendimiento"},medio:{color:"#D97706",bg:"#FFFBEB",border:"#FCD34D",label:"🟡 Medio Rendimiento"},bajo:{color:"#DC2626",bg:"#FFF1F2",border:"#FCA5A5",label:"🔴 Bajo Rendimiento"}};
 
   var ejecutivos=equipo.map(function(v){var prom=promUF3(v),ma=mesesAnt2(v),diag=diagnostico(v,prom,ma);return Object.assign({},v,{prom:prom,ma:ma,diag:diag});}).sort(function(a,b){var o={bajo:0,medio:1,alto:2};return o[a.diag.nivel]-o[b.diag.nivel]||a.nombre.localeCompare(b.nombre);});
   var filtrados=grupFiltro==="todos"?ejecutivos:ejecutivos.filter(function(v){return v.diag.nivel===grupFiltro;});
