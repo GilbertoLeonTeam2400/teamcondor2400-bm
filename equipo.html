@@ -3202,9 +3202,9 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
           if (rawArr[headerRow]) {
             rawArr[headerRow].forEach(function(h,ci){
               var hs = String(h||"").trim();
-              // Buscar "N° Benef " o "N° Benef" en bloque VENTAS DIGITADAS (cols 28+)
-              if (ci >= 28 && _colNBenef < 0 && (hs==="N° Benef " || hs==="N° Benef")) _colNBenef = ci;
-              if (ci >= 28 && _colCttos < 0 && (hs==="Cttos Dig" || hs==="Cttos  Dig")) _colCttos = ci;
+              // Buscar "N° Benef " o "N° Benef" en bloque VENTAS DIGITADAS (col 24+)
+              if (ci >= 20 && _colNBenef < 0 && (hs==="N° Benef " || hs==="N° Benef")) _colNBenef = ci;
+              if (ci >= 20 && _colCttos < 0 && (hs==="Cttos Dig" || hs==="Cttos  Dig")) _colCttos = ci;
             });
           }
           var nBenef = (function(){
@@ -3385,19 +3385,10 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
       var dpsPen = p.dpsPendiente !== null ? p.dpsPendiente : 0;
       var dpsRec = p.dpsRechazado !== null ? p.dpsRechazado : 0;
       var dpsTotal = p.dpsTotal || (dpsCV+dpsSV+dpsPen+dpsRec);
-      // UF para historial: mes histórico → viene del Excel (es el total oficial).
-      // Mes actual → viene de los rep[] del ejecutivo (fuente de verdad de cierres diarios).
-      // NUNCA usar uf del Excel para el mes actual — puede traer 0 o valor parcial.
-      var ufParaHistorial;
-      if (!esMesActual) {
-        ufParaHistorial = p.uf; // mes histórico: el Excel ES la fuente oficial
-      } else {
-        // mes actual: calcular desde rep[] del ejecutivo (lo que registraron)
-        var _repsActuales = v.rep || [];
-        ufParaHistorial = _repsActuales.length > 0
-          ? truncUF3(_repsActuales.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0))
-          : (mesExistente.uf||0); // si no hay reps, conservar lo que había en historial
-      }
+      // UF para historial: siempre usar p.uf del Excel
+      // El historial es el snapshot de métricas del reporte — refleja lo que dice el Excel
+      // El v.uf del DASHBOARD (lo que mueve la barra) sigue viniendo de rep[]
+      var ufParaHistorial = p.uf;
       // Para meses históricos: sobreescribir completamente con datos del Excel
       // Para mes actual: conservar conecta de cierres diarios, mezclar resto
       hist[mesKey] = {
@@ -3845,7 +3836,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
     var dpsP=parseInt(h.dpsPendiente)||0, dpsR=parseInt(h.dpsRechazado)||0;
     var dpsT=dpsCV+dpsSV+dpsP+dpsR||(esMesActual?(parseInt(v.dps)||0):0);
     var pctF=parseInt(h.pctF)||0, pctM=parseInt(h.pctM)||0;
-    if(esMesActual){var reps=v.rep||[];var totH=reps.reduce(function(s,r){return s+(parseInt(r.hombres)||0);},0);var totMu=reps.reduce(function(s,r){return s+(parseInt(r.mujeres)||0);},0);var totSex=totH+totMu;pctF=totSex>0?Math.round((totMu/totSex)*100):0;pctM=totSex>0?Math.round((totH/totSex)*100):0;}
+    if(esMesActual&&pctF===0&&pctM===0){var reps=v.rep||[];var totH=reps.reduce(function(s,r){return s+(parseInt(r.hombres)||0);},0);var totMu=reps.reduce(function(s,r){return s+(parseInt(r.mujeres)||0);},0);var totSex=totH+totMu;pctF=totSex>0?Math.round((totMu/totSex)*100):0;pctM=totSex>0?Math.round((totH/totSex)*100):0;}
     else{if(pctF===0&&pctM>0)pctF=100-pctM;if(pctM===0&&pctF>0)pctM=100-pctF;}
     return {id:v.id,nombre:v.nombre,uf:uf,dpsConVenta:dpsCV,dpsSinVenta:dpsSV,dpsPendiente:dpsP,dpsRechazado:dpsR,dpsTotal:dpsT,nBenef:parseInt(h.nBenef)||0,cttosDig:parseInt(h.cttosDig)||0,conecta:parseInt(h.conecta)||0,pctF:pctF,pctM:pctM};
   });
@@ -8375,8 +8366,16 @@ function App() {
   const falta   = Math.max(0, metaUFSafe - totUF);
   const faltaDisplay = parseFloat(falta.toFixed(2)); // solo para mostrar, no para cálculos internos
   const xCrack  = equipoValido.length > 0 ? fmtUF2(faltaDisplay/equipoValido.length) : "0";
-  const totHombres = equipoValido.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.hombres)||0);},0);},0);
-  const totMujeres = equipoValido.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.mujeres)||0);},0);},0);
+  const totHombres = equipoValido.reduce(function(s,v){
+    var h=(v.historial||{})[info.mesKey];
+    if(h&&(parseInt(h.pctM)||0)>0&&(parseInt(h.cttosDig)||0)>0) return s+Math.round((parseInt(h.pctM)/100)*(parseInt(h.cttosDig)));
+    return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.hombres)||0);},0);
+  },0);
+  const totMujeres = equipoValido.reduce(function(s,v){
+    var h=(v.historial||{})[info.mesKey];
+    if(h&&(parseInt(h.pctF)||0)>0&&(parseInt(h.cttosDig)||0)>0) return s+Math.round((parseInt(h.pctF)/100)*(parseInt(h.cttosDig)));
+    return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.mujeres)||0);},0);
+  },0);
   const totConecta = equipoValido.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(r.conecta?1:0);},0);},0);
   const totTitulares = totHombres + totMujeres;
   const pctH = totTitulares > 0 ? Math.round((totHombres/totTitulares)*100) : 0;
@@ -12858,12 +12857,14 @@ function MetasIndividualesView({ equipo, setEquipo, setMetaEquipo, info }) {
     });
     setEquipo(nuevoEquipo);
     // Persistir metaUF de TODOS los ejecutivos en Firebase (sobreescribe valores viejos)
+    // CRÍTICO: incluir metaEquipo en el mismo save para evitar race condition con onSnapshot
     if (window.__fbDb && window.__fbDoc && window.__fbSetDoc && window.__saveSeguro) {
       var mesKey = new Date().getFullYear()+"-"+String(new Date().getMonth()+1).padStart(2,"0");
       var equipoParaGuardar = nuevoEquipo.map(function(v){
         return Object.assign({}, v, { metaUF: parseFloat(v.metaUF)||0 });
       });
-      window.__saveSeguro(mesKey, { equipo: equipoParaGuardar }, { fuente: "metas_individuales" });
+      var tmSave = parseFloat(totMes)||0;
+      window.__saveSeguro(mesKey, { equipo: equipoParaGuardar, metaEquipo: tmSave>0?tmSave:550 }, { fuente: "metas_individuales" });
     }
     // Actualizar meta global del equipo = suma de todas las metas mes
     if (typeof setMetaEquipo === "function") { var tm = parseFloat(totMes)||0; if(tm>0) setMetaEquipo(tm); }
