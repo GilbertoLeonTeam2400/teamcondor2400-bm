@@ -1940,7 +1940,7 @@ window.recuperarDatos = function() {
     window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",mesKey), {equipo: reconstruido, metaEquipo: metaSave})
       .then(function(){ 
         console.log("✅ DATOS RECUPERADOS. Recarga la página.");
-        window.alert("✅ Datos recuperados. Recarga la página para ver el equipo completo.");
+        window.__modal.alert("✅ Restauración exitosa", "Datos recuperados correctamente.", "success");
       })
       .catch(function(e){ console.error("Error:", e); });
   }).catch(function(e){ console.error("Error leyendo Firebase:", e); });
@@ -3249,34 +3249,30 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
       var totUFActual = equipo.reduce(function(s,v){return s+(parseFloat(v.uf)||0);},0);
       // Si el Excel trae muchas más UF que las actuales, es sospechoso
       if (totUFExcel > totUFActual * 1.5 && totUFActual > 0 && totUFExcel > 10) {
-        var ok = confirm(
-          "⚠️ ADVERTENCIA IMPORTANTE ⚠️\n\n" +
-          "El mes seleccionado es " + info.mes + " (MES ACTUAL).\n\n" +
-          "Las UF del Excel: " + totUFExcel.toFixed(2) + " UF\n" +
-          "Las UF actuales del equipo: " + totUFActual.toFixed(2) + " UF\n\n" +
-          "El Excel tiene " + (totUFExcel/totUFActual).toFixed(1) + "x más UF que el acumulado actual.\n" +
-          "¿Estás seguro de que este Excel corresponde a " + info.mes + " y NO a un mes anterior?\n\n" +
-          "✅ OK = Sí, es el Excel correcto del mes actual\n" +
-          "❌ Cancelar = No, me equivoqué de archivo"
-        );
-        if (!ok) {
-          setMsg("⚠️ Carga cancelada. Selecciona el mes correcto antes de cargar.");
+        if (!window.__cargaConfirmada) {
+          window.__cargaConfirmada = false;
+          window.__modal.confirm(
+            "⚠️ Verificar Excel del mes actual",
+            "Las UF del Excel (" + totUFExcel.toFixed(2) + " UF) superan en " + (totUFExcel/totUFActual).toFixed(1) + "x las UF actuales del equipo (" + totUFActual.toFixed(2) + " UF).\n\n¿Confirmas que este Excel corresponde a " + info.mes + " y NO a un mes anterior?",
+            function(){ window.__cargaConfirmada = true; confirmarCarga(); }, true
+          );
           return;
         }
+        window.__cargaConfirmada = false;
       }
     } else {
       // Es un mes histórico — advertir que NO modifica el mes actual
       var _nmHist = mesesOpciones.find(function(m){return m.mk===mesKey;});
-      var ok2 = confirm(
-        "📅 Cargando datos históricos para: " + (_nmHist?_nmHist.nom:mesKey) + "\n\n" +
-        "Este Excel actualizará SOLO el historial de " + (_nmHist?_nmHist.nom:mesKey) + ".\n" +
-        "El mes actual (" + info.mes + ") NO será modificado.\n\n" +
-        "¿Confirmas que este Excel corresponde a " + (_nmHist?_nmHist.nom:mesKey) + "?"
-      );
-      if (!ok2) {
-        setMsg("⚠️ Carga cancelada.");
-        return;
-      }
+      if (!window.__cargaHistConfirmada) {
+          window.__cargaHistConfirmada = false;
+          window.__modal.confirm(
+            "📅 Carga histórica — " + (_nmHist?_nmHist.nom:mesKey),
+            "Este Excel actualizará SOLO el historial de " + (_nmHist?_nmHist.nom:mesKey) + ". El mes actual (" + info.mes + ") NO será modificado.\n\n¿Confirmas que este Excel corresponde a este mes?",
+            function(){ window.__cargaHistConfirmada = true; confirmarCarga(); }
+          );
+          return;
+        }
+        window.__cargaHistConfirmada = false;
     }
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -3316,16 +3312,16 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
     var sinMatch = resultados.filter(function(r){return r.estado==="sinMatch";});
     if (sinMatch.length > 0) {
       var nombres = sinMatch.map(function(r){return "• "+r.excel.nombre+" ("+r.excel.uf+" UF, "+r.excel.dpsConVenta+" DPS venta)";}).join("\n");
-      var okSinMatch = confirm(
-        "⚠️ "+sinMatch.length+" ejecutivo(s) del Excel no encontrados en el equipo actual:\n\n"+nombres+
-        "\n\nPuede ser un nombre diferente (ej: ROMA vs ROMINA) o un ejecutivo ya retirado."+
-        "\n\n✅ OK = Guardar sus datos en el historial del mes igualmente"+
-        "\n❌ Cancelar = Volver para revisar"
-      );
-      if (!okSinMatch) {
-        setMsg("⚠️ Carga cancelada. Revisa los nombres en el Excel e intenta nuevamente.");
-        return;
-      }
+      if (!window.__sinMatchConfirmado) {
+          window.__sinMatchConfirmado = false;
+          window.__modal.confirm(
+            "⚠️ " + sinMatch.length + " ejecutivo(s) sin coincidencia",
+            sinMatch.length + " nombre(s) del Excel no se encontraron en el equipo.\n\n¿Guardar sus datos en el historial igualmente?",
+            function(){ window.__sinMatchConfirmado = true; confirmarCarga(); }
+          );
+          return;
+        }
+        window.__sinMatchConfirmado = false;
     }
 
     // PASO 3: Actualizar historial de ejecutivos que sí matchearon
@@ -4287,10 +4283,11 @@ function PlanEjecutivoView({ v, info, R, RD }) {
     savePlanField({freqSemana:nf});
   }
   function removeAccionCustom(accTxt) {
-    if(!window.confirm("¿Eliminar la acción '"+accTxt+"'? Se perderá su seguimiento semanal.")) return;
-    var nuevasCustom=(plan.accionesCustom||[]).filter(function(a){return (a.txt||a)!==accTxt;});
-    var nuevasSems=JSON.parse(JSON.stringify(semanasAcciones)); delete nuevasSems[accTxt];
-    savePlanField({accionesCustom:nuevasCustom,semanasAcciones:nuevasSems});
+    window.__modal.confirm("Eliminar acción", "¿Eliminar la acción '"+accTxt+"'? Se perderá su seguimiento semanal.", function(){
+      var nuevasCustom=(plan.accionesCustom||[]).filter(function(a){return (a.txt||a)!==accTxt;});
+      var nuevasSems=JSON.parse(JSON.stringify(semanasAcciones)); delete nuevasSems[accTxt];
+      savePlanField({accionesCustom:nuevasCustom,semanasAcciones:nuevasSems});
+    });
   }
 
   // Progreso total
@@ -4356,15 +4353,17 @@ function PlanEjecutivoView({ v, info, R, RD }) {
   }
   function toggleActividad(idx) { var nc=calendario.map(function(c,i){return i===idx?Object.assign({},c,{done:!c.done}):c;}); savePlanField({calendario:nc}); }
   function removeActividad(idx) {
-    if(!window.confirm("¿Eliminar esta actividad del calendario?")) return;
-    var nc=calendario.filter(function(_,i){return i!==idx;}); savePlanField({calendario:nc});
+    window.__modal.confirm("Eliminar actividad", "¿Eliminar esta actividad del calendario?", function(){
+      var nc=calendario.filter(function(_,i){return i!==idx;}); savePlanField({calendario:nc});
+    });
   }
   function removeAccionBase(accTxt) {
-    if(!window.confirm("¿Eliminar la acción '"+accTxt+"'?")) return;
-    var nuevasBase=(plan.accionesBase||accionesBase).filter(function(a){return a!==accTxt;});
-    var nuevasSems=JSON.parse(JSON.stringify(semanasAcciones)); delete nuevasSems[accTxt];
-    var nuevasChecked=accionesChecked.filter(function(a){return a!==accTxt;});
-    savePlanField({accionesBase:nuevasBase,semanasAcciones:nuevasSems,acciones:nuevasChecked});
+    window.__modal.confirm("Eliminar acción", "¿Eliminar la acción '"+accTxt+"'?", function(){
+      var nuevasBase=(plan.accionesBase||accionesBase).filter(function(a){return a!==accTxt;});
+      var nuevasSems=JSON.parse(JSON.stringify(semanasAcciones)); delete nuevasSems[accTxt];
+      var nuevasChecked=accionesChecked.filter(function(a){return a!==accTxt;});
+      savePlanField({accionesBase:nuevasBase,semanasAcciones:nuevasSems,acciones:nuevasChecked});
+    });
   }
   function setEstadoActividad(idx, estado) {
     var nc=calendario.map(function(c,i){return i===idx?Object.assign({},c,{estado:estado,done:estado==="completada"}):c;});
@@ -5105,7 +5104,7 @@ function CierresEditables({ vAct, reps, totalUFMes, equipo, setEquipo, RD, fmtUF
   function saveCierre(repItem) {
     if(!editData) return;
     var ufVal = parseFloat(Math.floor(parseFloat(editData.uf||0)*1000)/1000);
-    if(!ufVal || ufVal<=0) { window.alert("UF debe ser mayor a 0"); return; }
+    if(!ufVal || ufVal<=0) { window.__modal.alert("Campo inválido", "El valor de UF debe ser mayor a 0.", "warn"); return; }
     var nuevosReps = (vAct.rep||[]).map(function(r){
       if(r!==repItem) return r;
       return Object.assign({},r,{
@@ -5129,14 +5128,15 @@ function CierresEditables({ vAct, reps, totalUFMes, equipo, setEquipo, RD, fmtUF
   }
 
   function eliminar(repItem) {
-    if(!window.confirm('¿Eliminar este cierre?')) return;
-    var nuevosReps = (vAct.rep||[]).filter(function(r){return r!==repItem;});
-    var nuevaUF = nuevosReps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0);
-    var nuevoEquipo = equipo.map(function(e){
-      if(e.id!==vAct.id) return e;
-      return Object.assign({},e,{rep:nuevosReps,uf:truncUF3(nuevaUF)});
+    window.__modal.confirm("Eliminar cierre", "¿Eliminar este cierre? Esta acción no se puede deshacer.", function(){
+      var nuevosReps = (vAct.rep||[]).filter(function(r){return r!==repItem;});
+      var nuevaUF = nuevosReps.reduce(function(s,r){return s+(parseFloat(r.uf)||0);},0);
+      var nuevoEquipo = equipo.map(function(e){
+        if(e.id!==vAct.id) return e;
+        return Object.assign({},e,{rep:nuevosReps,uf:truncUF3(nuevaUF)});
+      });
+      setEquipo(nuevoEquipo);
     });
-    setEquipo(nuevoEquipo);
   }
 
   return React.createElement('div',{style:{marginBottom:20}}
@@ -6134,9 +6134,9 @@ function BasesAGVView({ equipo, info, R, RD }) {
 
   function handleExcelBase(e){
     var file=e.target.files[0]; if(!file) return;
-    var titulo=window.prompt("Nombre para esta base (ej: H0C Julio 2026, Leads Feria Salud):");
-    if(!titulo||!titulo.trim()) return;
-    setCargando(true); setMsg("Preparando...");
+    window.__modal.prompt("Nueva Base de Datos", "Ej: H0C Julio 2026, Leads Feria Salud", function(titulo){
+      if(!titulo||!titulo.trim()) return;
+      setCargando(true); setMsg("Preparando...");
     e.target.value="";
     function leerArchivo(){
       // Verificar límite antes de leer
@@ -6231,6 +6231,7 @@ function BasesAGVView({ equipo, info, R, RD }) {
       s.onerror=function(){ setMsg("Error cargando librería Excel."); setCargando(false); };
       document.head.appendChild(s);
     }
+    }); // cierre callback __modal.prompt "Nueva Base de Datos"
   }
 
 
@@ -6923,7 +6924,7 @@ function GestPremiosView({ premiosImgs, setPremiosImgs, info, R, RD, tablaPremio
       ));
       Promise.all(saves)
         .then(function(){ setGuardando(false); setGuardado(true); setTimeout(function(){setGuardado(false);},3000); })
-        .catch(function(e){ setGuardando(false); window.alert("Error al guardar: "+(e&&e.message?e.message:e)); });
+        .catch(function(e){ setGuardando(false); window.__modal.alert("Error al guardar", "No se pudo guardar: "+(e&&e.message?e.message:e), "error"); });
     } else {
       setGuardando(false); setGuardado(true); setTimeout(function(){setGuardado(false);},3000);
     }
@@ -6956,12 +6957,13 @@ function GestPremiosView({ premiosImgs, setPremiosImgs, info, R, RD, tablaPremio
   }
 
   function eliminar(id) {
-    if(!window.confirm("¿Eliminar esta imagen?")) return;
-    var nuevas = premiosImgs.filter(function(x){return x.id!==id;});
-    setPremiosImgs(nuevas);
-    try{ localStorage.setItem("PREMIOS_config", JSON.stringify(nuevas)); }catch(e){}
-    if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_config"),{imgs:nuevas,mes:mesKey,ts:Date.now()}).catch(function(){});
+    window.__modal.confirm("Eliminar imagen", "¿Eliminar esta imagen de premios?", function(){
+      var nuevas = premiosImgs.filter(function(x){return x.id!==id;});
+      setPremiosImgs(nuevas);
+      try{ localStorage.setItem("PREMIOS_config", JSON.stringify(nuevas)); }catch(e){}
+      if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
+        window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","premios_config"),{imgs:nuevas,mes:mesKey,ts:Date.now()}).catch(function(){});
+    });
   }
 
   var todasLasImgs = premiosImgs.concat(pendientes);
@@ -7083,7 +7085,7 @@ function GestPremiosView({ premiosImgs, setPremiosImgs, info, R, RD, tablaPremio
           ),
           React.createElement(CondicionHombreEditor,{key:"condHombreEditor"}),                    filasTabs,
           React.createElement("button",{
-            onClick:function(){if(window.confirm("¿Restaurar valores originales?"))saveTablaPremios(TABLA_DEFAULT);},
+            onClick:function(){window.__modal.confirm("Restaurar tabla", "¿Restaurar la tabla de premios a los valores originales?", function(){ saveTablaPremios(TABLA_DEFAULT); });},
             style:{background:"#F3F4F6",color:"#6B7280",border:"none",borderRadius:10,padding:"8px 16px",fontSize:12,cursor:"pointer",fontWeight:700,fontFamily:"inherit",marginTop:8}
           },"↩️ Restaurar valores originales")
         );
@@ -7101,13 +7103,15 @@ function GestDocsView({ docsGestion, setDocsGestion, R, RD }) {
 
   function subirArchivo(e) {
     var file = e.target.files[0]; if(!file) return;
-    var titulo = window.prompt("Título del documento:", file.name.replace(/\.[^.]+$/,""));
-    if(!titulo||!titulo.trim()) return;
-    var reader = new FileReader();
-    reader.onload = function(ev){
-      setPendiente({titulo:titulo.trim(),nombre:file.name,ext:file.name.split('.').pop().toLowerCase(),data:ev.target.result,size:(file.size/1024).toFixed(1),ts:Date.now()});
-    };
-    reader.readAsDataURL(file);
+    var _defaultTitle = file.name.replace(/\.[^.]+$/,"");
+    window.__modal.prompt("Título del documento", "Ej: Carta Renta Menor", function(titulo){
+      if(!titulo||!titulo.trim()) return;
+      var reader = new FileReader();
+      reader.onload = function(ev){
+        setPendiente({titulo:titulo.trim(),nombre:file.name,ext:file.name.split('.').pop().toLowerCase(),data:ev.target.result,size:(file.size/1024).toFixed(1),ts:Date.now()});
+      };
+      reader.readAsDataURL(file);
+    }, _defaultTitle);
   }
 
   function guardarDoc() {
@@ -7120,7 +7124,7 @@ function GestDocsView({ docsGestion, setDocsGestion, R, RD }) {
     if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
       window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","docs_gestion"),{docs:nuevos,ts:Date.now()})
         .then(function(){ setGuardando(false); setGuardado(true); setTimeout(function(){setGuardado(false);},3000); })
-        .catch(function(){ setGuardando(false); window.alert("Error al guardar."); });
+        .catch(function(){ setGuardando(false); window.__modal.alert("Error al guardar", "No se pudo guardar el documento. Intenta nuevamente.", "error"); });
     } else { setGuardando(false); setGuardado(true); setTimeout(function(){setGuardado(false);},3000); }
   }
 
@@ -7136,12 +7140,13 @@ function GestDocsView({ docsGestion, setDocsGestion, R, RD }) {
   }
 
   function eliminarDoc(id) {
-    if(!window.confirm("¿Eliminar este documento?")) return;
-    var nuevos = docsGestion.filter(function(d){return d.id!==id;});
-    setDocsGestion(nuevos);
-    try{ localStorage.setItem("DOCS_GESTION", JSON.stringify(nuevos)); }catch(e){}
-    if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","docs_gestion"),{docs:nuevos,ts:Date.now()}).catch(function(){});
+    window.__modal.confirm("Eliminar documento", "¿Eliminar este documento? No se puede recuperar.", function(){
+      var nuevos = docsGestion.filter(function(d){return d.id!==id;});
+      setDocsGestion(nuevos);
+      try{ localStorage.setItem("DOCS_GESTION", JSON.stringify(nuevos)); }catch(e){}
+      if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc)
+        window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","docs_gestion"),{docs:nuevos,ts:Date.now()}).catch(function(){});
+    });
   }
 
   function guardarTitulo(id) {
@@ -7634,7 +7639,146 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
   );
 }
 
- function App() {
+ 
+// ── Sistema de Modales CóndorSales ─────────────────────────────────────────
+// Reemplaza window.confirm / window.prompt / window.alert con ventanas propias
+// Uso: window.__modal.confirm(titulo, msg, onOk, peligroso)
+//      window.__modal.prompt(titulo, placeholder, onOk, valorDefault)
+//      window.__modal.alert(titulo, msg, tipo)  tipo: "info"|"success"|"error"|"warn"
+(function(){
+  var _container = null;
+  var _root = null;
+  var _setModal = null;
+
+  function ModalSystem() {
+    var st = React.useState(null);
+    var modal = st[0]; var setModal = st[1];
+    var inputRef = React.useRef("");
+    _setModal = setModal;
+
+    if (!modal) return null;
+
+    var RD = "#B91C1C";
+    var isDanger = modal.danger || modal.type === "danger";
+    var isPrompt = modal.type === "prompt";
+    var isAlert  = modal.type === "alert";
+    var alertColors = {
+      info:    {bg:"#EFF6FF", border:"#93C5FD", icon:"ℹ️", btn:"#2563EB"},
+      success: {bg:"#F0FDF4", border:"#86EFAC", icon:"✅", btn:"#15803D"},
+      error:   {bg:"#FFF1F2", border:"#FECDD3", icon:"❌", btn:RD},
+      warn:    {bg:"#FFFBEB", border:"#FDE68A", icon:"⚠️", btn:"#D97706"},
+    };
+    var ac = alertColors[modal.alertType||"info"] || alertColors.info;
+
+    function cerrar() { setModal(null); if (modal.onCancel) modal.onCancel(); }
+    function confirmar() {
+      var val = isPrompt ? (inputRef.current || "") : true;
+      setModal(null);
+      if (modal.onOk) modal.onOk(val);
+    }
+
+    return React.createElement("div", {
+        style: {position:"fixed",top:0,left:0,right:0,bottom:0,
+          background:"rgba(0,0,0,.55)",zIndex:99999,
+          display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"},
+        onClick: function(e){ if(e.target===e.currentTarget) cerrar(); }
+      },
+      React.createElement("div", {
+          style: {background:isAlert?ac.bg:"#fff",borderRadius:18,
+            padding:"28px 28px 24px",maxWidth:420,width:"100%",
+            boxShadow:"0 20px 60px rgba(0,0,0,.25)",
+            border: isAlert ? ("1.5px solid "+ac.border) : isDanger ? "1.5px solid #FECDD3" : "1px solid #E5E7EB",
+            animation:"__modalIn .15s ease"}
+        },
+        // Título
+        React.createElement("div", {style:{display:"flex",alignItems:"center",gap:10,marginBottom:12}}
+          , isAlert && React.createElement("span",{style:{fontSize:22}},ac.icon)
+          , React.createElement("div",{style:{fontSize:17,fontWeight:900,
+              color: isAlert ? ac.btn : isDanger ? RD : "#1F2937",flex:1}},
+            modal.title||"CóndorSales")
+          , React.createElement("button",{
+              onClick:cerrar,
+              style:{background:"none",border:"none",fontSize:18,cursor:"pointer",
+                color:"#9CA3AF",padding:"0 4px",lineHeight:1,fontFamily:"inherit"}
+            }, "✕")
+        ),
+        // Mensaje
+        modal.msg && React.createElement("div",{
+            style:{fontSize:14,color:isAlert?ac.btn:"#374151",lineHeight:1.6,
+              marginBottom:isPrompt?14:20,
+              background: isDanger ? "#FFF1F2" : "transparent",
+              borderRadius: isDanger ? 8 : 0,
+              padding: isDanger ? "8px 12px" : 0}
+          }, modal.msg),
+        // Input (solo prompt)
+        isPrompt && React.createElement("input",{
+            autoFocus: true,
+            type: modal.inputType||"text",
+            defaultValue: modal.defaultVal||"",
+            placeholder: modal.placeholder||"",
+            onChange: function(e){ inputRef.current = e.target.value; },
+            onKeyDown: function(e){ if(e.key==="Enter") confirmar(); if(e.key==="Escape") cerrar(); },
+            style:{width:"100%",padding:"10px 14px",borderRadius:10,
+              border:"1.5px solid #D1D5DB",fontSize:14,fontFamily:"inherit",
+              boxSizing:"border-box",marginBottom:16,outline:"none"}
+          }),
+        // Botones
+        React.createElement("div",{style:{display:"flex",gap:8,justifyContent:"flex-end"}}
+          , !isAlert && React.createElement("button",{
+              onClick: cerrar,
+              style:{padding:"9px 18px",borderRadius:10,border:"1.5px solid #E5E7EB",
+                background:"#F9FAFB",color:"#374151",fontWeight:700,fontSize:13,
+                cursor:"pointer",fontFamily:"inherit"}
+            }, "Cancelar")
+          , React.createElement("button",{
+              onClick: confirmar,
+              style:{padding:"9px 18px",borderRadius:10,border:"none",
+                background: isAlert ? ac.btn : isDanger ? RD : "#1F2937",
+                color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}
+            }, isAlert ? "Entendido" : modal.okLabel || (isDanger ? "⚠️ Sí, eliminar" : "Confirmar"))
+        )
+      ),
+      React.createElement("style",null,
+        "@keyframes __modalIn { from { opacity:0; transform:scale(.94); } to { opacity:1; transform:scale(1); } }"
+      )
+    );
+  }
+
+  function _init() {
+    if (_container) return;
+    _container = document.createElement("div");
+    _container.id = "__condor_modal_root";
+    document.body.appendChild(_container);
+    _root = ReactDOM.createRoot(_container);
+    _root.render(React.createElement(ModalSystem));
+  }
+
+  window.__modal = {
+    confirm: function(titulo, msg, onOk, danger) {
+      _init();
+      _setModal({type:"confirm", title:titulo, msg:msg, danger:!!danger, onOk:onOk});
+    },
+    prompt: function(titulo, placeholder, onOk, defaultVal, inputType) {
+      _init();
+      // Limpiar ref antes de mostrar
+      setTimeout(function(){ if(document.querySelector("#__condor_modal_root input")) document.querySelector("#__condor_modal_root input").value = defaultVal||""; }, 50);
+      _setModal({type:"prompt", title:titulo, placeholder:placeholder, defaultVal:defaultVal||"", inputType:inputType||"text", onOk:onOk});
+    },
+    alert: function(titulo, msg, tipo) {
+      _init();
+      _setModal({type:"alert", title:titulo, msg:msg, alertType:tipo||"info"});
+    }
+  };
+
+  // Inicializar al cargar
+  if (document.readyState === "complete" || document.readyState === "interactive") {
+    setTimeout(_init, 100);
+  } else {
+    document.addEventListener("DOMContentLoaded", function(){ setTimeout(_init, 100); });
+  }
+})();
+
+function App() {
   const info = useMemo(hoyInfo, []);
 
   //  Team state (loaded from storage) 
@@ -8466,19 +8610,24 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
       .catch(function(e){ console.error("[GUARDAR_AHORA] ERROR:", e); });
   }
   function limpiarMes() {
-    if (!window.confirm("¿Estás seguro? Esto borrará TODOS los datos de " + info.mes + " para todos los ejecutivos. Esta acción no se puede deshacer.")) return;
-    // Reset equipo a cero manteniendo nombres, PINs y metas
-    const equipoLimpio = equipo.map(function(v) {
-      return Object.assign({}, v, { uf: 0, dps: 0, rep: [], historial: v.historial || {} });
-    });
-    setEquipo(equipoLimpio);
-    // Borrar en Firebase
-    if (window.__fbDb && window.__fbDoc && window.__fbSetDoc) {
-      skipSnapshot.current = true;
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb, "equipos", info.mesKey), {equipo: equipoLimpio, metaEquipo: metaEquipo})
-        .then(function(){ console.log("[RESET] Mes limpiado OK"); skipSnapshot.current = false; })
-        .catch(function(e){ console.error("[RESET] Error:", e); skipSnapshot.current = false; });
-    }
+    window.__modal.confirm(
+      "⚠️ Acción irreversible",
+      "Esto borrará TODOS los datos de " + info.mes + " para todos los ejecutivos. Esta acción NO se puede deshacer.",
+      function(){
+        // Reset equipo a cero manteniendo nombres, PINs y metas
+        const equipoLimpio = equipo.map(function(v) {
+          return Object.assign({}, v, { uf: 0, dps: 0, rep: [], historial: v.historial || {} });
+        });
+        setEquipo(equipoLimpio);
+        // Borrar en Firebase
+        if (window.__fbDb && window.__fbDoc && window.__fbSetDoc) {
+          skipSnapshot.current = true;
+          window.__fbSetDoc(window.__fbDoc(window.__fbDb, "equipos", info.mesKey), {equipo: equipoLimpio, metaEquipo: metaEquipo})
+            .then(function(){ skipSnapshot.current = false; })
+            .catch(function(e){ skipSnapshot.current = false; });
+        }
+      }, true
+    );
   }
   function loginFormulario(){
     const v = equipo.find(function(e){return e.id===Number(form.vid);});
@@ -9941,7 +10090,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                             esActivo&&React.createElement('div',{style:{display:"flex",gap:6,flexShrink:0}},
                               React.createElement('button',{onClick:function(){abrirEditContacto(c);},style:{background:"#F3F4F6",color:"#374151",border:"none",borderRadius:8,padding:"6px 12px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}},"✏️ Editar"),
                               c.tel&&React.createElement('a',{href:"https://wa.me/56"+c.tel.replace(/\D/g,"").replace(/^56/,""),target:"_blank",style:{background:"#22C55E",color:"#fff",borderRadius:8,padding:"6px 12px",fontSize:12,fontWeight:700,textDecoration:"none",display:"inline-flex",alignItems:"center"}},"💬 WA"),
-                              React.createElement('button',{onClick:function(){if(confirm("¿Eliminar a "+c.nombre+"?"))eliminarContacto(c.id);},style:{background:"#FEF2F2",color:"#DC2626",border:"none",borderRadius:8,padding:"6px 10px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}},"🗑️")
+                              React.createElement('button',{onClick:function(){ window.__modal.confirm("Eliminar contacto", "¿Eliminar a "+c.nombre+" de la base?", function(){ eliminarContacto(c.id); }, true); },style:{background:"#FEF2F2",color:"#DC2626",border:"none",borderRadius:8,padding:"6px 10px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}},"🗑️")
                             )
                           )
                         );
@@ -10042,7 +10191,7 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                         });
                         // 3. Backup principal
                         try { var bp = JSON.parse(localStorage.getItem("BACKUP_" + mesKey)||"null"); if(bp&&bp.ufTotal>0) backups.push({key:"BACKUP_"+mesKey,tipo:"Principal",b:bp}); } catch(e){}
-                        if (backups.length === 0) { alert("No hay backups disponibles en este dispositivo."); return; }
+                        if (backups.length === 0) { window.__modal.alert("Sin backups", "No hay backups disponibles en este dispositivo.", "warn"); return; }
                         // Mostrar opciones
                         var msg = "Backups disponibles:\n\n";
                         backups.forEach(function(item,i){
@@ -10050,60 +10199,62 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                           msg += (i+1)+". ["+item.tipo+"] "+fecha+" — UF: "+item.b.ufTotal.toFixed(2)+" ("+item.b.equipo.length+" ejecutivos)\n";
                         });
                         msg += "\nEscribe el número del backup a restaurar (o Cancelar):";
-                        var eleccion = window.prompt(msg, "1");
-                        if (!eleccion) return;
-                        var idx = parseInt(eleccion) - 1;
-                        if (isNaN(idx) || idx < 0 || idx >= backups.length) { alert("Número inválido."); return; }
-                        var elegido = backups[idx];
-                        var fecha2 = new Date(elegido.b.timestamp).toLocaleString("es-CL");
-                        if (!window.confirm("¿Restaurar backup ["+elegido.tipo+"] del "+fecha2+" con "+elegido.b.ufTotal.toFixed(2)+" UF?\n\nEsto reemplazará los datos actuales.")) return;
-                        setEquipo(elegido.b.equipo);
-                        if (elegido.b.metaEquipo && !isNaN(elegido.b.metaEquipo) && elegido.b.metaEquipo > 0) setMetaEquipo(elegido.b.metaEquipo);
-                        // Restaurar CRM si está incluido en el backup
-                        if (elegido.b.crm && Array.isArray(elegido.b.crm)) {
-                          elegido.b.crm.forEach(function(item){
-                            if (item.contactos && item.contactos.length > 0) {
-                              storageSet("crm_"+item.id, item.contactos);
-                              if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
-                                window.__fbSetDoc(window.__fbDoc(window.__fbDb,"crm",String(item.id)),
-                                  {contactos:item.contactos, actualizado:Date.now()}
-                                ).catch(function(){});
+                        window.__modal.prompt("Restaurar Backup", "Número del backup a restaurar", function(eleccion){
+                          if (!eleccion) return;
+                          var idx = parseInt(eleccion) - 1;
+                          if (isNaN(idx) || idx < 0 || idx >= backups.length) { window.__modal.alert("Número inválido", "Por favor ingresa un número válido de la lista.", "warn"); return; }
+                          var elegido = backups[idx];
+                          var fecha2 = new Date(elegido.b.timestamp).toLocaleString("es-CL");
+                          window.__modal.confirm(
+                            "⚠️ Confirmar restauración",
+                            "¿Restaurar backup ["+elegido.tipo+"] del "+fecha2+" con "+elegido.b.ufTotal.toFixed(2)+" UF? Esto reemplazará los datos actuales.",
+                            function(){
+                              setEquipo(elegido.b.equipo);
+                              if (elegido.b.metaEquipo && !isNaN(elegido.b.metaEquipo) && elegido.b.metaEquipo > 0) setMetaEquipo(elegido.b.metaEquipo);
+                              if (elegido.b.crm && Array.isArray(elegido.b.crm)) {
+                                elegido.b.crm.forEach(function(item){
+                                  if (item.contactos && item.contactos.length > 0) {
+                                    storageSet("crm_"+item.id, item.contactos);
+                                    if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
+                                      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"crm",String(item.id)),
+                                        {contactos:item.contactos, actualizado:Date.now()}
+                                      ).catch(function(){});
+                                    }
+                                  }
+                                });
                               }
+                              if (elegido.b.calendarios) {
+                                Object.keys(elegido.b.calendarios).forEach(function(k){
+                                  var evs = elegido.b.calendarios[k];
+                                  if (evs && evs.length > 0) {
+                                    try { localStorage.setItem(k, JSON.stringify(evs)); } catch(e){}
+                                  }
+                                });
+                              }
+                              window.__modal.alert("✅ Backup restaurado", "Equipo, CRM y calendarios recuperados correctamente.", "success");
                             }
-                          });
-                          var totalClientes = elegido.b.crm.reduce(function(s,c){return s+c.contactos.length;},0);
-                          if (totalClientes > 0) console.log("[RESTORE] CRM restaurado:", totalClientes, "clientes");
-                        }
-                        // Restaurar calendarios si están incluidos
-                        if (elegido.b.calendarios) {
-                          Object.keys(elegido.b.calendarios).forEach(function(k){
-                            var evs = elegido.b.calendarios[k];
-                            if (evs && evs.length > 0) {
-                              try { localStorage.setItem(k, JSON.stringify(evs)); } catch(e){}
-                            }
-                          });
-                          console.log("[RESTORE] Calendarios restaurados:", Object.keys(elegido.b.calendarios).length, "claves");
-                        }
-                        alert("✅ Backup restaurado correctamente.\nEquipo, CRM y calendarios recuperados.");
+                          );
+                        }, "1");
                       }, style: {background:"#FEF3C7",color:"#92400E",border:"1px solid #FCD34D",borderRadius:10,padding:"8px 16px",fontSize:13,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}, "🔄 Restaurar Backup")
                     , React.createElement('button', {
                         onClick: function(){
-                          var nuevoPinSup = window.prompt("Nuevo PIN de supervisor (6 dígitos):", "");
-                          if (!nuevoPinSup) return;
-                          nuevoPinSup = nuevoPinSup.trim();
-                          if (!/^\d{6}$/.test(nuevoPinSup)) { window.alert("El PIN debe ser exactamente 6 dígitos numéricos."); return; }
-                          __supPinActual = nuevoPinSup;
+                          window.__modal.prompt("Cambiar PIN Supervisor", "6 dígitos numéricos", function(nuevoPinSup){
+                            if (!nuevoPinSup) return;
+                            nuevoPinSup = nuevoPinSup.trim();
+                            if (!/^\d{6}$/.test(nuevoPinSup)) { window.__modal.alert("PIN inválido", "El PIN debe ser exactamente 6 dígitos numéricos.", "warn"); return; }
+                            __supPinActual = nuevoPinSup;
                           // Guardar en localStorage (siempre funciona, todos los dispositivos que ya lo tienen)
                           try { localStorage.setItem("SUP_PIN_LOCAL", nuevoPinSup); } catch(e){}
                           // Guardar en el documento principal del equipo (tiene permisos de escritura)
                           if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
                             // Guardar PIN en doc dedicado "config/supervisor" (sin leer antes)
                             window.__fbSetDoc(window.__fbDoc(window.__fbDb,"config","supervisor"), {supPin:nuevoPinSup}, {merge:true})
-                              .then(function(){ window.alert("✅ PIN actualizado y sincronizado en la nube."); })
-                              .catch(function(e){ window.alert("✅ PIN actualizado localmente.\n⚠️ No se pudo sincronizar: "+e.message); });
+                              .then(function(){ window.__modal.alert("✅ PIN actualizado", "PIN actualizado y sincronizado en la nube.", "success"); })
+                              .catch(function(e){ window.__modal.alert("PIN actualizado", "PIN guardado localmente. No se pudo sincronizar: "+e.message, "warn"); });
                           } else {
-                            window.alert("✅ PIN actualizado en esta sesión (guardado localmente).");
+                            window.__modal.alert("✅ PIN actualizado", "PIN actualizado en esta sesión.", "success");
                           }
+                          });  // cierre callback prompt PIN supervisor
                         },
                         style: {background:"#FEF3C7",color:"#92400E",border:"1px solid #FCD34D",borderRadius:10,padding:"8px 16px",fontSize:13,cursor:"pointer",fontFamily:"inherit",fontWeight:700}
                       }, "🔑 Cambiar mi PIN")
@@ -10188,17 +10339,18 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                                     React.createElement('button', {
                                       title: "Cambiar PIN",
                                       onClick: function(){
-                                        var nuevoPin = window.prompt("Nuevo PIN de 6 dígitos para " + v.nombre + ":", "");
-                                        if (!nuevoPin) return;
-                                        nuevoPin = nuevoPin.trim();
-                                        if (!/^\d{6}$/.test(nuevoPin)) { window.alert("El PIN debe ser exactamente 6 dígitos numéricos."); return; }
-                                        var newEquipo = equipo.map(function(eq){ return eq.id===v.id ? Object.assign({},eq,{pin:nuevoPin}) : eq; });
-                                        setEquipo(newEquipo);
-                                        if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
-                                          window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",info.mesKey),{equipo:newEquipo,metaEquipo:metaEquipo})
-                                            .then(function(){ window.alert("✅ PIN actualizado para " + v.nombre); })
-                                            .catch(function(e){ window.alert("Error al guardar PIN: " + e.message); });
-                                        }
+                                        window.__modal.prompt("Cambiar PIN de " + v.nombre, "6 dígitos numéricos", function(nuevoPin){
+                                          if (!nuevoPin) return;
+                                          nuevoPin = nuevoPin.trim();
+                                          if (!/^\d{6}$/.test(nuevoPin)) { window.__modal.alert("PIN inválido", "El PIN debe ser exactamente 6 dígitos numéricos.", "warn"); return; }
+                                          var newEquipo = equipo.map(function(eq){ return eq.id===v.id ? Object.assign({},eq,{pin:nuevoPin}) : eq; });
+                                          setEquipo(newEquipo);
+                                          if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
+                                            window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos",info.mesKey),{equipo:newEquipo,metaEquipo:metaEquipo})
+                                              .then(function(){ window.__modal.alert("✅ PIN actualizado", "PIN actualizado correctamente para " + v.nombre+".", "success"); })
+                                              .catch(function(e){ window.__modal.alert("Error", "No se pudo guardar el PIN: " + e.message, "error"); });
+                                          }
+                                        });
                                       },
                                       style: {background:"#EFF6FF",color:"#1D4ED8",border:"1px solid #BFDBFE",borderRadius:7,padding:"3px 8px",fontSize:11,cursor:"pointer",fontWeight:700,fontFamily:"inherit"}
                                     }, "🔑 Cambiar")
@@ -10294,8 +10446,8 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                                   );
                                 })()
                               )
-                              , React.createElement('td', { style: {padding:"10px 12px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3705}}, React.createElement('button', { onClick: function(){if(window.confirm("Eliminar a "+v.nombre+"?"))eliminarEjecutivo(v.id);}, style: {background:"#FEE2E2",color:"#B91C1C",border:"none",borderRadius:8,padding:"4px 8px",fontSize:11,cursor:"pointer",fontFamily:"inherit",fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3705}}, "🗑️")
-                              , React.createElement('button', { onClick: function(){const n=window.prompt("Nuevo nombre:",v.nombre);if(n)renombrarEjecutivo(v.id,n);}, style: {background:"#EFF6FF",color:"#1D4ED8",border:"none",borderRadius:8,padding:"4px 8px",fontSize:11,cursor:"pointer",fontFamily:"inherit",fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3706}}, "✏️")
+                              , React.createElement('td', { style: {padding:"10px 12px"}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3705}}, React.createElement('button', { onClick: function(){ window.__modal.confirm("Eliminar ejecutivo", "¿Eliminar a "+v.nombre+" del equipo? Esta acción no se puede deshacer.", function(){ eliminarEjecutivo(v.id); }, true); }, style: {background:"#FEE2E2",color:"#B91C1C",border:"none",borderRadius:8,padding:"4px 8px",fontSize:11,cursor:"pointer",fontFamily:"inherit",fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3705}}, "🗑️")
+                              , React.createElement('button', { onClick: function(){window.__modal.prompt("Renombrar ejecutivo", "Nuevo nombre completo", function(n){ if(n&&n.trim()) renombrarEjecutivo(v.id,n.trim()); }, v.nombre);}, style: {background:"#EFF6FF",color:"#1D4ED8",border:"none",borderRadius:8,padding:"4px 8px",fontSize:11,cursor:"pointer",fontFamily:"inherit",fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3706}}, "✏️")
                               , React.createElement('button', { onClick: function(){subirEjecutivo(v.id);}, style: {background:"#F0FDF4",color:"#15803D",border:"none",borderRadius:8,padding:"4px 8px",fontSize:11,cursor:"pointer",fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3707}}, "↑")
                               , React.createElement('button', { onClick: function(){bajarEjecutivo(v.id);}, style: {background:"#F0FDF4",color:"#15803D",border:"none",borderRadius:8,padding:"4px 8px",fontSize:11,cursor:"pointer",fontWeight:700}, __self: this, __source: {fileName: _jsxFileName, lineNumber: 3708}}, "↓")
                               , React.createElement('button', {
@@ -10305,10 +10457,15 @@ function MasTabView({ equipo, form, info, R, RD, BG, crmAcc, setCrmAcc, setCrmDa
                                     var confirmMsg = nuevoEstado
                                       ? "¿Reactivar a "+_nombreCorto(v.nombre)+"? Volverá a aparecer en el equipo."
                                       : "¿Marcar a "+_nombreCorto(v.nombre)+" como inactivo? Se ocultará del equipo pero su historial se conserva.";
-                                    if(!confirm(confirmMsg)) return;
-                                    var nuevoEq = equipo.map(function(eq){ return eq.id===v.id ? Object.assign({},eq,{activo:nuevoEstado}) : eq; });
-                                    setEquipo(nuevoEq);
-                                    if(window.__saveSeguro) window.__saveSeguro(info.mesKey,{equipo:nuevoEq,metaEquipo:metaEquipo});
+                                    window.__modal.confirm(
+                                      nuevoEstado ? "Reactivar ejecutivo" : "Marcar como inactivo",
+                                      confirmMsg,
+                                      function(){
+                                        var nuevoEq = equipo.map(function(eq){ return eq.id===v.id ? Object.assign({},eq,{activo:nuevoEstado}) : eq; });
+                                        setEquipo(nuevoEq);
+                                        if(window.__saveSeguro) window.__saveSeguro(info.mesKey,{equipo:nuevoEq,metaEquipo:metaEquipo});
+                                      }
+                                    );
                                   },
                                   style:{background:v.activo===false?"#FEF2F2":"#F3F4F6",color:v.activo===false?"#DC2626":"#6B7280",border:"none",borderRadius:8,padding:"4px 8px",fontSize:11,cursor:"pointer",fontWeight:700}
                                 }, v.activo===false?"🔴":"⚫"))
@@ -11644,7 +11801,7 @@ function NuevoCierreForm({ BTN, INP, RD, cierresHoy, setCierresHoy, crmData, TOD
     var ufExact = parseFloat(ufParts[0] + '.' + (ufParts[1]||'000').substring(0,3));
     const uf = ufExact;
     if (!uf || uf <= 0) return;
-    if (nc.origen === "isapre" && !nc.isapre) { window.alert("Por favor selecciona la Isapre de origen."); return; }
+    if (nc.origen === "isapre" && !nc.isapre) { window.__modal.alert("Campo requerido", "Por favor selecciona la Isapre de origen.", "warn"); return; }
     if (dupWarning && !dupConfirmed) return;
     // Guardar inmediatamente
     if(onGuardar) onGuardar({uf:uf, sexo:nc.sexo, conecta:nc.conecta, origen:nc.origen, isapre:nc.isapre||"", clienteNombre:nc.clienteNombre, canal:nc.canal||"", canalDetalle:nc.canalDetalle||""});
@@ -12987,7 +13144,9 @@ function BorrarMesesView({ equipo, setEquipo, info, MESES_ORDEN, MESES_LABEL }) 
   function borrarSeleccionados() {
     if (mesesElegidos.length === 0) return;
     var nombres = mesesElegidos.map(function(m) { return m.label; }).join(", ");
-    if (!window.confirm("¿Borrar los datos de: " + nombres + "?\nEsta acción no se puede deshacer.")) return;
+    window.__modal.confirm("Borrar datos de ejecutivos",
+      "¿Borrar los datos de: " + nombres + "? Esta acción no se puede deshacer.",
+      function(){
     setBorrando(true);
     var mesTocarMesActual = seleccionados[info.mesKey];
     var nuevoEquipo = equipo.map(function(v) {
@@ -13020,6 +13179,7 @@ function BorrarMesesView({ equipo, setEquipo, info, MESES_ORDEN, MESES_LABEL }) 
       console.error("Error borrando:", e);
       setBorrando(false);
     });
+    }, true);  // cierre __modal.confirm borrar datos
   }
 
   return React.createElement("div", { style: { maxWidth: 560 } },
