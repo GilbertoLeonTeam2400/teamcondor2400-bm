@@ -5531,7 +5531,7 @@ function TendenciasView({ equipo, info, R, RD }) {
   // Calcular total del equipo para un mes y KPI dados
   function getEquipoTotal(m, kpi) {
     var lista = getEquipoMes(m.mk);
-    var sinMatch = (m.mk!==info.mesKey && fbCache[m.mk] && Array.isArray(fbCache[m.mk]._sinMatch)) ? fbCache[m.mk]._sinMatch : [];
+    var sinMatch = m.mk===info.mesKey ? (window.__fbSinMatchActual||[]) : ((fbCache[m.mk] && Array.isArray(fbCache[m.mk]._sinMatch)) ? fbCache[m.mk]._sinMatch : []);
     if(kpi==="pctF"||kpi==="pctM"){
       // Mes actual: preferir historial del Excel, fallback a rep[]
       if(m.mk===info.mesKey){
@@ -8154,7 +8154,10 @@ function App() {
       if (ufTotal > 0) localStorage.setItem(lastUFKey, ufTotal.toString());
 
       skipSnapshot.current = true;
-      var safeMetaToSave = (isNaN(metaEquipo)||metaEquipo<=0) ? 550 : metaEquipo;
+      // Usar localStorage como fuente de verdad para meta (evita timing issues con React state)
+      var _lsMeta = 0;
+      try { _lsMeta = parseFloat(localStorage.getItem("META_EQUIPO_"+info.mesKey))||0; } catch(e) {}
+      var safeMetaToSave = _lsMeta > 0 ? _lsMeta : ((isNaN(metaEquipo)||metaEquipo<=0) ? 550 : metaEquipo);
       var dataToSave = {equipo: equipo, metaEquipo: safeMetaToSave};
       console.log("[SAVE] Guardando en Firebase:", key, "UF total:", ufTotal.toFixed(2), "Meta:", safeMetaToSave, "Ejecutivos:", equipo.length);
       // Usar saveSeguro: merge + reintentos + cola offline
@@ -12893,8 +12896,12 @@ function MetasIndividualesView({ equipo, setEquipo, setMetaEquipo, info }) {
       var tmSave = parseFloat(totMes)||0;
       window.__saveSeguro(mesKey, { equipo: equipoParaGuardar, metaEquipo: tmSave>0?tmSave:550 }, { fuente: "metas_individuales" });
     }
-    // Actualizar meta global del equipo = suma de todas las metas mes
-    if (typeof setMetaEquipoLS === "function") { var tm = parseFloat(totMes)||0; if(tm>0) setMetaEquipoLS(tm); } else if (typeof setMetaEquipo === "function") { var tm2 = parseFloat(totMes)||0; if(tm2>0) setMetaEquipo(tm2); }
+    // Actualizar meta global: guardar en localStorage directamente (setMetaEquipoLS no está en scope)
+    var _tm = parseFloat(totMes)||0;
+    if(_tm > 0) {
+      try { localStorage.setItem("META_EQUIPO_"+(info&&info.mesKey?info.mesKey:(new Date().getFullYear()+"-"+String(new Date().getMonth()+1).padStart(2,"0"))), String(_tm)); } catch(e) {}
+    }
+    if (typeof setMetaEquipo === "function") { if(_tm>0) setMetaEquipo(_tm); }
     setSaved(true);
     setTimeout(function() { setSaved(false); }, 3000);
   }
@@ -13052,7 +13059,9 @@ function AgentesEnCeroView({ equipo, info }) {
 
   // Helpers para obtener UF de un mes anterior (desde historial del ejecutivo)
   function getUfMes(v, mesKey) {
-    if (mesKey === info.mesKey) return v.uf;
+    if (mesKey === info.mesKey) {
+      var _hA=(v.historial||{})[mesKey]||{}; return parseFloat(_hA.ufDig||_hA.uf)||v.uf||0;
+    }
     var hist = v.historial || {};
     var excelBase = (HISTORIAL_EXCEL[v.id] || HISTORIAL_EXCEL[String(v.id)] || {})[mesKey] || {};
     var manualEdit = hist[mesKey] || {};
@@ -13091,7 +13100,7 @@ function AgentesEnCeroView({ equipo, info }) {
   }
 
   // 1. En 0 el mes en curso
-  var enCeroMesActual = equipo.filter(function(v) { return v.uf <= 0; });
+  var enCeroMesActual = equipo.filter(function(v) { return getUfMes(v, mesActualKey) <= 0; });
 
   // 2. En 0 los últimos 2 meses (solo si ya trabajaba esos meses)
   var enCeroUlt2 = equipo.filter(function(v) {
