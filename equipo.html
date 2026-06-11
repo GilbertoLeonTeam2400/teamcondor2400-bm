@@ -3882,10 +3882,20 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
   var _pctFMes = (!esMesActual && datosMes && datosMes._pctF) ? datosMes._pctF : 0;
   var _pctMMes = (!esMesActual && datosMes && datosMes._pctM) ? datosMes._pctM : 0;
   if (esMesActual) {
-    // Mes actual: calcular desde reportes de ejecutivos
-    var _totSexBase = datos.reduce(function(s,d){return s+(d.cttosDig||0);},0);
-    _pctFMes = _totSexBase>0 ? Math.round(datos.reduce(function(s,d){return s+(d.pctF*(d.cttosDig||0));},0)/_totSexBase) : 0;
-    _pctMMes = _totSexBase>0 ? Math.round(datos.reduce(function(s,d){return s+(d.pctM*(d.cttosDig||0));},0)/_totSexBase) : 0;
+    // Preferir _pctF/_pctM guardados del Excel (fila subtotales Resumen Agentes)
+    var _fbPF = (typeof window.__fbPctFActual === 'number' && window.__fbPctFActual > 0) ? window.__fbPctFActual : 0;
+    var _fbPM = (typeof window.__fbPctMActual === 'number' && window.__fbPctMActual > 0) ? window.__fbPctMActual : 0;
+    if (_fbPF > 0 || _fbPM > 0) {
+      _pctFMes = _fbPF; _pctMMes = _fbPM;
+    } else {
+      // Fallback: weighted average solo de ejecutivos con datos de sexo
+      var _sexDatos = datos.filter(function(d){ return (d.pctF||0)>0||(d.pctM||0)>0; });
+      var _totSexBase = _sexDatos.reduce(function(s,d){return s+(d.cttosDig||0);},0);
+      _pctFMes = _totSexBase>0 ? Math.round(_sexDatos.reduce(function(s,d){return s+(d.pctF*(d.cttosDig||0));},0)/_totSexBase) : 0;
+      _pctMMes = _totSexBase>0 ? Math.round(_sexDatos.reduce(function(s,d){return s+(d.pctM*(d.cttosDig||0));},0)/_totSexBase) : 0;
+      if(_pctFMes>0&&_pctMMes===0) _pctMMes=100-_pctFMes;
+      if(_pctMMes>0&&_pctFMes===0) _pctFMes=100-_pctMMes;
+    }
   }
 
   // Para BenchmarkComparativa usar mes actual
@@ -5564,21 +5574,18 @@ function TendenciasView({ equipo, info, R, RD }) {
       var sumP=lista.reduce(function(s,v){var ct=parseInt((v.historial||{})[m.mk]&&(v.historial||{})[m.mk].cttosDig)||0;return s+(ct*getVal(v,m.mk,kpi));},0);
       return Math.round(sumP/totalCttos);
     }
-    // Suma directa de ejecutivos + sinMatch
+    // Suma directa de ejecutivos + sinMatch (TODOS los meses, incluyendo actual)
     var tot=lista.reduce(function(s,v){return s+getVal(v,m.mk,kpi);},0);
-    // Sumar _sinMatch para UF y DPS en meses históricos
-    if(m.mk!==info.mesKey){
-      sinMatch.forEach(function(s){
-        if(kpi==="uf") tot+=parseFloat(s.uf)||0;
-        else if(kpi==="dpsVenta") tot+=parseInt(s.dpsVenta)||0;
-        else if(kpi==="dpsSinVenta") tot+=parseInt(s.dpsSinVenta)||0;
-        else if(kpi==="dpsPendiente") tot+=parseInt(s.dpsPendiente)||0;
-        else if(kpi==="dpsRechazado") tot+=parseInt(s.dpsRechazado)||0;
-        else if(kpi==="dps") tot+=(parseInt(s.dpsVenta)||0)+(parseInt(s.dpsSinVenta)||0)+(parseInt(s.dpsPendiente)||0)+(parseInt(s.dpsRechazado)||0);
-        else if(kpi==="nBenef") tot+=parseInt(s.nBenef)||0;
-        else if(kpi==="cttosDig") tot+=parseInt(s.cttosDig)||0;
-      });
-    }
+    sinMatch.forEach(function(s){
+      if(kpi==="uf") tot+=parseFloat(s.uf)||0;
+      else if(kpi==="dpsVenta") tot+=parseInt(s.dpsVenta)||0;
+      else if(kpi==="dpsSinVenta") tot+=parseInt(s.dpsSinVenta)||0;
+      else if(kpi==="dpsPendiente") tot+=parseInt(s.dpsPendiente)||0;
+      else if(kpi==="dpsRechazado") tot+=parseInt(s.dpsRechazado)||0;
+      else if(kpi==="dps") tot+=(parseInt(s.dpsVenta)||0)+(parseInt(s.dpsSinVenta)||0)+(parseInt(s.dpsPendiente)||0)+(parseInt(s.dpsRechazado)||0);
+      else if(kpi==="nBenef") tot+=parseInt(s.nBenef)||0;
+      else if(kpi==="cttosDig") tot+=parseInt(s.cttosDig)||0;
+    });
     return kpi==="uf"?parseFloat(tot.toFixed(2)):Math.round(tot);
   }
 
@@ -7941,6 +7948,8 @@ function App() {
           }
           // Cargar _sinMatch del mes actual desde Firebase para que persista entre recargas
           if (Array.isArray(snapData._sinMatch)) window.__fbSinMatchActual = snapData._sinMatch;
+          if (snapData._pctF != null) window.__fbPctFActual = parseInt(snapData._pctF)||0;
+          if (snapData._pctM != null) window.__fbPctMActual = parseInt(snapData._pctM)||0;
           const m = snapData.metaEquipo;
           if (m && typeof m === "number" && !isNaN(m) && m > 0) {
             setMetaEquipoLS(m);
@@ -8396,16 +8405,25 @@ function App() {
   const falta   = Math.max(0, metaUFSafe - totUF);
   const faltaDisplay = parseFloat(falta.toFixed(2)); // solo para mostrar, no para cálculos internos
   const xCrack  = equipoValido.length > 0 ? fmtUF2(faltaDisplay/equipoValido.length) : "0";
-  const totHombres = equipoValido.reduce(function(s,v){
-    var h=(v.historial||{})[info.mesKey];
-    if(h&&(parseInt(h.pctM)||0)>0&&(parseInt(h.cttosDig)||0)>0) return s+Math.round((parseInt(h.pctM)/100)*(parseInt(h.cttosDig)));
-    return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.hombres)||0);},0);
-  },0);
-  const totMujeres = equipoValido.reduce(function(s,v){
-    var h=(v.historial||{})[info.mesKey];
-    if(h&&(parseInt(h.pctF)||0)>0&&(parseInt(h.cttosDig)||0)>0) return s+Math.round((parseInt(h.pctF)/100)*(parseInt(h.cttosDig)));
-    return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.mujeres)||0);},0);
-  },0);
+  // Totales de contratos para sexo (incluyendo sinMatch del Excel)
+  var _smDash = window.__fbSinMatchActual||[];
+  var _totCttosAll = equipoValido.reduce(function(s,v){var h=(v.historial||{})[info.mesKey];return s+(h?parseInt(h.cttosDig)||0:0);},0)
+                   + _smDash.reduce(function(s,sm){return s+(parseInt(sm.cttosDig)||0);},0);
+  // Usar _pctF/_pctM de Firebase si están disponibles (vienen del Excel total row)
+  var _fbPM = (typeof window.__fbPctMActual==='number'&&window.__fbPctMActual>0)?window.__fbPctMActual:0;
+  var _fbPF = (typeof window.__fbPctFActual==='number'&&window.__fbPctFActual>0)?window.__fbPctFActual:0;
+  const totHombres = _fbPM>0&&_totCttosAll>0 ? Math.round(_fbPM/100*_totCttosAll) :
+    equipoValido.reduce(function(s,v){
+      var h=(v.historial||{})[info.mesKey];
+      if(h&&(parseInt(h.pctM)||0)>0&&(parseInt(h.cttosDig)||0)>0) return s+Math.round((parseInt(h.pctM)/100)*(parseInt(h.cttosDig)));
+      return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.hombres)||0);},0);
+    },0);
+  const totMujeres = _fbPF>0&&_totCttosAll>0 ? Math.round(_fbPF/100*_totCttosAll) :
+    equipoValido.reduce(function(s,v){
+      var h=(v.historial||{})[info.mesKey];
+      if(h&&(parseInt(h.pctF)||0)>0&&(parseInt(h.cttosDig)||0)>0) return s+Math.round((parseInt(h.pctF)/100)*(parseInt(h.cttosDig)));
+      return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.mujeres)||0);},0);
+    },0);
   const totConecta = equipoValido.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(r.conecta?1:0);},0);},0);
   const totTitulares = totHombres + totMujeres;
   const pctH = totTitulares > 0 ? Math.round((totHombres/totTitulares)*100) : 0;
@@ -9304,8 +9322,9 @@ function App() {
                 , React.createElement('div', { style:{fontSize:9,color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:"0.18em",marginBottom:8,fontWeight:700,marginTop:4} }, "🟢 PIPELINE VENTAS — ESTADO ACTUAL")
                 /* Contratos Digitados + Beneficiarios */
                 , (function(){
-                    var totNBenef = equipoValido.reduce(function(s,v){var h=(v.historial||{})[info.mesKey];return s+(h?parseInt(h.nBenef)||0:0);},0);
-                    var totCDig   = equipoValido.reduce(function(s,v){var h=(v.historial||{})[info.mesKey];return s+(h?parseInt(h.cttosDig)||0:0);},0);
+                    var _smPip = window.__fbSinMatchActual||[];
+                    var totNBenef = equipoValido.reduce(function(s,v){var h=(v.historial||{})[info.mesKey];return s+(h?parseInt(h.nBenef)||0:0);},0) + _smPip.reduce(function(s,sm){return s+(parseInt(sm.nBenef)||0);},0);
+                    var totCDig   = equipoValido.reduce(function(s,v){var h=(v.historial||{})[info.mesKey];return s+(h?parseInt(h.cttosDig)||0:0);},0) + _smPip.reduce(function(s,sm){return s+(parseInt(sm.cttosDig)||0);},0);
                     if(totNBenef===0&&totCDig===0) return null;
                     return React.createElement('div', { style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10} }
                       , React.createElement('div', { style:{background:"rgba(8,145,178,.18)",borderRadius:12,padding:"12px 10px",textAlign:"center",border:"1px solid rgba(8,145,178,.35)"} }
