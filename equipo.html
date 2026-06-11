@@ -3809,8 +3809,8 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
     var r2 = {totUF:0,totC:0,totS:0,totP:0,totR:0,totT:0,totB:0,totCt:0,tasa:0};
     if (esAct2) {
       equipo.forEach(function(v){
-        r2.totUF+=parseFloat(v.uf)||0;
         var h=(v.historial||{})[mk2]||{};
+        r2.totUF+=parseFloat(h.ufDig||h.uf)||parseFloat(v.uf)||0;
         r2.totC+=parseInt(h.dpsVenta)||0; r2.totS+=parseInt(h.dpsSinVenta)||0;
         r2.totP+=parseInt(h.dpsPendiente)||0; r2.totR+=parseInt(h.dpsRechazado)||0;
         r2.totB+=parseInt(h.nBenef)||0; r2.totCt+=parseInt(h.cttosDig)||0;
@@ -5982,7 +5982,7 @@ function CorrelacionView({ equipo, info, R, RD }) {
   function getKPIs(v, mk) {
     var esCurrent = (mk===info.mesKey);
     var h=(v.historial||{})[mk]||{};
-    var uf = esCurrent ? (parseFloat(v.uf)||0) : (parseFloat(h.ufDig||h.uf)||0);
+    var uf = esCurrent ? (parseFloat(h.ufDig||h.uf)||parseFloat(v.uf)||0) : (parseFloat(h.ufDig||h.uf)||0);
     var cv=parseInt(h.dpsVenta)||0, sv=parseInt(h.dpsSinVenta)||0;
     var pv=parseInt(h.dpsPendiente)||0, rv=parseInt(h.dpsRechazado)||0;
     var tot=cv+sv+pv+rv;
