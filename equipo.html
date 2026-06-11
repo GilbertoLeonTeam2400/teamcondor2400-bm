@@ -2036,10 +2036,16 @@ window.__saveSeguro = function(mesKey, data, opts) {
   // PROTECCIÓN: si el equipo tiene todos uf=0 y rep=[] (estado inicial vacío), NO guardar
   // Esto previene que el estado de carga inicial sobreescriba datos reales en Firebase
   if (data && data.equipo && Array.isArray(data.equipo)) {
+    var _fuente = (opts && opts.fuente) || "";
     var tieneData = data.equipo.some(function(v){
-      return (parseFloat(v.uf)||0) > 0 || (v.rep && v.rep.length > 0);
+      if ((parseFloat(v.uf)||0) > 0 || (v.rep && v.rep.length > 0)) return true;
+      // También contar si hay DPS cargado del Excel en el historial
+      var h = v.historial || {};
+      return Object.keys(h).some(function(mk){ var hm=h[mk]||{}; return (parseInt(hm.dps)||0)>0||(parseInt(hm.dpsVenta)||0)>0||(parseInt(hm.nBenef)||0)>0; });
     });
-    if (!tieneData && data.equipo.length > 0) {
+    // Bypass para fuentes explícitas (metas, etc.) — siempre permitir si el equipo tiene miembros
+    var bypassFuentes = ["metas_individuales","meta_ejecutivo"];
+    if (!tieneData && data.equipo.length > 0 && bypassFuentes.indexOf(_fuente) < 0) {
       console.warn("[saveSeguro] BLOQUEADO — equipo sin datos, no se sobreescribe Firebase");
       return;
     }
@@ -7933,6 +7939,8 @@ function App() {
             // Cargar historial si no se cargó en las últimas 2 horas o si hay meses sin datos
             // Historial de meses anteriores no se carga aquí — DpsAnalisisView lo lee directo
           }
+          // Cargar _sinMatch del mes actual desde Firebase para que persista entre recargas
+          if (Array.isArray(snapData._sinMatch)) window.__fbSinMatchActual = snapData._sinMatch;
           const m = snapData.metaEquipo;
           if (m && typeof m === "number" && !isNaN(m) && m > 0) {
             setMetaEquipoLS(m);
@@ -12685,12 +12693,15 @@ function UFLinealesView({ equipo, info }) {
 
   // Mes actual: preferir ufDig del historial (Excel), fallback a v.uf (rep[])
   function _ufActual(v){ var _h=(v.historial||{})[info.mesKey]||{}; return parseFloat(_h.ufDig||_h.uf)||v.uf||0; }
-  var totalMesActual = equipo.reduce(function(sum, v) { var u=_ufActual(v); return sum + (u >= 12 ? u : 0); }, 0);
-  var calificadosMesActual = equipo.map(function(v){ return Object.assign({},v,{uf:_ufActual(v)}); }).filter(function(v){ return v.uf >= 12; }).sort(function(a,b){ return b.uf-a.uf; });
+  // Incluir sinMatch (ejecutivos del Excel sin match en equipo) con su UF real
+  var _smLineal = (window.__fbSinMatchActual||[]).map(function(s){ return {id:"_sm_"+s.nombre,nombre:s.nombre,uf:parseFloat(s.uf)||0,historial:{}}; });
+  var _todosActual = equipo.map(function(v){ return Object.assign({},v,{uf:_ufActual(v)}); }).concat(_smLineal);
+  var totalMesActual = _todosActual.reduce(function(sum, v) { return sum + (v.uf >= 12 ? v.uf : 0); }, 0);
+  var calificadosMesActual = _todosActual.filter(function(v){ return v.uf >= 12; }).sort(function(a,b){ return b.uf-a.uf; });
   // AGV en zona de foco: entre 6 y 11.99 UF (cerca de llegar a 12, pero aún no suman a la lineal)
-  var focoMesActual = equipo.map(function(v){ return Object.assign({},v,{uf:_ufActual(v)}); }).filter(function(v){ return v.uf >= 6 && v.uf < 12; }).sort(function(a,b){ return b.uf-a.uf; });
+  var focoMesActual = _todosActual.filter(function(v){ return v.uf >= 6 && v.uf < 12; }).sort(function(a,b){ return b.uf-a.uf; });
   // AGV con mayor brecha: entre 0.01 y 5.99 UF — lejos de llegar a 12
-  var brechaMesActual = equipo.map(function(v){ return Object.assign({},v,{uf:_ufActual(v)}); }).filter(function(v){ return v.uf > 0 && v.uf < 6; }).sort(function(a,b){ return b.uf-a.uf; });
+  var brechaMesActual = _todosActual.filter(function(v){ return v.uf > 0 && v.uf < 6; }).sort(function(a,b){ return b.uf-a.uf; });
 
   function fmtUF2(n) {
     if(!n&&n!==0) return "0";
@@ -12896,10 +12907,20 @@ function MetasIndividualesView({ equipo, setEquipo, setMetaEquipo, info }) {
       var tmSave = parseFloat(totMes)||0;
       window.__saveSeguro(mesKey, { equipo: equipoParaGuardar, metaEquipo: tmSave>0?tmSave:550 }, { fuente: "metas_individuales" });
     }
-    // Actualizar meta global: guardar en localStorage directamente (setMetaEquipoLS no está en scope)
+    // Guardar metaEquipo: localStorage + write DIRECTO a Firebase (bypass __saveSeguro)
     var _tm = parseFloat(totMes)||0;
+    var _mesKeyMeta = info&&info.mesKey ? info.mesKey : (new Date().getFullYear()+"-"+String(new Date().getMonth()+1).padStart(2,"0"));
     if(_tm > 0) {
-      try { localStorage.setItem("META_EQUIPO_"+(info&&info.mesKey?info.mesKey:(new Date().getFullYear()+"-"+String(new Date().getMonth()+1).padStart(2,"0"))), String(_tm)); } catch(e) {}
+      try { localStorage.setItem("META_EQUIPO_"+_mesKeyMeta, String(_tm)); } catch(e) {}
+      // Write directo — no depende de __saveSeguro ni de tieneData
+      if(window.__fbDb && window.__fbDoc && window.__fbSetDoc) {
+        window.__fbSetDoc(
+          window.__fbDoc(window.__fbDb, "equipos", _mesKeyMeta),
+          {metaEquipo: _tm},
+          {merge: true}
+        ).then(function(){ console.log("[META] guardado directo:", _tm); })
+        .catch(function(e){ console.warn("[META] error directo:", e); });
+      }
     }
     if (typeof setMetaEquipo === "function") { if(_tm>0) setMetaEquipo(_tm); }
     setSaved(true);
