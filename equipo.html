@@ -3459,7 +3459,8 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
               dpsVenta:p.dpsConVenta, dpsSinVenta:p.dpsSinVenta,
               dpsPendiente:p.dpsPendiente, dpsRechazado:p.dpsRechazado,
               dpsTotal:p.dpsTotal||(p.dpsConVenta+p.dpsSinVenta+p.dpsPendiente+p.dpsRechazado),
-              nBenef:p.nBenef, cttosDig:p.cttosDig, conecta:p.conecta};
+              nBenef:p.nBenef, cttosDig:p.cttosDig, conecta:p.conecta,
+              pctF:parseInt(p.pctF)||0, pctM:parseInt(p.pctM)||0};
     });
 
     // AGV en 0: exactamente los que en el Excel tienen UF=0, sin cruzar con nada más
@@ -3877,7 +3878,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
 
   // Agregar sinMatch como filas adicionales
   sinMatchBase.forEach(function(s,idx){
-    datos.push({id:"_sm"+idx,nombre:s.nombre||"[sin match]",uf:parseFloat(s.uf)||0,dpsConVenta:parseInt(s.dpsVenta)||0,dpsSinVenta:parseInt(s.dpsSinVenta)||0,dpsPendiente:parseInt(s.dpsPendiente)||0,dpsRechazado:parseInt(s.dpsRechazado)||0,dpsTotal:(parseInt(s.dpsVenta)||0)+(parseInt(s.dpsSinVenta)||0)+(parseInt(s.dpsPendiente)||0)+(parseInt(s.dpsRechazado)||0),nBenef:parseInt(s.nBenef)||0,cttosDig:parseInt(s.cttosDig)||0,conecta:0,pctF:0,pctM:0});
+    datos.push({id:"_sm"+idx,nombre:s.nombre||"[sin match]",uf:parseFloat(s.uf)||0,dpsConVenta:parseInt(s.dpsVenta)||0,dpsSinVenta:parseInt(s.dpsSinVenta)||0,dpsPendiente:parseInt(s.dpsPendiente)||0,dpsRechazado:parseInt(s.dpsRechazado)||0,dpsTotal:(parseInt(s.dpsVenta)||0)+(parseInt(s.dpsSinVenta)||0)+(parseInt(s.dpsPendiente)||0)+(parseInt(s.dpsRechazado)||0),nBenef:parseInt(s.nBenef)||0,cttosDig:parseInt(s.cttosDig)||0,conecta:0,pctF:parseInt(s.pctF)||0,pctM:parseInt(s.pctM)||0});
   });
 
   datos.sort(function(a,b){var va=a[sortCol]||0,vb=b[sortCol]||0;return sortAsc?va-vb:vb-va;});
@@ -8445,11 +8446,10 @@ function App() {
   },0) + _smDash.reduce(function(s,sm){var pf=parseInt(sm.pctF)||0;var ct=parseInt(sm.cttosDig)||0;return s+(pf>0&&ct>0?Math.round(pf/100*ct):0);},0);
   const totConecta = equipoValido.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(r.conecta?1:0);},0);},0);
   const totTitulares = totHombres + totMujeres;
-  // Usar _pctF/_pctM de Firebase como prioridad (calculados exactamente del Excel CC=2400)
-  var _dashPM = (typeof window.__fbPctMActual==='number'&&window.__fbPctMActual>0)?window.__fbPctMActual:0;
-  var _dashPF = (typeof window.__fbPctFActual==='number'&&window.__fbPctFActual>0)?window.__fbPctFActual:0;
-  const pctH = _dashPM>0 ? _dashPM : (totTitulares>0?Math.round((totHombres/totTitulares)*100):0);
-  const pctM = _dashPF>0 ? _dashPF : (totTitulares>0?Math.round((totMujeres/totTitulares)*100):0);
+  // pctH/pctM se calculan DESDE totHombres/totMujeres (misma fuente que los conteos)
+  // Así el % y el conteo siempre son consistentes
+  const pctH = totTitulares>0 ? Math.round((totHombres/totTitulares)*100) : 0;
+  const pctM = totTitulares>0 ? Math.round((totMujeres/totTitulares)*100) : 0;
   const proyV   = function(v){return ((parseFloat(v.metaUF)||0)/info.calTotal)*info.calElapsed;};
   const proyEq  = metaUFSafe>0 && info.calElapsed>0 ? parseFloat(((metaUFSafe/info.calTotal)*info.calElapsed).toFixed(2)) : 0;
   const pctEq   = proyEq>0?Math.round((totUF/proyEq)*100):0;
