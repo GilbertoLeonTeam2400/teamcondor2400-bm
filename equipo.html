@@ -8416,10 +8416,12 @@ function App() {
     return {pct:pct, color:pct>=0?"#4ADE80":"#FCA5A5", txt:(pct>=0?"▲ +":"▼ ")+Math.abs(pct)+"%"};
   }
   // DPS KPIs — desde historial del mes actual
-  const totDpsConVenta    = equipoValido.reduce(function(s,v){var h=(v.historial||{})[info.mesKey];return s+(h?parseInt(h.dpsVenta)||0:0);},0);
-  const totDpsSinVenta    = equipoValido.reduce(function(s,v){var h=(v.historial||{})[info.mesKey];return s+(h?parseInt(h.dpsSinVenta)||0:0);},0);
-  const totDpsPendiente   = equipoValido.reduce(function(s,v){var h=(v.historial||{})[info.mesKey];return s+(h?parseInt(h.dpsPendiente)||0:0);},0);
-  const totDpsRechazado   = equipoValido.reduce(function(s,v){var h=(v.historial||{})[info.mesKey];return s+(h?parseInt(h.dpsRechazado)||0:0);},0);
+  // PIPELINE DPS — incluir sinMatch del Excel (tienen DPS reales en historial)
+  var _smDPS = window.__fbSinMatchActual||[];
+  const totDpsConVenta    = equipoValido.reduce(function(s,v){var h=(v.historial||{})[info.mesKey];return s+(h?parseInt(h.dpsVenta)||0:0);},0)   + _smDPS.reduce(function(s,sm){return s+(parseInt(sm.dpsVenta)||0);},0);
+  const totDpsSinVenta    = equipoValido.reduce(function(s,v){var h=(v.historial||{})[info.mesKey];return s+(h?parseInt(h.dpsSinVenta)||0:0);},0) + _smDPS.reduce(function(s,sm){return s+(parseInt(sm.dpsSinVenta)||0);},0);
+  const totDpsPendiente   = equipoValido.reduce(function(s,v){var h=(v.historial||{})[info.mesKey];return s+(h?parseInt(h.dpsPendiente)||0:0);},0)+ _smDPS.reduce(function(s,sm){return s+(parseInt(sm.dpsPendiente)||0);},0);
+  const totDpsRechazado   = equipoValido.reduce(function(s,v){var h=(v.historial||{})[info.mesKey];return s+(h?parseInt(h.dpsRechazado)||0:0);},0)+ _smDPS.reduce(function(s,sm){return s+(parseInt(sm.dpsRechazado)||0);},0);
   const totDpsTotal       = totDpsConVenta + totDpsSinVenta + totDpsPendiente + totDpsRechazado;
   const tasaCierreDPS     = totDpsTotal > 0 ? Math.round((totDpsConVenta/totDpsTotal)*100) : 0;
   // metaEquipo (de Firebase equipos/mesKey) tiene prioridad sobre META_UF (de config)
