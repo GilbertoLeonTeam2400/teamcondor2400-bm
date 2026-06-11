@@ -3454,6 +3454,8 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
     // mes histórico usa merge:false — no incluir metaEquipo tampoco (el Excel no define la meta).
     var docData = {equipo:nuevoEquipo};
     if (sinMatchData.length>0) docData._sinMatch = sinMatchData;
+    // Guardar sinMatch en window para que mini card del mes actual los incluya
+    if (esMesActual) window.__fbSinMatchActual = sinMatchData;
     docData._agvEnCero = agvEnCeroData;
     if (pctFRef.current>0||pctMRef.current>0) { docData._pctF = pctFRef.current; docData._pctM = pctMRef.current; }
     if (window.__fbDb&&window.__fbDoc&&window.__fbSetDoc) {
@@ -3815,6 +3817,14 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
         r2.totP+=parseInt(h.dpsPendiente)||0; r2.totR+=parseInt(h.dpsRechazado)||0;
         r2.totB+=parseInt(h.nBenef)||0; r2.totCt+=parseInt(h.cttosDig)||0;
       });
+      // Incluir sinMatch igual que meses históricos
+      var _smA = window.__fbSinMatchActual || [];
+      _smA.forEach(function(s){
+        r2.totUF+=parseFloat(s.uf)||0;
+        r2.totC+=parseInt(s.dpsVenta)||0; r2.totS+=parseInt(s.dpsSinVenta)||0;
+        r2.totP+=parseInt(s.dpsPendiente)||0; r2.totR+=parseInt(s.dpsRechazado)||0;
+        r2.totB+=parseInt(s.nBenef)||0; r2.totCt+=parseInt(s.cttosDig)||0;
+      });
       r2.totT=r2.totC+r2.totS+r2.totP+r2.totR;
       r2.tasa=r2.totT>0?Math.round((r2.totC/r2.totT)*100):0;
       r2.totUF=parseFloat(r2.totUF.toFixed(2));
@@ -3826,7 +3836,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
 
   // Datos para cards grandes y tabla — EXCLUSIVAMENTE desde Firebase (datosMes) para histórico
   var equipoBase = esMesActual ? equipo : (datosMes && datosMes.equipo ? datosMes.equipo : []);
-  var sinMatchBase = (!esMesActual && datosMes && datosMes._sinMatch) ? datosMes._sinMatch : [];
+  var sinMatchBase = esMesActual ? (window.__fbSinMatchActual||[]) : ((!esMesActual && datosMes && datosMes._sinMatch) ? datosMes._sinMatch : []);
 
   // Construir filas de datos
   var datos = equipoBase.map(function(v){
@@ -5489,7 +5499,7 @@ function TendenciasView({ equipo, info, R, RD }) {
     var dpsP=parseInt(h.dpsPendiente)||0, dpsR=parseInt(h.dpsRechazado)||0;
     var hDs=dpsV+dpsSV+dpsP+dpsR;
     if(campo==="uf"){
-      if(esMesActual) return parseFloat(v.uf)||0;
+      if(esMesActual) return parseFloat(h.ufDig||h.uf)||parseFloat(v.uf)||0;
       return parseFloat(h.ufDig||h.uf)||0;
     }
     if(campo==="dps") return hDs>0?hDs:(esMesActual?(parseInt(v.dps)||0):0);
@@ -5501,6 +5511,8 @@ function TendenciasView({ equipo, info, R, RD }) {
     if(campo==="cttosDig") return parseInt(h.cttosDig)||0;
     if(campo==="pctF"||campo==="pctM"){
       if(esMesActual){
+        var pFh=parseInt(h.pctF)||0, pMh=parseInt(h.pctM)||0;
+        if(pFh>0||pMh>0) return campo==="pctF"?pFh:pMh;
         var reps=v.rep||[];
         var totH=reps.reduce(function(s,r){return s+(parseInt(r.hombres)||0);},0);
         var totM=reps.reduce(function(s,r){return s+(parseInt(r.mujeres)||0);},0);
@@ -5521,8 +5533,11 @@ function TendenciasView({ equipo, info, R, RD }) {
     var lista = getEquipoMes(m.mk);
     var sinMatch = (m.mk!==info.mesKey && fbCache[m.mk] && Array.isArray(fbCache[m.mk]._sinMatch)) ? fbCache[m.mk]._sinMatch : [];
     if(kpi==="pctF"||kpi==="pctM"){
-      // Mes actual: calcular desde rep[]
+      // Mes actual: preferir historial del Excel, fallback a rep[]
       if(m.mk===info.mesKey){
+        var totHh=equipo.reduce(function(s,v){var h=(v.historial||{})[m.mk]||{};var ct=parseInt(h.cttosDig)||0;var pm=parseInt(h.pctM)||0;return s+(ct>0&&pm>0?Math.round(pm/100*ct):0);},0);
+        var totMuh=equipo.reduce(function(s,v){var h=(v.historial||{})[m.mk]||{};var ct=parseInt(h.cttosDig)||0;var pf=parseInt(h.pctF)||0;return s+(ct>0&&pf>0?Math.round(pf/100*ct):0);},0);
+        if(totHh>0||totMuh>0){var totSh=totHh+totMuh;return totSh>0?(kpi==="pctF"?Math.round((totMuh/totSh)*100):Math.round((totHh/totSh)*100)):0;}
         var totH=equipo.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.hombres)||0);},0);},0);
         var totMu=equipo.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.mujeres)||0);},0);},0);
         var totS=totH+totMu;
@@ -7313,11 +7328,10 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
           }
         }).catch(function(){});
     }
-    if(docsGestion.length===0){
-      window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","docs_gestion"))
-        .then(function(snap){ if(snap.exists&&snap.data()&&snap.data().docs){ setDocsGestion(snap.data().docs); try{localStorage.setItem("DOCS_GESTION",JSON.stringify(snap.data().docs));}catch(e){} } })
-        .catch(function(){});
-    }
+    // Siempre sincronizar desde Firebase para no perder docs al cambiar de mes
+    window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","docs_gestion"))
+      .then(function(snap){ if(snap.exists&&snap.data()&&snap.data().docs&&snap.data().docs.length>0){ setDocsGestion(snap.data().docs); try{localStorage.setItem("DOCS_GESTION",JSON.stringify(snap.data().docs));}catch(e){} } })
+      .catch(function(){});
   },[]);
 
   var iconos={pdf:"📕",doc:"📘",docx:"📘",xls:"📗",xlsx:"📗",png:"🖼️",jpg:"🖼️",jpeg:"🖼️"};
@@ -7838,7 +7852,12 @@ function App() {
 
   const [sincronizado, setSincronizado] = useState(false);
   const [fbError,     setFbError]     = useState(false);
-  const [metaEquipo,  setMetaEquipo]  = useState(550);
+  const [metaEquipo,  setMetaEquipo]  = useState(function(){
+    try{ var ls=parseFloat(localStorage.getItem("META_EQUIPO_"+info.mesKey)); if(ls>0) return ls; }catch(e){}
+    return 550;
+  });
+  // Wrapper que persiste en localStorage además de actualizar estado
+  function setMetaEquipoLS(val){ if(val>0){try{localStorage.setItem("META_EQUIPO_"+info.mesKey,String(val));}catch(e){}} setMetaEquipo(val); }
   META_UF = metaEquipo; // Sobreescribir la variable global con el estado
   const skipSnapshot = React.useRef(false);
   window.skipSnapshotRef = skipSnapshot;
@@ -7859,7 +7878,7 @@ function App() {
         if (skipSnapshot.current) {
           skipSnapshot.current = false;
           // Leer metaEquipo incluso en skip — evita que useEffect se active con el valor inicial 550
-          if (snap.exists()) { var _skMeta = snap.data().metaEquipo; if (_skMeta && typeof _skMeta === 'number' && !isNaN(_skMeta) && _skMeta > 0) setMetaEquipo(_skMeta); }
+          if (snap.exists()) { var _skMeta = snap.data().metaEquipo; if (_skMeta && typeof _skMeta === 'number' && !isNaN(_skMeta) && _skMeta > 0) setMetaEquipoLS(_skMeta); }
           setLoaded(true); setSincronizado(true); return;
         }
         if (snap.exists()) {
@@ -7916,7 +7935,7 @@ function App() {
           }
           const m = snapData.metaEquipo;
           if (m && typeof m === "number" && !isNaN(m) && m > 0) {
-            setMetaEquipo(m);
+            setMetaEquipoLS(m);
           } else if (!m && m !== 0) {
             // No hay metaEquipo en Firebase — no sobreescribir con 550, mantener lo que hay en estado
           }
@@ -7961,7 +7980,7 @@ function App() {
                   var excelHist = HISTORIAL_EXCEL[v.id]||HISTORIAL_EXCEL[String(v.id)]||{};
                   return Object.assign({},v,{historial:Object.assign({},excelHist,v.historial||{})});
                 }));
-                if(metaSave) setMetaEquipo(metaSave);
+                if(metaSave) setMetaEquipoLS(metaSave);
               }).catch(function(e){ console.error("[NUEVO MES] Error al inicializar:",e); });
             }).catch(function(e){ console.warn("[NUEVO MES] Error al leer mes anterior:",e); });
         }
@@ -8064,9 +8083,11 @@ function App() {
 
     var ufTotal = equipo.reduce(function(s,v){ return s+(v.uf||0); }, 0);
     var ahora = new Date();
+    // Hay datos significativos si hay UF o hay DPS cargado del Excel
+    var _hayDatosMes = ufTotal > 0 || equipo.some(function(v){ var h=(v.historial||{})[info.mesKey]||{}; return (parseInt(h.dps)||0)>0||(parseInt(h.dpsVenta)||0)>0||(parseInt(h.nBenef)||0)>0; });
 
     // ── MEJORA 1: Múltiples backups locales (últimos 5) ──────────────────────
-    if (ufTotal > 0) {
+    if (_hayDatosMes) {
       try {
         var backup = {
           timestamp: ahora.toISOString(),
@@ -8097,7 +8118,7 @@ function App() {
     }
 
     // ── MEJORA 3: Backup diario fijo (se guarda una vez por día) ─────────────
-    if (ufTotal > 0) {
+    if (_hayDatosMes) {
       try {
         var fechaHoy = ahora.toISOString().slice(0,10); // YYYY-MM-DD
         var dailyKey = "BACKUP_DAILY_" + info.mesKey + "_" + fechaHoy;
@@ -10227,19 +10248,23 @@ function App() {
                         style: {background:"#F3F4F6",color:"#6B7280",border:"1px solid #E5E7EB",borderRadius:10,padding:"8px 14px",fontSize:12,cursor:"pointer",fontFamily:"inherit",fontWeight:700}
                       }, "🔒 Cerrar sesión" )
                     , React.createElement('button', { onClick: function() {
-                        // Recopilar TODOS los backups disponibles
-                        var mesKey = info.mesKey;
+                        // Recopilar TODOS los backups disponibles (todos los meses)
                         var backups = [];
-                        // 1. Backups rotativos locales (últimos 5)
-                        Object.keys(localStorage).filter(function(k){ return k.startsWith("BACKUP_" + mesKey + "_"); }).sort().reverse().forEach(function(k){
-                          try { var b = JSON.parse(localStorage.getItem(k)); if(b&&b.ufTotal>0) backups.push({key:k,tipo:"Local rotativo",b:b}); } catch(e){}
+                        // 1. Backups rotativos — TODOS los meses
+                        Object.keys(localStorage).filter(function(k){ return /^BACKUP_\d{4}-\d{2}_/.test(k); }).sort().reverse().forEach(function(k){
+                          try { var b = JSON.parse(localStorage.getItem(k)); if(b&&b.equipo&&b.equipo.length>0) backups.push({key:k,tipo:"Rotativo",b:b}); } catch(e){}
                         });
-                        // 2. Backups diarios
-                        Object.keys(localStorage).filter(function(k){ return k.startsWith("BACKUP_DAILY_" + mesKey + "_"); }).sort().reverse().forEach(function(k){
-                          try { var b = JSON.parse(localStorage.getItem(k)); if(b&&b.ufTotal>0) backups.push({key:k,tipo:"Diario",b:b}); } catch(e){}
+                        // 2. Backups diarios — TODOS los meses
+                        Object.keys(localStorage).filter(function(k){ return /^BACKUP_DAILY_/.test(k); }).sort().reverse().forEach(function(k){
+                          try { var b = JSON.parse(localStorage.getItem(k)); if(b&&b.equipo&&b.equipo.length>0) backups.push({key:k,tipo:"Diario",b:b}); } catch(e){}
                         });
-                        // 3. Backup principal
-                        try { var bp = JSON.parse(localStorage.getItem("BACKUP_" + mesKey)||"null"); if(bp&&bp.ufTotal>0) backups.push({key:"BACKUP_"+mesKey,tipo:"Principal",b:bp}); } catch(e){}
+                        // 3. Backups principales — TODOS los meses
+                        Object.keys(localStorage).filter(function(k){ return /^BACKUP_\d{4}-\d{2}$/.test(k); }).forEach(function(k){
+                          try { var b = JSON.parse(localStorage.getItem(k)); if(b&&b.equipo&&b.equipo.length>0&&!backups.some(function(x){return x.b.timestamp===b.timestamp;})) backups.push({key:k,tipo:"Principal",b:b}); } catch(e){}
+                        });
+                        // Ordenar por fecha descendente y limitar a 15
+                        backups.sort(function(a,b){return new Date(b.b.timestamp)-new Date(a.b.timestamp);});
+                        backups = backups.slice(0,15);
                         if (backups.length === 0) { window.__modal.alert("Sin backups", "No hay backups disponibles en este dispositivo.", "warn"); return; }
                         // Mostrar opciones
                         var msg = "Backups disponibles:\n\n";
@@ -10259,7 +10284,7 @@ function App() {
                             "¿Restaurar backup ["+elegido.tipo+"] del "+fecha2+" con "+elegido.b.ufTotal.toFixed(2)+" UF? Esto reemplazará los datos actuales.",
                             function(){
                               setEquipo(elegido.b.equipo);
-                              if (elegido.b.metaEquipo && !isNaN(elegido.b.metaEquipo) && elegido.b.metaEquipo > 0) setMetaEquipo(elegido.b.metaEquipo);
+                              if (elegido.b.metaEquipo && !isNaN(elegido.b.metaEquipo) && elegido.b.metaEquipo > 0) setMetaEquipoLS(elegido.b.metaEquipo);
                               if (elegido.b.crm && Array.isArray(elegido.b.crm)) {
                                 elegido.b.crm.forEach(function(item){
                                   if (item.contactos && item.contactos.length > 0) {
@@ -12622,7 +12647,10 @@ function UFLinealesView({ equipo, info }) {
   // ── Misma fuente de datos que ExcelDataView ──
   // Para cada ejecutivo y mes: usa historial Firebase/manual, fallback a HISTORIAL_EXCEL
   function getUFMes(v, mk) {
-    if (mk === info.mesKey) return v.uf || 0; // mes actual: dato en vivo
+    if (mk === info.mesKey) {
+      var _h=(v.historial||{})[mk]||{};
+      return parseFloat(_h.ufDig||_h.uf)||v.uf||0;
+    }
     // 1. Historial manual/Firebase guardado en el objeto ejecutivo
     var manualEdit = (v.historial || {})[mk] || {};
     if (manualEdit.uf > 0) return manualEdit.uf;
@@ -12652,13 +12680,14 @@ function UFLinealesView({ equipo, info }) {
     mesesData.push({ mk: mk, label: buildMesLabel(i), total: r.total, calificados: r.calificados });
   }
 
-  // Mes actual: datos en vivo del equipo
-  var totalMesActual = equipo.reduce(function(sum, v) { return sum + (v.uf >= 12 ? v.uf : 0); }, 0);
-  var calificadosMesActual = equipo.filter(function(v){ return v.uf >= 12; }).sort(function(a,b){ return b.uf-a.uf; });
+  // Mes actual: preferir ufDig del historial (Excel), fallback a v.uf (rep[])
+  function _ufActual(v){ var _h=(v.historial||{})[info.mesKey]||{}; return parseFloat(_h.ufDig||_h.uf)||v.uf||0; }
+  var totalMesActual = equipo.reduce(function(sum, v) { var u=_ufActual(v); return sum + (u >= 12 ? u : 0); }, 0);
+  var calificadosMesActual = equipo.map(function(v){ return Object.assign({},v,{uf:_ufActual(v)}); }).filter(function(v){ return v.uf >= 12; }).sort(function(a,b){ return b.uf-a.uf; });
   // AGV en zona de foco: entre 6 y 11.99 UF (cerca de llegar a 12, pero aún no suman a la lineal)
-  var focoMesActual = equipo.filter(function(v){ return v.uf >= 6 && v.uf < 12; }).sort(function(a,b){ return b.uf-a.uf; });
+  var focoMesActual = equipo.map(function(v){ return Object.assign({},v,{uf:_ufActual(v)}); }).filter(function(v){ return v.uf >= 6 && v.uf < 12; }).sort(function(a,b){ return b.uf-a.uf; });
   // AGV con mayor brecha: entre 0.01 y 5.99 UF — lejos de llegar a 12
-  var brechaMesActual = equipo.filter(function(v){ return v.uf > 0 && v.uf < 6; }).sort(function(a,b){ return b.uf-a.uf; });
+  var brechaMesActual = equipo.map(function(v){ return Object.assign({},v,{uf:_ufActual(v)}); }).filter(function(v){ return v.uf > 0 && v.uf < 6; }).sort(function(a,b){ return b.uf-a.uf; });
 
   function fmtUF2(n) {
     if(!n&&n!==0) return "0";
@@ -12865,7 +12894,7 @@ function MetasIndividualesView({ equipo, setEquipo, setMetaEquipo, info }) {
       window.__saveSeguro(mesKey, { equipo: equipoParaGuardar, metaEquipo: tmSave>0?tmSave:550 }, { fuente: "metas_individuales" });
     }
     // Actualizar meta global del equipo = suma de todas las metas mes
-    if (typeof setMetaEquipo === "function") { var tm = parseFloat(totMes)||0; if(tm>0) setMetaEquipo(tm); }
+    if (typeof setMetaEquipoLS === "function") { var tm = parseFloat(totMes)||0; if(tm>0) setMetaEquipoLS(tm); } else if (typeof setMetaEquipo === "function") { var tm2 = parseFloat(totMes)||0; if(tm2>0) setMetaEquipo(tm2); }
     setSaved(true);
     setTimeout(function() { setSaved(false); }, 3000);
   }
