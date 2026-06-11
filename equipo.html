@@ -3185,6 +3185,24 @@ function MetricasReportView({ equipo, setEquipo, info, R, RD }) {
           setCargando(false); return;
         }
 
+        // Recalcular %F/%M desde CONTEOS reales de CC=2400 (F COUNT col _colSexoFC, M COUNT col _colSexoMC)
+        // NO usar fila de totales nacionales (row 2) — esa da valores del pais completo, no del CC
+        if (_colSexoFC >= 0 && _colSexoMC >= 0) {
+          var _fCC=0, _mCC=0;
+          miEquipo.forEach(function(f) {
+            var rr = rawArr[f._rawIdx];
+            if (!rr) return;
+            _fCC += parseInt(rr[_colSexoFC])||0;
+            _mCC += parseInt(rr[_colSexoMC])||0;
+          });
+          var _totCC = _fCC + _mCC;
+          if (_totCC > 0) {
+            pctFRef.current = Math.round((_fCC/_totCC)*100);
+            pctMRef.current = Math.round((_mCC/_totCC)*100);
+            console.log("[SEXO-CC2400] F="+_fCC+" M="+_mCC+" totCC="+_totCC+" → %F="+pctFRef.current+"% %M="+pctMRef.current+"%");
+          }
+        }
+
         // Mapear columnas del reporte de administración
         var mapeados = miEquipo.map(function(f){
           var nombre = String(
@@ -3878,25 +3896,29 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
     ? agvEnCeroData.length
     : datos.filter(function(p){return (parseFloat(p.uf)||0)===0&&!String(p.id).startsWith("_sm");}).length;
   var totUF=parseFloat(datos.reduce(function(s,d){return s+d.uf;},0).toFixed(2));
-  // % F y % M: leer directo del doc Firebase (guardado al cargar Excel)
-  var _pctFMes = (!esMesActual && datosMes && datosMes._pctF) ? datosMes._pctF : 0;
-  var _pctMMes = (!esMesActual && datosMes && datosMes._pctM) ? datosMes._pctM : 0;
-  if (esMesActual) {
-    // Preferir _pctF/_pctM guardados del Excel (fila subtotales Resumen Agentes)
-    var _fbPF = (typeof window.__fbPctFActual === 'number' && window.__fbPctFActual > 0) ? window.__fbPctFActual : 0;
-    var _fbPM = (typeof window.__fbPctMActual === 'number' && window.__fbPctMActual > 0) ? window.__fbPctMActual : 0;
-    if (_fbPF > 0 || _fbPM > 0) {
-      _pctFMes = _fbPF; _pctMMes = _fbPM;
-    } else {
-      // Fallback: weighted average solo de ejecutivos con datos de sexo
-      var _sexDatos = datos.filter(function(d){ return (d.pctF||0)>0||(d.pctM||0)>0; });
-      var _totSexBase = _sexDatos.reduce(function(s,d){return s+(d.cttosDig||0);},0);
-      _pctFMes = _totSexBase>0 ? Math.round(_sexDatos.reduce(function(s,d){return s+(d.pctF*(d.cttosDig||0));},0)/_totSexBase) : 0;
-      _pctMMes = _totSexBase>0 ? Math.round(_sexDatos.reduce(function(s,d){return s+(d.pctM*(d.cttosDig||0));},0)/_totSexBase) : 0;
-      if(_pctFMes>0&&_pctMMes===0) _pctMMes=100-_pctFMes;
-      if(_pctMMes>0&&_pctFMes===0) _pctFMes=100-_pctMMes;
+  // % F y % M — calcular siempre desde datos por ejecutivo (todos los meses, incluyendo históricos)
+  // Esto evita depender de _pctF/_pctM en Firebase que pueden tener valores nacionales incorrectos
+  var _pctFMes = 0, _pctMMes = 0;
+  (function() {
+    // 1. Calcular desde datos (ejecutivos del mes seleccionado)
+    var _sd = datos.filter(function(d){ return (d.pctF||0)>0||(d.pctM||0)>0; });
+    if (_sd.length > 0) {
+      var _sF = _sd.reduce(function(s,d){return s+Math.round((d.pctF||0)/100*(d.cttosDig||0));},0);
+      var _sM = _sd.reduce(function(s,d){return s+Math.round((d.pctM||0)/100*(d.cttosDig||0));},0);
+      var _tSM = _sF + _sM;
+      if (_tSM > 0) { _pctFMes = Math.round(_sF/_tSM*100); _pctMMes = Math.round(_sM/_tSM*100); return; }
     }
-  }
+    // 2. Fallback: usar _pctF/_pctM del doc Firebase (mes actual: window vars, histórico: datosMes)
+    if (esMesActual) {
+      var _fbPF = (typeof window.__fbPctFActual==='number'&&window.__fbPctFActual>0)?window.__fbPctFActual:0;
+      var _fbPM = (typeof window.__fbPctMActual==='number'&&window.__fbPctMActual>0)?window.__fbPctMActual:0;
+      if (_fbPF>0||_fbPM>0){ _pctFMes=_fbPF; _pctMMes=_fbPM; return; }
+    } else if (datosMes) {
+      if (datosMes._pctF>0||datosMes._pctM>0){ _pctFMes=datosMes._pctF||0; _pctMMes=datosMes._pctM||0; return; }
+    }
+  })();
+  if(_pctFMes>0&&_pctMMes===0) _pctMMes=100-_pctFMes;
+  if(_pctMMes>0&&_pctFMes===0) _pctFMes=100-_pctMMes;
 
   // Para BenchmarkComparativa usar mes actual
   var datosActBench=equipo.map(function(v){var h=(v.historial||{})[info.mesKey]||{};return{uf:parseFloat(v.uf)||0,dpsConVenta:parseInt(h.dpsVenta)||0,dpsSinVenta:parseInt(h.dpsSinVenta)||0,dpsPendiente:parseInt(h.dpsPendiente)||0,dpsRechazado:parseInt(h.dpsRechazado)||0,nBenef:parseInt(h.nBenef)||0,cttosDig:parseInt(h.cttosDig)||0};});
@@ -8410,24 +8432,24 @@ function App() {
   var _totCttosAll = equipoValido.reduce(function(s,v){var h=(v.historial||{})[info.mesKey];return s+(h?parseInt(h.cttosDig)||0:0);},0)
                    + _smDash.reduce(function(s,sm){return s+(parseInt(sm.cttosDig)||0);},0);
   // Usar _pctF/_pctM de Firebase si están disponibles (vienen del Excel total row)
-  var _fbPM = (typeof window.__fbPctMActual==='number'&&window.__fbPctMActual>0)?window.__fbPctMActual:0;
-  var _fbPF = (typeof window.__fbPctFActual==='number'&&window.__fbPctFActual>0)?window.__fbPctFActual:0;
-  const totHombres = _fbPM>0&&_totCttosAll>0 ? Math.round(_fbPM/100*_totCttosAll) :
-    equipoValido.reduce(function(s,v){
-      var h=(v.historial||{})[info.mesKey];
-      if(h&&(parseInt(h.pctM)||0)>0&&(parseInt(h.cttosDig)||0)>0) return s+Math.round((parseInt(h.pctM)/100)*(parseInt(h.cttosDig)));
-      return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.hombres)||0);},0);
-    },0);
-  const totMujeres = _fbPF>0&&_totCttosAll>0 ? Math.round(_fbPF/100*_totCttosAll) :
-    equipoValido.reduce(function(s,v){
-      var h=(v.historial||{})[info.mesKey];
-      if(h&&(parseInt(h.pctF)||0)>0&&(parseInt(h.cttosDig)||0)>0) return s+Math.round((parseInt(h.pctF)/100)*(parseInt(h.cttosDig)));
-      return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.mujeres)||0);},0);
-    },0);
+  // Usar F COUNT y M COUNT desde historial por ejecutivo (no _fbPctFActual que puede ser nacional)
+  const totHombres = equipoValido.reduce(function(s,v){
+    var h=(v.historial||{})[info.mesKey];
+    if(h&&(parseInt(h.pctM)||0)>0&&(parseInt(h.cttosDig)||0)>0) return s+Math.round((parseInt(h.pctM)/100)*(parseInt(h.cttosDig)));
+    return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.hombres)||0);},0);
+  },0) + _smDash.reduce(function(s,sm){var pm=parseInt(sm.pctM)||0;var ct=parseInt(sm.cttosDig)||0;return s+(pm>0&&ct>0?Math.round(pm/100*ct):0);},0);
+  const totMujeres = equipoValido.reduce(function(s,v){
+    var h=(v.historial||{})[info.mesKey];
+    if(h&&(parseInt(h.pctF)||0)>0&&(parseInt(h.cttosDig)||0)>0) return s+Math.round((parseInt(h.pctF)/100)*(parseInt(h.cttosDig)));
+    return s+(v.rep||[]).reduce(function(a,r){return a+(parseInt(r.mujeres)||0);},0);
+  },0) + _smDash.reduce(function(s,sm){var pf=parseInt(sm.pctF)||0;var ct=parseInt(sm.cttosDig)||0;return s+(pf>0&&ct>0?Math.round(pf/100*ct):0);},0);
   const totConecta = equipoValido.reduce(function(s,v){return s+(v.rep||[]).reduce(function(a,r){return a+(r.conecta?1:0);},0);},0);
   const totTitulares = totHombres + totMujeres;
-  const pctH = totTitulares > 0 ? Math.round((totHombres/totTitulares)*100) : 0;
-  const pctM = totTitulares > 0 ? Math.round((totMujeres/totTitulares)*100) : 0;
+  // Usar _pctF/_pctM de Firebase como prioridad (calculados exactamente del Excel CC=2400)
+  var _dashPM = (typeof window.__fbPctMActual==='number'&&window.__fbPctMActual>0)?window.__fbPctMActual:0;
+  var _dashPF = (typeof window.__fbPctFActual==='number'&&window.__fbPctFActual>0)?window.__fbPctFActual:0;
+  const pctH = _dashPM>0 ? _dashPM : (totTitulares>0?Math.round((totHombres/totTitulares)*100):0);
+  const pctM = _dashPF>0 ? _dashPF : (totTitulares>0?Math.round((totMujeres/totTitulares)*100):0);
   const proyV   = function(v){return ((parseFloat(v.metaUF)||0)/info.calTotal)*info.calElapsed;};
   const proyEq  = metaUFSafe>0 && info.calElapsed>0 ? parseFloat(((metaUFSafe/info.calTotal)*info.calElapsed).toFixed(2)) : 0;
   const pctEq   = proyEq>0?Math.round((totUF/proyEq)*100):0;
