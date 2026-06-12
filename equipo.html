@@ -91,6 +91,19 @@
             .catch(function(e){ console.warn("[Storage] Error subiendo foto:", e.message); if(onFail) onFail(e); });
         } catch(e) { console.warn("[Storage] No disponible:", e.message); if(onFail) onFail(e); }
       };
+      // Subir cualquier archivo a Firebase Storage y retornar URL de descarga
+      window.__subirDocStorage = function(path, dataUrl, ext, onOk, onFail) {
+        try {
+          var mimeMap = {pdf:"application/pdf",doc:"application/msword",docx:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",xls:"application/vnd.ms-excel",xlsx:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg"};
+          var contentType = mimeMap[ext] || "application/octet-stream";
+          var ref = storage.ref().child(path);
+          var base64 = dataUrl.split(",")[1];
+          ref.putString(base64, "base64", {contentType: contentType})
+            .then(function(snap){ return snap.ref.getDownloadURL(); })
+            .then(function(url){ if(onOk) onOk(url); })
+            .catch(function(e){ console.warn("[DocStorage] Error:", e.message); if(onFail) onFail(e); });
+        } catch(e) { console.warn("[DocStorage] No disponible:", e.message); if(onFail) onFail(e); }
+      };
     } catch(e) { console.warn("[Storage] No disponible:", e.message); }
 
     // Autenticación anónima silenciosa — protege Firestore de acceso externo
@@ -7197,14 +7210,48 @@ function GestDocsView({ docsGestion, setDocsGestion, R, RD }) {
   var [editandoId, setEditandoId] = React.useState(null);
   var [editTitulo, setEditTitulo] = React.useState("");
 
+  // Fix: cargar docs desde Firebase al montar (no depender solo del estado/localStorage)
+  React.useEffect(function(){
+    if(!window.__fbDb||!window.__fbDoc||!window.__fbGetDoc) return;
+    window.__fbGetDoc(window.__fbDoc(window.__fbDb,"equipos","docs_gestion"))
+      .then(function(snap){
+        var exists = snap.exists ? (typeof snap.exists==='function'?snap.exists():snap.exists) : false;
+        if(exists){
+          var d=snap.data();
+          if(Array.isArray(d.docs)&&d.docs.length>0){
+            setDocsGestion(d.docs);
+            try{localStorage.setItem("DOCS_GESTION",JSON.stringify(d.docs));}catch(e){}
+          }
+        }
+      }).catch(function(e){ console.warn("[GestDocs] Error cargando:",e); });
+  }, []);
+
+  var MAX_TOTAL_KB = 700; // base64 añade ~33%, total Firestore ~930KB bajo el límite de 1MB
+
   function subirArchivo(e) {
     var file = e.target.files[0]; if(!file) return;
+    var fileKB = file.size/1024;
+    // Verificar tamaño individual
+    if(fileKB > 900){
+      window.__modal.alert("Archivo demasiado grande","Este archivo pesa "+fileKB.toFixed(0)+" KB. El máximo por archivo es 900 KB.","warning");
+      e.target.value=""; return;
+    }
+    // Verificar espacio total (base64 ocupa ~1.37x el tamaño original)
+    var usadoKB = docsGestion.reduce(function(s,d){return s+(parseFloat(d.size)||0);},0);
+    if((usadoKB + fileKB) > MAX_TOTAL_KB){
+      var libreKB = Math.max(0, MAX_TOTAL_KB - usadoKB);
+      window.__modal.alert("Espacio insuficiente",
+        "Espacio usado: "+usadoKB.toFixed(0)+" KB / "+MAX_TOTAL_KB+" KB.\n"+
+        "Libre: "+libreKB.toFixed(0)+" KB — este archivo pesa "+fileKB.toFixed(0)+" KB.\n"+
+        "Elimina documentos existentes para liberar espacio.","warning");
+      e.target.value=""; return;
+    }
     var _defaultTitle = file.name.replace(/\.[^.]+$/,"");
     window.__modal.prompt("Título del documento", "Ej: Carta Renta Menor", function(titulo){
       if(!titulo||!titulo.trim()) return;
       var reader = new FileReader();
       reader.onload = function(ev){
-        setPendiente({titulo:titulo.trim(),nombre:file.name,ext:file.name.split('.').pop().toLowerCase(),data:ev.target.result,size:(file.size/1024).toFixed(1),ts:Date.now()});
+        setPendiente({titulo:titulo.trim(),nombre:file.name,ext:file.name.split('.').pop().toLowerCase(),data:ev.target.result,size:fileKB.toFixed(1),ts:Date.now()});
       };
       reader.readAsDataURL(file);
     }, _defaultTitle);
@@ -7213,15 +7260,39 @@ function GestDocsView({ docsGestion, setDocsGestion, R, RD }) {
   function guardarDoc() {
     if(!pendiente) return;
     setGuardando(true);
-    var nuevos = docsGestion.concat([Object.assign({id:Date.now()},pendiente)]);
-    setDocsGestion(nuevos);
-    setPendiente(null);
-    try{ localStorage.setItem("DOCS_GESTION", JSON.stringify(nuevos)); }catch(e){}
-    if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
-      window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","docs_gestion"),{docs:nuevos,ts:Date.now()})
-        .then(function(){ setGuardando(false); setGuardado(true); setTimeout(function(){setGuardado(false);},3000); })
-        .catch(function(){ setGuardando(false); window.__modal.alert("Error al guardar", "No se pudo guardar el documento. Intenta nuevamente.", "error"); });
-    } else { setGuardando(false); setGuardado(true); setTimeout(function(){setGuardado(false);},3000); }
+    var _id = Date.now();
+    var _path = "docs_gestion/"+_id+"_"+pendiente.nombre.replace(/[^a-zA-Z0-9._-]/g,"_");
+    function _grabarFirestore(docEntry, nuevos){
+      if(window.__fbDb&&window.__fbDoc&&window.__fbSetDoc){
+        window.__fbSetDoc(window.__fbDoc(window.__fbDb,"equipos","docs_gestion"),{docs:nuevos,ts:Date.now()})
+          .then(function(){ setGuardando(false); setGuardado(true); setTimeout(function(){setGuardado(false);},3000); })
+          .catch(function(err){
+            setGuardando(false);
+            var msg = err&&err.message ? err.message : "Error desconocido";
+            window.__modal.alert("Error al guardar registro","El archivo se subió pero no se guardó el registro.\n"+msg,"error");
+          });
+      } else { setGuardando(false); setGuardado(true); setTimeout(function(){setGuardado(false);},3000); }
+    }
+    if(window.__subirDocStorage){
+      // Subir archivo a Firebase Storage → guardar solo URL en Firestore (sin límite 1MB)
+      window.__subirDocStorage(_path, pendiente.data, pendiente.ext, function(url){
+        var docEntry = {id:_id,titulo:pendiente.titulo,nombre:pendiente.nombre,ext:pendiente.ext,size:pendiente.size,url:url,ts:_id};
+        var nuevos = docsGestion.concat([docEntry]);
+        setDocsGestion(nuevos); setPendiente(null);
+        try{ localStorage.setItem("DOCS_GESTION",JSON.stringify(nuevos)); }catch(e){}
+        _grabarFirestore(docEntry, nuevos);
+      }, function(err){
+        setGuardando(false);
+        window.__modal.alert("Error al subir archivo","No se pudo subir a Firebase Storage.\n"+(err&&err.message?err.message:""),"error");
+      });
+    } else {
+      // Fallback legacy: base64 en Firestore (solo si Storage no disponible)
+      var docEntry = Object.assign({id:_id},pendiente);
+      var nuevos = docsGestion.concat([docEntry]);
+      setDocsGestion(nuevos); setPendiente(null);
+      try{ localStorage.setItem("DOCS_GESTION",JSON.stringify(nuevos)); }catch(e){}
+      _grabarFirestore(docEntry, nuevos);
+    }
   }
 
   function moverDoc(idx, dir) {
@@ -7429,9 +7500,13 @@ function InfoDocsTab({ info, acceso, infoDocsVista, setInfoDocsVista, premiosImg
                   , React.createElement('div', { style:{fontSize:15,fontWeight:800,color:"#1F2937",marginBottom:2} }, doc.titulo)
                   , React.createElement('div', { style:{fontSize:11,color:"#9CA3AF"} }, doc.nombre+" · "+doc.size+" KB")
                 )
-                , React.createElement('a', { href:doc.data, download:doc.nombre,
-                    style:{background:colores[doc.ext]||"#6B7280",color:"#fff",borderRadius:10,padding:"10px 16px",fontSize:13,fontWeight:700,textDecoration:"none",flexShrink:0}
-                  }, "⬇️ Descargar")
+                , doc.url
+                    ? React.createElement('a', { href:doc.url, target:"_blank", rel:"noopener noreferrer",
+                          style:{background:colores[doc.ext]||"#6B7280",color:"#fff",borderRadius:10,padding:"10px 16px",fontSize:13,fontWeight:700,textDecoration:"none",flexShrink:0}
+                        }, "⬇️ Descargar")
+                    : React.createElement('a', { href:doc.data, download:doc.nombre,
+                          style:{background:colores[doc.ext]||"#6B7280",color:"#fff",borderRadius:10,padding:"10px 16px",fontSize:13,fontWeight:700,textDecoration:"none",flexShrink:0}
+                        }, "⬇️ Descargar")
               );
             })
         )
