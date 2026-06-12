@@ -7231,30 +7231,19 @@ function GestDocsView({ docsGestion, setDocsGestion, R, RD }) {
   function subirArchivo(e) {
     var file = e.target.files[0]; if(!file) return;
     var fileKB = file.size/1024;
-    // Verificar tamaño individual
     if(fileKB > 900){
-      window.__modal.alert("Archivo demasiado grande","Este archivo pesa "+fileKB.toFixed(0)+" KB. El máximo por archivo es 900 KB.","warning");
+      window.__modal.alert("Archivo demasiado grande","Este archivo pesa "+fileKB.toFixed(0)+" KB. El máximo es 900 KB.","warning");
       e.target.value=""; return;
     }
-    // Verificar espacio total (base64 ocupa ~1.37x el tamaño original)
-    var usadoKB = docsGestion.reduce(function(s,d){return s+(parseFloat(d.size)||0);},0);
-    if((usadoKB + fileKB) > MAX_TOTAL_KB){
-      var libreKB = Math.max(0, MAX_TOTAL_KB - usadoKB);
-      window.__modal.alert("Espacio insuficiente",
-        "Espacio usado: "+usadoKB.toFixed(0)+" KB / "+MAX_TOTAL_KB+" KB.\n"+
-        "Libre: "+libreKB.toFixed(0)+" KB — este archivo pesa "+fileKB.toFixed(0)+" KB.\n"+
-        "Elimina documentos existentes para liberar espacio.","warning");
-      e.target.value=""; return;
-    }
+    // Leer archivo INMEDIATAMENTE (sin esperar modal) — título se edita en la tarjeta pendiente
     var _defaultTitle = file.name.replace(/\.[^.]+$/,"");
-    window.__modal.prompt("Título del documento", "Ej: Carta Renta Menor", function(titulo){
-      if(!titulo||!titulo.trim()) return;
-      var reader = new FileReader();
-      reader.onload = function(ev){
-        setPendiente({titulo:titulo.trim(),nombre:file.name,ext:file.name.split('.').pop().toLowerCase(),data:ev.target.result,size:fileKB.toFixed(1),ts:Date.now()});
-      };
-      reader.readAsDataURL(file);
-    }, _defaultTitle);
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      setPendiente({titulo:_defaultTitle, nombre:file.name, ext:file.name.split('.').pop().toLowerCase(), data:ev.target.result, size:fileKB.toFixed(1), ts:Date.now()});
+    };
+    reader.onerror = function(){ window.__modal.alert("Error","No se pudo leer el archivo.","error"); };
+    reader.readAsDataURL(file);
+    e.target.value="";
   }
 
   function guardarDoc() {
@@ -7341,18 +7330,26 @@ function GestDocsView({ docsGestion, setDocsGestion, R, RD }) {
       , React.createElement('div', { style:{fontSize:11,color:"#6B7280"} }, "PDF, Word, Excel, imágenes — Máx. ~900KB")
     )
     // Pendiente de guardar
-    , pendiente && React.createElement('div', { style:{background:"#FFF7ED",border:"1px solid #FED7AA",borderRadius:12,padding:"14px 18px",marginBottom:16,display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"} }
-      , React.createElement('div', { style:{fontSize:28} }, iconos[pendiente.ext]||"📄")
-      , React.createElement('div', { style:{flex:1} }
-        , React.createElement('div', { style:{fontWeight:800,color:"#92400E"} }, pendiente.titulo)
-        , React.createElement('div', { style:{fontSize:11,color:"#9CA3AF"} }, pendiente.nombre+" · "+pendiente.size+" KB")
+    , pendiente && React.createElement('div', { style:{background:"#FFF7ED",border:"1px solid #FED7AA",borderRadius:12,padding:"14px 18px",marginBottom:16} }
+      , React.createElement('div', { style:{display:"flex",alignItems:"center",gap:14,flexWrap:"wrap",marginBottom:10} }
+        , React.createElement('div', { style:{fontSize:28} }, iconos[pendiente.ext]||"📄")
+        , React.createElement('div', { style:{flex:1} }
+          , React.createElement('div', { style:{fontSize:11,color:"#9CA3AF"} }, pendiente.nombre+" · "+pendiente.size+" KB")
+        )
+        , React.createElement('button', { onClick:function(){setPendiente(null);},
+            style:{background:"#FEE2E2",color:"#B91C1C",border:"none",borderRadius:10,padding:"8px 12px",fontSize:13,cursor:"pointer",fontFamily:"inherit",fontWeight:700} }, "✕")
       )
-      , React.createElement('button', { onClick:guardarDoc, disabled:guardando,
-          style:{background:guardado?"#16A34A":"#1D4ED8",color:"#fff",border:"none",borderRadius:10,padding:"10px 20px",fontSize:13,fontWeight:900,cursor:"pointer",fontFamily:"inherit"} }
-        , guardando?"⏳ Guardando...":guardado?"✅ Guardado!":"💾 Publicar para todos"
+      , React.createElement('div', { style:{marginBottom:10} }
+        , React.createElement('div', { style:{fontSize:11,color:"#92400E",fontWeight:700,marginBottom:4} }, "Título del documento:")
+        , React.createElement('input', { value:pendiente.titulo,
+            onChange:function(e){ setPendiente(Object.assign({},pendiente,{titulo:e.target.value})); },
+            placeholder:"Ej: Carta Renta Menor",
+            style:{width:"100%",padding:"8px 12px",borderRadius:8,border:"1.5px solid #FCD34D",fontSize:13,fontWeight:700,fontFamily:"inherit",boxSizing:"border-box"} })
       )
-      , React.createElement('button', { onClick:function(){setPendiente(null);},
-          style:{background:"#FEE2E2",color:"#B91C1C",border:"none",borderRadius:10,padding:"10px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit",fontWeight:700} }, "✕")
+      , React.createElement('button', { onClick:guardarDoc, disabled:guardando||!pendiente.titulo.trim(),
+          style:{background:guardado?"#16A34A":"#1D4ED8",color:"#fff",border:"none",borderRadius:10,padding:"10px 20px",fontSize:13,fontWeight:900,cursor:guardando||!pendiente.titulo.trim()?"not-allowed":"pointer",fontFamily:"inherit",width:"100%"} }
+        , guardando?"⏳ Subiendo a Storage...":guardado?"✅ Publicado para todos":"💾 Publicar para todos"
+      )
     )
     // Lista de docs
     , docsGestion.length === 0
