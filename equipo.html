@@ -3850,7 +3850,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
     if (esAct2) {
       equipo.forEach(function(v){
         var h=(v.historial||{})[mk2]||{};
-        r2.totUF+=parseFloat(h.ufDig||h.uf)||parseFloat(v.uf)||0;
+        r2.totUF+=parseFloat(h.ufDig||h.uf)||0; // Solo Excel/historial
         r2.totC+=parseInt(h.dpsVenta)||0; r2.totS+=parseInt(h.dpsSinVenta)||0;
         r2.totP+=parseInt(h.dpsPendiente)||0; r2.totR+=parseInt(h.dpsRechazado)||0;
         r2.totB+=parseInt(h.nBenef)||0; r2.totCt+=parseInt(h.cttosDig)||0;
@@ -3879,7 +3879,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
   // Construir filas de datos
   var datos = equipoBase.map(function(v){
     var h=(v.historial||{})[mesKey]||{};
-    var uf = esMesActual ? (parseFloat(h.ufDig||h.uf)||parseFloat(v.uf)||0) : (parseFloat(h.ufDig||h.uf)||0);
+    var uf = parseFloat(h.ufDig||h.uf)||0; // Solo Excel/historial — nunca rep[] (v.uf)
     var dpsCV=parseInt(h.dpsVenta)||0, dpsSV=parseInt(h.dpsSinVenta)||0;
     var dpsP=parseInt(h.dpsPendiente)||0, dpsR=parseInt(h.dpsRechazado)||0;
     var dpsT=dpsCV+dpsSV+dpsP+dpsR||(esMesActual?(parseInt(v.dps)||0):0);
@@ -4149,7 +4149,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
       )
       ,React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:8}}
         ,((kpiDetalle==="pctF"||kpiDetalle==="pctM")
-          ? datos.filter(function(d){return (kpiDetalle==="pctF"?d.pctF:d.pctM)>0;}).sort(function(a,b){return (kpiDetalle==="pctF"?b.pctF-a.pctF:b.pctM-a.pctM);})
+          ? datos.filter(function(d){return !String(d.id||'').startsWith('_sm')&&(kpiDetalle==="pctF"?d.pctF:d.pctM)>0;}).sort(function(a,b){return (kpiDetalle==="pctF"?b.pctF-a.pctF:b.pctM-a.pctM);})
           : kpiDetalle==="agvCero"
             ? (agvEnCeroData || datos.filter(function(d){return (parseFloat(d.uf)||0)===0&&!String(d.id).startsWith("_sm");}))
             : datos.filter(function(d){
@@ -4192,7 +4192,7 @@ function DpsAnalisisView({ equipo, setEquipo, info, R, RD, benchmark, setBenchma
           )
         )
         ,React.createElement("tbody",null
-          ,datos.map(function(d,i){
+          ,datos.filter(function(d){return !String(d.id||'').startsWith('_sm');}).map(function(d,i){
             var tasa=d.dpsTotal>0?Math.round((d.dpsConVenta/d.dpsTotal)*100):0;
             return React.createElement("tr",{key:d.id,style:{borderTop:"1px solid #F3F4F6",background:i%2===0?"#fff":"#FAFBFF"}}
               ,React.createElement("td",{style:{padding:"10px 12px",fontWeight:700,color:RD,fontSize:12}},d.nombre)
@@ -5551,7 +5551,7 @@ function TendenciasView({ equipo, info, R, RD }) {
     var dpsP=parseInt(h.dpsPendiente)||0, dpsR=parseInt(h.dpsRechazado)||0;
     var hDs=dpsV+dpsSV+dpsP+dpsR;
     if(campo==="uf"){
-      if(esMesActual) return parseFloat(h.ufDig||h.uf)||parseFloat(v.uf)||0;
+      if(esMesActual) return parseFloat(h.ufDig||h.uf)||0; // Solo Excel/historial
       return parseFloat(h.ufDig||h.uf)||0;
     }
     if(campo==="dps") return hDs>0?hDs:(esMesActual?(parseInt(v.dps)||0):0);
@@ -6046,7 +6046,7 @@ function CorrelacionView({ equipo, info, R, RD }) {
   function getKPIs(v, mk) {
     var esCurrent = (mk===info.mesKey);
     var h=(v.historial||{})[mk]||{};
-    var uf = esCurrent ? (parseFloat(h.ufDig||h.uf)||parseFloat(v.uf)||0) : (parseFloat(h.ufDig||h.uf)||0);
+    var uf = parseFloat(h.ufDig||h.uf)||0; // Solo Excel/historial
     var cv=parseInt(h.dpsVenta)||0, sv=parseInt(h.dpsSinVenta)||0;
     var pv=parseInt(h.dpsPendiente)||0, rv=parseInt(h.dpsRechazado)||0;
     var tot=cv+sv+pv+rv;
@@ -6363,6 +6363,37 @@ function BasesAGVView({ equipo, info, R, RD }) {
     }).catch(function(e){setAsigMsg("Error: "+e.message);});
   }
 
+  // Estado para reasignación por lote
+  var [lotePanel, setLotePanel] = React.useState(false);
+  var [loteOrigen, setLoteOrigen] = React.useState("");
+  var [loteDestino, setLoteDestino] = React.useState("");
+  var [loteEstados, setLoteEstados] = React.useState({sinContactar:true,contactado:false,interesado:false,noInteresa:false,cerrado:false});
+  var [loteMsg, setLoteMsg] = React.useState("");
+  var [loteEjecutando, setLoteEjecutando] = React.useState(false);
+
+  function reasignarLote(){
+    if(!loteOrigen||!loteDestino||loteOrigen===loteDestino){ setLoteMsg("⚠️ Elige origen y destino distintos."); return; }
+    var agvDest=equipo.find(function(v){return String(v.id)===loteDestino;}); if(!agvDest) return;
+    var estadosSelec=Object.keys(loteEstados).filter(function(k){return loteEstados[k];});
+    if(estadosSelec.length===0){ setLoteMsg("⚠️ Selecciona al menos un estado."); return; }
+    var aReasignar=contactos.filter(function(c){
+      return c.agvId===loteOrigen&&c.baseId===selBase.id&&estadosSelec.indexOf(c.estado)>=0;
+    });
+    if(aReasignar.length===0){ setLoteMsg("⚠️ No hay contactos con esos estados en ese AGV."); return; }
+    setLoteEjecutando(true); setLoteMsg("Reasignando "+aReasignar.length+" contactos...");
+    var promises=aReasignar.map(function(c){
+      return window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_contactos",c.id),
+        {agvId:String(agvDest.id),agvNombre:agvDest.nombre,tsReasignado:Date.now()},{merge:true});
+    });
+    Promise.all(promises).then(function(){
+      setContactos(function(prev){return prev.map(function(c){
+        return aReasignar.find(function(r){return r.id===c.id;})?Object.assign({},c,{agvId:String(agvDest.id),agvNombre:agvDest.nombre}):c;
+      });});
+      setLoteMsg("✅ "+aReasignar.length+" contactos reasignados a "+agvDest.nombre.split(" ")[0]+".");
+      setLoteEjecutando(false);
+    }).catch(function(e){ setLoteMsg("Error: "+e.message); setLoteEjecutando(false); });
+  }
+
   function reasignar(contactoId,nuevoAgvId){
     var agv=equipo.find(function(v){return String(v.id)===String(nuevoAgvId);}); if(!agv) return;
     window.__fbSetDoc(window.__fbDoc(window.__fbDb,"hoc_contactos",contactoId),
@@ -6437,6 +6468,61 @@ function BasesAGVView({ equipo, info, R, RD }) {
     ,vista==="detalle"&&selBase&&React.createElement("div",null
       ,React.createElement("div",{style:{fontSize:15,fontWeight:900,color:"#1F2937",marginBottom:2}},selBase.titulo)
       ,React.createElement("div",{style:{fontSize:11,color:"#9CA3AF",marginBottom:16}},selBase.total+" contactos")
+
+      ,React.createElement("div",{style:{marginBottom:16}}
+        ,React.createElement("button",{onClick:function(){setLotePanel(!lotePanel);setLoteMsg("");},
+            style:{background:lotePanel?"#1D4ED8":"#F3F4F6",color:lotePanel?"#fff":"#374151",border:"none",borderRadius:8,padding:"8px 16px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}
+          ,"🔄 Reasignar por lote")
+        ,lotePanel&&React.createElement("div",{style:{marginTop:10,background:"#EFF6FF",border:"1.5px solid #BFDBFE",borderRadius:12,padding:16}}
+          ,React.createElement("div",{style:{fontWeight:800,color:"#1E3A8A",marginBottom:10,fontSize:13}},"🔄 Reasignación masiva de contactos")
+          ,React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}
+            ,React.createElement("div",null
+              ,React.createElement("div",{style:{fontSize:11,fontWeight:700,color:"#374151",marginBottom:4}},"AGV origen (quita contactos a)")
+              ,React.createElement("select",{value:loteOrigen,onChange:function(e){setLoteOrigen(e.target.value);setLoteMsg("");},
+                  style:{width:"100%",padding:"6px 10px",borderRadius:8,border:"1px solid #93C5FD",fontSize:12,fontFamily:"inherit"}}
+                ,React.createElement("option",{value:""},"-- Selecciona AGV --")
+                ,equipo.filter(function(v){return v.activo!==false;}).map(function(v){
+                  var cnt=contactos.filter(function(c){return c.agvId===String(v.id)&&c.baseId===selBase.id;}).length;
+                  return React.createElement("option",{key:v.id,value:String(v.id)},v.nombre.split(" ").slice(0,2).join(" ")+" ("+cnt+")");
+                })
+              )
+            )
+            ,React.createElement("div",null
+              ,React.createElement("div",{style:{fontSize:11,fontWeight:700,color:"#374151",marginBottom:4}},"AGV destino (recibe contactos)")
+              ,React.createElement("select",{value:loteDestino,onChange:function(e){setLoteDestino(e.target.value);setLoteMsg("");},
+                  style:{width:"100%",padding:"6px 10px",borderRadius:8,border:"1px solid #93C5FD",fontSize:12,fontFamily:"inherit"}}
+                ,React.createElement("option",{value:""},"-- Selecciona AGV --")
+                ,equipo.filter(function(v){return v.activo!==false&&String(v.id)!==loteOrigen;}).map(function(v){
+                  return React.createElement("option",{key:v.id,value:String(v.id)},v.nombre.split(" ").slice(0,2).join(" "));
+                })
+              )
+            )
+          )
+          ,React.createElement("div",{style:{marginBottom:12}}
+            ,React.createElement("div",{style:{fontSize:11,fontWeight:700,color:"#374151",marginBottom:6}},"¿Qué estados reasignar?")
+            ,React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:8}}
+              ,[{k:"sinContactar",l:"Sin contactar",e:"⬜"},{k:"contactado",l:"Contactado",e:"📞"},{k:"interesado",l:"Interesado",e:"⭐"},{k:"noInteresa",l:"No interesa",e:"❌"},{k:"cerrado",l:"Cerrado",e:"✅"}].map(function(est){
+                var sel=loteEstados[est.k];
+                var cnt=loteOrigen?contactos.filter(function(c){return c.agvId===loteOrigen&&c.baseId===selBase.id&&c.estado===est.k;}).length:0;
+                return React.createElement("label",{key:est.k,style:{display:"flex",alignItems:"center",gap:5,padding:"5px 10px",borderRadius:8,border:"1.5px solid "+(sel?"#3B82F6":"#D1D5DB"),background:sel?"#DBEAFE":"#fff",cursor:"pointer",fontSize:12,fontWeight:sel?700:400}}
+                  ,React.createElement("input",{type:"checkbox",checked:sel,onChange:function(e){setLoteEstados(Object.assign({},loteEstados,{[est.k]:e.target.checked}));setLoteMsg("");},style:{margin:0}})
+                  ,est.e+" "+est.l+(loteOrigen?" ("+cnt+")":"")
+                );
+              })
+            )
+          )
+          ,(function(){
+            var estadosSelec=Object.keys(loteEstados).filter(function(k){return loteEstados[k];});
+            var preview=loteOrigen?contactos.filter(function(c){return c.agvId===loteOrigen&&c.baseId===selBase.id&&estadosSelec.indexOf(c.estado)>=0;}).length:0;
+            return React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}
+              ,React.createElement("button",{onClick:reasignarLote,disabled:loteEjecutando||preview===0||!loteDestino,
+                  style:{background:loteEjecutando||preview===0||!loteDestino?"#9CA3AF":"#DC2626",color:"#fff",border:"none",borderRadius:8,padding:"8px 18px",fontSize:13,fontWeight:900,cursor:loteEjecutando||preview===0||!loteDestino?"not-allowed":"pointer",fontFamily:"inherit"}}
+                ,loteEjecutando?"⏳ Reasignando...":"🔄 Reasignar "+preview+" contactos")
+              ,loteMsg&&React.createElement("span",{style:{fontSize:12,color:loteMsg.startsWith("✅")?"#16A34A":loteMsg.startsWith("⚠️")?"#D97706":"#DC2626",fontWeight:700}},loteMsg)
+            );
+          })()
+        )
+      )
 
       ,React.createElement("div",{style:{marginBottom:20}}
         ,React.createElement("div",{style:{fontSize:12,fontWeight:700,color:"#374151",marginBottom:8}},"👥 Estado por AGV:")
