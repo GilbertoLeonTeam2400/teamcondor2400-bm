@@ -7003,16 +7003,20 @@ function ProspectosAGVView({ vidStr, info, R, RD }) {
                     )
                   )
 
-                // Fecha próxima contactabilidad — OBLIGATORIA salvo Cerrado/No Interesa
+                // Fecha próxima contactabilidad — bloqueada en sinContactar
                 ,React.createElement("div",null
                   ,React.createElement("div",{style:{fontSize:11,fontWeight:700,
                       color:errFecha?"#DC2626":"#374151",marginBottom:4}}
-                    ,"📅 Fecha próxima contactabilidad"+(reqFecha?" *":"")+":")
-                  ,React.createElement("input",{type:"date",value:editFecha,
-                      onChange:function(e){setEditFecha(e.target.value);setErrFecha(false);},
-                      style:{width:"100%",padding:"7px 10px",borderRadius:8,fontSize:12,fontFamily:"inherit",
-                        border:"1.5px solid "+(errFecha?"#DC2626":"#D1D5DB"),boxSizing:"border-box"}})
-                  ,errFecha&&React.createElement("div",{style:{fontSize:11,color:"#DC2626",marginTop:3,fontWeight:700}},
+                    ,"📅 Fecha próxima contactabilidad"+(reqFecha&&editEstado!=="sinContactar"?" *":"")+":"
+                  )
+                  ,editEstado==="sinContactar"
+                    ? React.createElement("div",{style:{background:"#FFF7ED",border:"1.5px solid #FED7AA",borderRadius:8,padding:"8px 12px",fontSize:11,color:"#92400E",fontWeight:600}}
+                        ,"⚠️ Primero debes registrar un contacto — cambia el estado a 📞 Contactado (u otro) para poder agregar una fecha.")
+                    : React.createElement("input",{type:"date",value:editFecha,
+                        onChange:function(e){setEditFecha(e.target.value);setErrFecha(false);},
+                        style:{width:"100%",padding:"7px 10px",borderRadius:8,fontSize:12,fontFamily:"inherit",
+                          border:"1.5px solid "+(errFecha?"#DC2626":"#D1D5DB"),boxSizing:"border-box"}})
+                  ,errFecha&&editEstado!=="sinContactar"&&React.createElement("div",{style:{fontSize:11,color:"#DC2626",marginTop:3,fontWeight:700}},
                     "⚠️ La fecha de próxima contactabilidad es obligatoria.")
                 )
 
